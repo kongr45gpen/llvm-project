@@ -778,6 +778,54 @@ void ASTStmtWriter::VisitOffsetOfExpr(OffsetOfExpr *E) {
   Code = serialization::EXPR_OFFSETOF;
 }
 
+void ASTStmtWriter::VisitReflexprIdExpr(ReflexprIdExpr *E) {
+  VisitExpr(E);
+  Record.push_back(E->getKind());
+  Record.push_back(E->getSeqKind());
+  Record.push_back(E->getArgKind());
+  switch(E->getArgKind()) {
+    case ReflexprIdExpr::REAK_Nothing:
+      break;
+    case ReflexprIdExpr::REAK_Specifier:
+      Record.push_back(E->getArgumentSpecifierKind());
+      break;
+    case ReflexprIdExpr::REAK_NamedDecl:
+      Record.AddDeclRef(E->getArgumentNamedDecl());
+      break;
+    case ReflexprIdExpr::REAK_TypeInfo:
+      Record.AddTypeSourceInfo(
+        const_cast<TypeSourceInfo*>(E->getArgumentTypeInfo()));
+      break;
+    case ReflexprIdExpr::REAK_BaseSpecifier:
+      Record.AddCXXBaseSpecifier(*E->getArgumentBaseSpecifier());
+      break;
+  }
+  Record.push_back(E->getRemoveSugar());
+  Record.push_back(E->getHideProtected());
+  Record.push_back(E->getHidePrivate());
+
+  Record.AddSourceLocation(E->getOperatorLoc());
+  Record.AddSourceLocation(E->getRParenLoc());
+  Code = serialization::EXPR_REFLEXPR_ID_ID;
+}
+
+void ASTStmtWriter::VisitMetaobjectIdExpr(MetaobjectIdExpr *E) {
+  VisitExpr(E);
+  Record.AddAPInt(E->getValue());
+  Record.AddSourceLocation(E->getLocation());
+  Code = serialization::EXPR_METAOBJECT_ID_ID;
+}
+
+void ASTStmtWriter::VisitUnaryMetaobjectOpExpr(UnaryMetaobjectOpExpr *E) {
+  VisitExpr(E);
+  Record.push_back(E->getKind());
+  Record.push_back(E->getResultKind());
+  Record.AddStmt(E->getArgumentExpr());
+  Record.AddSourceLocation(E->getOperatorLoc());
+  Record.AddSourceLocation(E->getRParenLoc());
+  Code = serialization::EXPR_UNARY_METAOBJECT_OP_ID;
+}
+
 void ASTStmtWriter::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
   VisitExpr(E);
   Record.push_back(E->getKind());

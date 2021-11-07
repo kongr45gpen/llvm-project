@@ -230,6 +230,24 @@ bool Parser::ParseOptionalCXXScopeSpecifier(
     HasScopeSpecifier = true;
   }
 
+  if (!HasScopeSpecifier &&
+      Tok.isOneOf(tok::kw___unrefltype, tok::annot___unrefltype)) {
+    DeclSpec DS(AttrFactory);
+    SourceLocation DeclLoc = Tok.getLocation();
+    SourceLocation EndLoc = ParseUnrefltypeSpecifier(DS);
+
+    SourceLocation CCLoc;
+    if (!TryConsumeToken(tok::coloncolon, CCLoc)) {
+      AnnotateExistingUnrefltypeSpecifier(DS, DeclLoc, EndLoc);
+      return false;
+    }
+
+    if (Actions.ActOnCXXNestedNameSpecifierUnrefltype(SS, DS, CCLoc))
+      SS.SetInvalid(SourceRange(DeclLoc, CCLoc));
+
+    HasScopeSpecifier = true;
+  }
+
   // Preferred type might change when parsing qualifiers, we need the original.
   auto SavedType = PreferredType;
   while (true) {
@@ -2256,6 +2274,9 @@ void Parser::ParseCXXSimpleTypeSpecifier(DeclSpec &DS) {
   case tok::kw___ibm128:
     DS.SetTypeSpecType(DeclSpec::TST_ibm128, Loc, PrevSpec, DiagID, Policy);
     break;
+  case tok::kw___metaobject_id:
+    DS.SetTypeSpecType(DeclSpec::TST_metaobjectId, Loc, PrevSpec, DiagID, Policy);
+    break;
   case tok::kw_wchar_t:
     DS.SetTypeSpecType(DeclSpec::TST_wchar, Loc, PrevSpec, DiagID, Policy);
     break;
@@ -2277,6 +2298,16 @@ void Parser::ParseCXXSimpleTypeSpecifier(DeclSpec &DS) {
                        Policy);                                                \
     break;
 #include "clang/Basic/OpenCLImageTypes.def"
+
+
+  case tok::annot___unrefltype:
+  case tok::kw___unrefltype:
+    if (!getLangOpts().ReflectionTS) {
+      Diag(Tok, diag::err_using_unrefltype_without_reflection);
+      return;
+    }
+    DS.SetRangeEnd(ParseUnrefltypeSpecifier(DS));
+    return DS.Finish(Actions, Policy);
 
   case tok::annot_decltype:
   case tok::kw_decltype:
@@ -2968,6 +2999,17 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, ParsedType ObjectType,
     if (SS.isEmpty() && Tok.is(tok::kw_decltype)) {
       DeclSpec DS(AttrFactory);
       SourceLocation EndLoc = ParseDecltypeSpecifier(DS);
+      if (ParsedType Type =
+              Actions.getDestructorTypeForDecltype(DS, ObjectType)) {
+        Result.setDestructorName(TildeLoc, Type, EndLoc);
+        return false;
+      }
+      return true;
+    }
+
+    if (SS.isEmpty() && Tok.is(tok::kw___unrefltype)) {
+      DeclSpec DS(AttrFactory);
+      SourceLocation EndLoc = ParseUnrefltypeSpecifier(DS);
       if (ParsedType Type =
               Actions.getDestructorTypeForDecltype(DS, ObjectType)) {
         Result.setDestructorName(TildeLoc, Type, EndLoc);
@@ -3714,6 +3756,207 @@ static unsigned TypeTraitArity(tok::TokenKind kind) {
 #define TYPE_TRAIT(N,Spelling,K) case tok::kw_##Spelling: return N;
 #include "clang/Basic/TokenKinds.def"
   }
+}
+
+/// \brief Parse a reflexpr or __reflexpr_id expression.
+///
+ExprResult Parser::ParseReflexprExpression(bool idOnly) {
+  assert(Tok.isOneOf(tok::kw___reflexpr_id, tok::kw_reflexpr) &&
+         "Not a reflexpr expression");
+  Token OpTok = Tok;
+  ConsumeToken(); // eat reflexpr
+
+  BalancedDelimiterTracker Parens(*this, tok::l_paren);
+  if (Parens.expectAndConsume(diag::err_expected_lparen_after, "__reflexpr_id"))
+    return ExprError();
+
+  if (Tok.is(tok::r_paren)) {
+    // ()
+    Parens.consumeClose();
+    return Actions.ActOnReflexprGlobalScopeExpr(idOnly, OpTok.getLocation(),
+                                                Parens.getRange());
+  } else {
+    // (::)
+    if (Tok.is(tok::coloncolon)) {
+      TentativeParsingAction tpa(*this);
+      ConsumeToken(); // ::
+      if (Tok.is(tok::r_paren)) {
+        Parens.consumeClose();
+        ExprResult Result = Actions.ActOnReflexprGlobalScopeExpr(
+            idOnly, OpTok.getLocation(), Parens.getRange());
+        if (!Result.isInvalid()) {
+          tpa.Commit();
+          return Result;
+        }
+      }
+      tpa.Revert();
+    }
+    // (specifier)
+    // [reflection-ts] FIXME this is only an extension
+    if (Tok.isOneOf(tok::kw_private, tok::kw_protected, tok::kw_public,
+                    tok::kw_class, tok::kw_enum, tok::kw_struct, tok::kw_union,
+                    tok::kw_static)) {
+      TentativeParsingAction tpa(*this);
+      tok::TokenKind SpecTok = Tok.getKind();
+      ConsumeToken(); // specifier
+      if (Tok.is(tok::r_paren)) {
+        Parens.consumeClose();
+        ExprResult Res = Actions.ActOnReflexprSpecExpr(
+            idOnly, SpecTok, OpTok.getLocation(), Parens.getRange());
+        if (!Res.isInvalid()) {
+          tpa.Commit();
+          return Res;
+        }
+      }
+      tpa.Revert();
+    }
+    /* (named-declaration) */ {
+      TentativeParsingAction tpa(*this);
+
+      CXXScopeSpec SS;
+      if (!ParseOptionalCXXScopeSpecifier(SS, nullptr, false, false)) {
+        if (!SS.isInvalid() && Tok.is(tok::identifier)) {
+          IdentifierInfo *Ident = Tok.getIdentifierInfo();
+
+          ConsumeToken(); // identifier
+
+          if (Tok.is(tok::r_paren)) {
+            Parens.consumeClose();
+
+            if (Ident != nullptr) {
+              ExprResult Res = Actions.ActOnReflexprScopedExpr(
+                  idOnly, getCurScope(), SS, *Ident, OpTok.getLocation(),
+                  Parens.getRange());
+              if (!Res.isInvalid()) {
+                tpa.Commit();
+                return Res;
+              }
+            }
+          }
+        }
+      }
+      tpa.Revert();
+    }
+    if (isCXXTypeId(TypeIdInParens)) {
+      EnterExpressionEvaluationContext Unevaluated(
+          Actions, Sema::ExpressionEvaluationContext::Unevaluated,
+          Sema::ReuseLambdaContextDecl);
+
+      TentativeParsingAction tpa(*this);
+      DeclSpec DS(AttrFactory);
+      ParseSpecifierQualifierList(DS);
+      // [reflection-ts] FIXME other DC if idOnly?
+      Declarator DeclaratorInfo(DS, DeclaratorContext::TypeName);
+      ParseDeclarator(DeclaratorInfo);
+
+      if (Tok.is(tok::r_paren)) {
+        Parens.consumeClose();
+
+        if (!DeclaratorInfo.isInvalidType()) {
+          ExprResult Res = Actions.ActOnReflexprTypeExpr(
+              idOnly, getCurScope(), DeclaratorInfo, OpTok.getLocation(),
+              Parens.getRange());
+          if (!Res.isInvalid()) {
+            tpa.Commit();
+            return Res;
+          }
+        }
+      }
+      tpa.Revert();
+    }
+    // [reflection-ts] FIXME
+  }
+  Diag(Tok.getLocation(), diag::err_invalid_argument_for_reflexpr)
+      << Tok.getName();
+
+  return ExprError();
+}
+
+// Reflection and Metaobject operations
+static UnaryMetaobjectOp UnaryMetaobjectOpFromTokKind(tok::TokenKind kind) {
+  switch (kind) {
+  default:
+    llvm_unreachable("Not a known metaobject operation");
+#define METAOBJECT_OP_1(Spelling, Result, Name, Key)                           \
+  case tok::kw___metaobject_##Spelling: \
+    return UMOO_##Name;
+#include "clang/Basic/TokenKinds.def"
+#define METAOBJECT_OP_2(Spelling, Result, Name, Key) \
+  case tok::kw___metaobject_##Spelling:
+#include "clang/Basic/TokenKinds.def"
+    llvm_unreachable("Not an unary metaobject operation!");
+  }
+}
+
+static MetaobjectOpResult MetaobjectOpResultFromTokKind(tok::TokenKind kind) {
+  switch (kind) {
+  default:
+    llvm_unreachable("Not a known metaobject operation");
+#define METAOBJECT_OP_1(Spelling, Result, Name, Key) \
+  case tok::kw___metaobject_##Spelling: \
+    return MOOR_##Result;
+#define METAOBJECT_OP_2(Spelling, Result, Name, Key) \
+  case tok::kw___metaobject_##Spelling: \
+    return MOOR_##Result;
+#include "clang/Basic/TokenKinds.def"
+  }
+}
+
+static unsigned MetaobjectOpArity(tok::TokenKind kind) {
+  switch (kind) {
+  default:
+    llvm_unreachable("Not a known metaobject operation");
+#define METAOBJECT_OP(Arity, Spelling, Result, Name, Key) \
+  case tok::kw___metaobject_##Spelling: \
+    return Arity;
+#include "clang/Basic/TokenKinds.def"
+  }
+}
+
+//
+/// \brief Parse the built-in reflection pseudo-functions that allow
+/// implementation of the metaobject operation functionality
+///
+ExprResult Parser::ParseMetaobjectOpExpression() {
+
+  Token OpTok = Tok;
+  SourceLocation OpLoc = ConsumeToken(); // eat __metaobj_*
+  unsigned Arity = MetaobjectOpArity(OpTok.getKind());
+
+  if (Arity == 1) {
+    return ParseUnaryMetaobjectOpExpression(OpTok, OpLoc);
+  }
+  llvm_unreachable("not implemented yet");
+  // [reflection-ts] FIXME
+  //return ParseNaryMetaobjectOpExpression(OpTok, OpLoc, Arity);
+}
+
+ExprResult
+Parser::ParseUnaryMetaobjectOpExpression(Token OpTok,
+                                                SourceLocation OpLoc) {
+  BalancedDelimiterTracker Parens(*this, tok::l_paren);
+  if (Parens.expectAndConsume(diag::err_expected_lparen_after, OpTok.getName()))
+    return ExprError();
+
+  UnaryMetaobjectOp Operation = UnaryMetaobjectOpFromTokKind(OpTok.getKind());
+  MetaobjectOpResult OpResult = MetaobjectOpResultFromTokKind(OpTok.getKind());
+
+  ExprResult ArgExpr;
+  bool NotCastExpr = false;
+  ArgExpr = ParseCastExpression(AnyCastExpr,
+                                false,
+                                NotCastExpr,
+                                NotTypeCast);
+
+  if (ArgExpr.isInvalid())
+    return ExprError();
+
+  if (Tok.is(tok::r_paren)) {
+    Parens.consumeClose();
+    return Actions.ActOnUnaryMetaobjectOpExpr(Operation, OpResult, ArgExpr,
+                                              OpLoc, Parens.getCloseLocation());
+  }
+  return ExprError();
 }
 
 /// Parse the built-in type-trait pseudo-functions that allow

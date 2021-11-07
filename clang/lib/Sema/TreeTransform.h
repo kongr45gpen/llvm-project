@@ -976,6 +976,13 @@ public:
   /// Subclasses may override this routine to provide different behavior.
   QualType RebuildDecltypeType(Expr *Underlying, SourceLocation Loc);
 
+  /// Build a new ReflectionTS unrefltype type.
+  ///
+  /// By default, performs semantic analysis when building the unrefltype type.
+  /// Subclasses may override this routine to provide different behavior.
+  QualType RebuildUnrefltypeType(Expr *Underlying, SourceLocation Loc);
+
+
   /// Build a new C++11 auto type.
   ///
   /// By default, builds a new AutoType with the given deduced type.
@@ -2522,6 +2529,26 @@ public:
                                           RParenLoc);
   }
 
+  /// Build a new reflexpr expression with a type argument.
+  ///
+  /// By default, performs semantic analysis to build the new expression.
+  /// Subclasses may override this routine to provide different behavior.
+  ExprResult RebuildReflexprId(TypeSourceInfo *TInfo,
+                               bool removeSugar,
+                               SourceLocation OpLoc,
+                               SourceLocation RParenLoc) {
+    return getSema().GetReflexprTypeExpr(TInfo, removeSugar, OpLoc, RParenLoc);
+  }
+
+  ExprResult RebuildUnaryMetaobjectOp(UnaryMetaobjectOp Oper,
+                                      MetaobjectOpResult OpRes,
+                                      ExprResult argExpr,
+                                      SourceLocation opLoc,
+                                      SourceLocation rpLoc) {
+    return getSema().CreateUnaryMetaobjectOpExpr(Oper, OpRes, argExpr,
+                                                 opLoc, rpLoc);
+  }
+
   /// Build a new sizeof, alignof or vec_step expression with a
   /// type argument.
   ///
@@ -3688,6 +3715,7 @@ public:
 
     case TemplateArgument::Null:
     case TemplateArgument::Integral:
+    case TemplateArgument::MetaobjectId:
     case TemplateArgument::Declaration:
     case TemplateArgument::Pack:
     case TemplateArgument::TemplateExpansion:
@@ -4358,6 +4386,7 @@ bool TreeTransform<Derived>::TransformTemplateArgument(
     llvm_unreachable("Unexpected TemplateArgument");
 
   case TemplateArgument::Integral:
+  case TemplateArgument::MetaobjectId:
   case TemplateArgument::NullPtr:
   case TemplateArgument::Declaration: {
     // Transform a resolved template argument straight to a resolved template
@@ -4382,6 +4411,10 @@ bool TreeTransform<Derived>::TransformTemplateArgument(
     else if (Arg.getKind() == TemplateArgument::Integral)
       Output = TemplateArgumentLoc(
           TemplateArgument(getSema().Context, Arg.getAsIntegral(), NewT),
+          TemplateArgumentLocInfo());
+    else if (Arg.getKind() == TemplateArgument::MetaobjectId)
+      Output = TemplateArgumentLoc(
+          TemplateArgument(getSema().Context, Arg.getAsMetaobjectId(), NewT),
           TemplateArgumentLocInfo());
     else if (Arg.getKind() == TemplateArgument::NullPtr)
       Output = TemplateArgumentLoc(TemplateArgument(NewT, /*IsNullPtr=*/true),
@@ -6204,6 +6237,37 @@ QualType TreeTransform<Derived>::TransformDecltypeType(TypeLocBuilder &TLB,
   else E.get();
 
   DecltypeTypeLoc NewTL = TLB.push<DecltypeTypeLoc>(Result);
+  NewTL.setNameLoc(TL.getNameLoc());
+
+  return Result;
+}
+
+template<typename Derived>
+QualType TreeTransform<Derived>::TransformUnrefltypeType(TypeLocBuilder &TLB,
+                                                         UnrefltypeTypeLoc TL) {
+  const UnrefltypeType *T = TL.getTypePtr();
+
+  EnterExpressionEvaluationContext Unevaluated(
+    SemaRef, Sema::ExpressionEvaluationContext::ConstantEvaluated);
+
+  ExprResult E = getDerived().TransformExpr(T->getUnderlyingExpr());
+  if (E.isInvalid())
+    return QualType();
+
+  E = getSema().ActOnUnrefltypeExpression(E.get(), TL.getNameLoc());
+  if (E.isInvalid())
+    return QualType();
+
+  QualType Result = TL.getType();
+  if (getDerived().AlwaysRebuild() ||
+      E.get() != T->getUnderlyingExpr()) {
+    Result = getDerived().RebuildUnrefltypeType(E.get(), TL.getNameLoc());
+    if (Result.isNull())
+      return QualType();
+  }
+  else E.get();
+
+  UnrefltypeTypeLoc NewTL = TLB.push<UnrefltypeTypeLoc>(Result);
   NewTL.setNameLoc(TL.getNameLoc());
 
   return Result;
@@ -10624,6 +10688,54 @@ TreeTransform<Derived>::TransformPseudoObjectExpr(PseudoObjectExpr *E) {
   return result;
 }
 
+// [reflection-ts]
+template<typename Derived>
+ExprResult
+TreeTransform<Derived>::TransformReflexprIdExpr(ReflexprIdExpr *E) {
+  if (E->isArgumentType()) {
+    TypeSourceInfo *OldT =
+      const_cast<TypeSourceInfo*>(E->getArgumentTypeInfo());
+
+    TypeSourceInfo *NewT = getDerived().TransformType(OldT);
+    if (!NewT)
+      return ExprError();
+
+    if (!getDerived().AlwaysRebuild() && OldT == NewT)
+      return E;
+
+    return getDerived().RebuildReflexprId(NewT, false,
+                                          E->getOperatorLoc(),
+                                          E->getRParenLoc());
+  }
+
+  assert(!E->isTypeDependent());
+  // [reflection-ts] FIXME
+  return E;
+}
+
+template<typename Derived>
+ExprResult
+TreeTransform<Derived>::TransformMetaobjectIdExpr(MetaobjectIdExpr *E) {
+  return E;
+}
+
+template<typename Derived>
+ExprResult
+TreeTransform<Derived>::TransformUnaryMetaobjectOpExpr(UnaryMetaobjectOpExpr *E) {
+  Expr* ArgExpr = E->getArgumentExpr();
+  ExprResult NewExpr = getDerived().TransformExpr(ArgExpr);
+  bool doRebuild = getDerived().AlwaysRebuild() || (ArgExpr != NewExpr.get());
+
+  if(!doRebuild)
+    return E;
+
+  return getDerived().RebuildUnaryMetaobjectOp(E->getKind(),
+                                               E->getResultKind(),
+                                               NewExpr,
+                                               E->getOperatorLoc(),
+                                               E->getRParenLoc());
+}
+
 template<typename Derived>
 ExprResult
 TreeTransform<Derived>::TransformUnaryExprOrTypeTraitExpr(
@@ -14525,6 +14637,12 @@ QualType TreeTransform<Derived>::RebuildTypeOfType(QualType Underlying) {
 template <typename Derived>
 QualType TreeTransform<Derived>::RebuildDecltypeType(Expr *E, SourceLocation) {
   return SemaRef.BuildDecltypeType(E);
+}
+
+template<typename Derived>
+QualType TreeTransform<Derived>::RebuildUnrefltypeType(Expr *E,
+                                                       SourceLocation Loc) {
+  return SemaRef.BuildUnrefltypeType(E, Loc);
 }
 
 template<typename Derived>

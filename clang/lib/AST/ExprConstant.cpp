@@ -2466,6 +2466,7 @@ static bool HandleConversionToBool(const APValue &Val, bool &Result) {
   switch (Val.getKind()) {
   case APValue::None:
   case APValue::Indeterminate:
+  case APValue::MetaobjectId:
     return false;
   case APValue::Int:
     Result = Val.getInt().getBoolValue();
@@ -6842,6 +6843,8 @@ class APValueToBufferConverter {
           << Ty;
       return false;
     }
+    case APValue::MetaobjectId:
+      return visitMetaobjectId(Val.getMetaobjectId(), Ty, Offset);
 
     case APValue::LValue:
       llvm_unreachable("LValue subobject in bit_cast?");
@@ -6930,6 +6933,16 @@ class APValueToBufferConverter {
     Buffer.writeObject(Offset, Bytes);
     return true;
   }
+
+  bool visitMetaobjectId(const APInt &Val, QualType Ty, CharUnits Offset) {
+    unsigned Width = Val.getBitWidth();
+
+    SmallVector<unsigned char, 8> Bytes(Width / 8);
+    llvm::StoreIntToMemory(Val, &*Bytes.begin(), Width / 8);
+    Buffer.writeObject(Offset, Bytes);
+    return true;
+  }
+
 
   bool visitFloat(const APFloat &Val, QualType Ty, CharUnits Offset) {
     APSInt AsInt(Val.bitcastToAPInt());
@@ -7729,6 +7742,9 @@ public:
     return DerivedZeroInitialization(E);
   }
   bool VisitCXXNullPtrLiteralExpr(const CXXNullPtrLiteralExpr *E) {
+    return DerivedZeroInitialization(E);
+  }
+  bool VisitMetaobjectIdExpr(const MetaobjectIdExpr *E) {
     return DerivedZeroInitialization(E);
   }
 
@@ -10660,13 +10676,18 @@ public:
   }
 
   bool Success(const llvm::APInt &I, const Expr *E, APValue &Result) {
-    assert(E->getType()->isIntegralOrEnumerationType() &&
+    assert((E->getType()->isIntegralOrEnumerationType() ||
+            E->getType()->isMetaobjectIdType()) &&
            "Invalid evaluation result.");
-    assert(I.getBitWidth() == Info.Ctx.getIntWidth(E->getType()) &&
-           "Invalid evaluation result.");
-    Result = APValue(APSInt(I));
-    Result.getInt().setIsUnsigned(
+    if(E->getType()->isIntegralOrEnumerationType()) {
+      assert(I.getBitWidth() == Info.Ctx.getIntWidth(E->getType()) &&
+             "Invalid evaluation result.");
+      Result = APValue(APSInt(I));
+      Result.getInt().setIsUnsigned(
                             E->getType()->isUnsignedIntegerOrEnumerationType());
+    } else {
+      Result = APValue(I);
+    }
     return true;
   }
   bool Success(const llvm::APInt &I, const Expr *E) {
@@ -10692,7 +10713,9 @@ public:
       Result = V;
       return true;
     }
-    return Success(V.getInt(), E);
+    return V.isMetaobjectId()
+      ? Success(V.getMetaobjectId(), E)
+      : Success(V.getInt(), E);
   }
 
   bool ZeroInitialization(const Expr *E) { return Success(0, E); }
@@ -10732,6 +10755,14 @@ public:
 
   bool VisitCastExpr(const CastExpr* E);
   bool VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr *E);
+
+  bool VisitReflexprIdExpr(const ReflexprIdExpr *E) {
+    return Success(E->getIdValue(Info.Ctx), E);
+  }
+  bool VisitMetaobjectIdExpr(const MetaobjectIdExpr *E) {
+    return Success(E->getValue(), E);
+  }
+  bool VisitUnaryMetaobjectOpExpr(const UnaryMetaobjectOpExpr *E);
 
   bool VisitCXXBoolLiteralExpr(const CXXBoolLiteralExpr *E) {
     return Success(E->getValue(), E);
@@ -11010,6 +11041,7 @@ EvaluateBuiltinClassifyType(QualType T, const LangOptions &LangOpts) {
     case BuiltinType::SatULongFract:
       return GCCTypeClass::None;
 
+    case BuiltinType::MetaobjectId:
     case BuiltinType::NullPtr:
 
     case BuiltinType::ObjCId:
@@ -11159,6 +11191,7 @@ static bool EvaluateBuiltinConstantP(EvalInfo &Info, const Expr *Arg) {
   // understood.
   if (ArgType->isIntegralOrEnumerationType() || ArgType->isFloatingType() ||
       ArgType->isAnyComplexType() || ArgType->isPointerType() ||
+      ArgType->isMetaobjectIdType() ||
       ArgType->isNullPtrType()) {
     APValue V;
     if (!::EvaluateAsRValue(Info, Arg, V) || Info.EvalStatus.HasSideEffects) {
@@ -12978,6 +13011,24 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
   return ExprEvaluatorBaseTy::VisitBinaryOperator(E);
 }
 
+/// VisitUnaryMetaobjectOpExpr - Evaluate a __metaobject_{operation}
+bool IntExprEvaluator::VisitUnaryMetaobjectOpExpr(
+    const UnaryMetaobjectOpExpr *E) {
+
+  if (E->hasIntResult()) {
+    llvm::APSInt result;
+    if (E->getIntResult(Info.Ctx, &Info, result)) {
+      return Success(result, E);
+    }
+  } else if (E->hasObjResult()) {
+    llvm::APInt result;
+    if (E->getObjResult(Info.Ctx, &Info, result)) {
+      return Success(result, E);
+    }
+  }
+  return false;
+}
+
 /// VisitUnaryExprOrTypeTraitExpr - Evaluate a sizeof, alignof or vec_step with
 /// a result as the expression's type.
 bool IntExprEvaluator::VisitUnaryExprOrTypeTraitExpr(
@@ -14509,6 +14560,9 @@ static bool Evaluate(APValue &Result, EvalInfo &Info, const Expr *E) {
   } else if (T->isIntegralOrEnumerationType()) {
     if (!IntExprEvaluator(Info, Result).Visit(E))
       return false;
+  } else if (T->isMetaobjectIdType()) {
+    if (!IntExprEvaluator(Info, Result).Visit(E))
+      return false;
   } else if (T->hasPointerRepresentation()) {
     LValue LV;
     if (!EvaluatePointer(E, LV, Info))
@@ -15071,7 +15125,8 @@ static ICEDiag CheckEvalInICE(const Expr* E, const ASTContext &Ctx) {
 
 static ICEDiag CheckICE(const Expr* E, const ASTContext &Ctx) {
   assert(!E->isValueDependent() && "Should not see value dependent exprs!");
-  if (!E->getType()->isIntegralOrEnumerationType())
+  if (!E->getType()->isIntegralOrEnumerationType() ||
+      !E->getType()->isMetaobjectIdType())
     return ICEDiag(IK_NotICE, E->getBeginLoc());
 
   switch (E->getStmtClass()) {
@@ -15270,6 +15325,16 @@ static ICEDiag CheckICE(const Expr* E, const ASTContext &Ctx) {
     // compliance: we should warn earlier for offsetof expressions with
     // array subscripts that aren't ICEs, and if the array subscripts
     // are ICEs, the value of the offsetof must be an integer constant.
+    return CheckEvalInICE(E, Ctx);
+  }
+  case Expr::ReflexprIdExprClass: {
+    return CheckEvalInICE(E, Ctx);
+  }
+  case Expr::MetaobjectIdExprClass: {
+    return CheckEvalInICE(E, Ctx);
+  }
+  case Expr::UnaryMetaobjectOpExprClass: {
+    // [reflection-ts] FIXME
     return CheckEvalInICE(E, Ctx);
   }
   case Expr::UnaryExprOrTypeTraitExprClass: {
@@ -15485,6 +15550,41 @@ static bool EvaluateCPlusPlus11IntegralConstantExpr(const ASTContext &Ctx,
 
   if (Value) *Value = Result.getInt();
   return true;
+}
+
+Optional<llvm::APInt> Expr::getMetaobjectIdExpr(void *InfoPtr,
+                                                const ASTContext &Ctx,
+                                                SourceLocation *Loc,
+                                                bool isEvaluated) const {
+  assert(Ctx.getLangOpts().ReflectionTS);
+
+  if (!getType()->isMetaobjectIdType()) {
+    if (Loc) {
+      *Loc = getExprLoc();
+    }
+    return None;
+  }
+
+  APValue Result;
+  if (InfoPtr) {
+    FoldConstant FldConst(*static_cast<EvalInfo *>(InfoPtr), true);
+    if (!::EvaluateAsRValue(FldConst.Info, this, Result)) {
+      return None;
+    }
+  } else {
+    if (!isCXX11ConstantExpr(Ctx, &Result, Loc)) {
+      return None;
+    }
+  }
+
+  if (!Result.isMetaobjectId()) {
+    if (Loc) {
+      *Loc = getExprLoc();
+    }
+    return None;
+  }
+
+  return Result.getMetaobjectId();
 }
 
 bool Expr::isIntegerConstantExpr(const ASTContext &Ctx,

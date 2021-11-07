@@ -410,6 +410,9 @@ CXCursor cxcursor::MakeCXCursor(const Stmt *S, const Decl *Parent,
     K = CXCursor_UnaryOperator;
     break;
 
+  case Stmt::ReflexprIdExprClass:
+  case Stmt::MetaobjectIdExprClass:
+  case Stmt::UnaryMetaobjectOpExprClass:
   case Stmt::UnaryExprOrTypeTraitExprClass:
   case Stmt::CXXNoexceptExprClass:
     K = CXCursor_UnaryExpr;
@@ -1400,6 +1403,8 @@ enum CXTemplateArgumentKind clang_Cursor_getTemplateArgumentKind(CXCursor C,
     return CXTemplateArgumentKind_NullPtr;
   case TemplateArgument::Integral:
     return CXTemplateArgumentKind_Integral;
+  case TemplateArgument::MetaobjectId:
+    return CXTemplateArgumentKind_MetaobjectId;
   case TemplateArgument::Template:
     return CXTemplateArgumentKind_Template;
   case TemplateArgument::TemplateExpansion:

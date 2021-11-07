@@ -1818,6 +1818,24 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
       break;
     }
 
+    case Stmt::ReflexprIdExprClass:
+      Bldr.takeNodes(Pred);
+      VisitReflexprIdExpr(cast<ReflexprIdExpr>(S), Pred, Dst);
+      Bldr.addNodes(Dst);
+      break;
+
+    case Stmt::MetaobjectIdExprClass:
+      Bldr.takeNodes(Pred);
+      VisitMetaobjectIdExpr(cast<MetaobjectIdExpr>(S), Pred, Dst);
+      Bldr.addNodes(Dst);
+      break;
+
+    case Stmt::UnaryMetaobjectOpExprClass:
+      Bldr.takeNodes(Pred);
+      VisitUnaryMetaobjectOpExpr(cast<UnaryMetaobjectOpExpr>(S), Pred, Dst);
+      Bldr.addNodes(Dst);
+      break;
+
     case Stmt::UnaryExprOrTypeTraitExprClass:
       Bldr.takeNodes(Pred);
       VisitUnaryExprOrTypeTraitExpr(cast<UnaryExprOrTypeTraitExpr>(S),

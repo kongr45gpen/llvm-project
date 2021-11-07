@@ -72,6 +72,31 @@ ExprDependence clang::computeDependence(UnaryOperator *E,
   return Dep;
 }
 
+ExprDependence clang::computeDependence(ReflexprIdExpr *E) {
+  // Value-dependent if the argument is type-dependent.
+  if (E->isArgumentType())
+    return turnTypeToValueDependence(
+        toExprDependence(E->getArgumentType()->getDependence()));
+
+  // [reflexpr-ts] FIXME: check this
+  return ExprDependence::None;
+}
+
+ExprDependence clang::computeDependence(MetaobjectIdExpr *E) {
+  // MetaobjectIdExpr is always created with known value
+  // of metaobject id so it is not dependent.
+  return ExprDependence::None;
+}
+
+ExprDependence clang::computeDependence(UnaryMetaobjectOpExpr *E) {
+  auto ArgDeps = E->getArgumentExpr()->getDependence();
+  auto Deps = ArgDeps & ~ExprDependence::Type;
+  if (ArgDeps & ExprDependence::Type)
+    Deps |= ExprDependence::Value;
+  // [reflexpr-ts] FIXME
+  return Deps;
+}
+
 ExprDependence clang::computeDependence(UnaryExprOrTypeTraitExpr *E) {
   // Never type-dependent (C++ [temp.dep.expr]p3).
   // Value-dependent if the argument is type-dependent.

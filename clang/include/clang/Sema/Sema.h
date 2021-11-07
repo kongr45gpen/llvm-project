@@ -2365,6 +2365,8 @@ public:
   /// If AsUnevaluated is false, E is treated as though it were an evaluated
   /// context, such as when building a type for decltype(auto).
   QualType BuildDecltypeType(Expr *E, bool AsUnevaluated = true);
+  QualType BuildUnrefltypeType(Expr *E, SourceLocation Loc,
+                               bool AsUnevaluated = true);
   QualType BuildUnaryTransformType(QualType BaseType,
                                    UnaryTransformType::UTTKind UKind,
                                    SourceLocation Loc);
@@ -5317,6 +5319,76 @@ public:
   bool isQualifiedMemberAccess(Expr *E);
   QualType CheckAddressOfOperand(ExprResult &Operand, SourceLocation OpLoc);
 
+  // [reflection-ts]
+  ExprResult OptionallyWrapReflexprExpr(bool idOnly, ExprResult E);
+
+  ExprResult GetReflexprGlobalScopeExpr(SourceLocation opLoc, SourceLocation endLoc);
+  ExprResult GetReflexprSpecExpr(tok::TokenKind SpecTok, SourceLocation opLoc,
+                                 SourceLocation endLoc);
+  ExprResult GetReflexprNamedDeclExpr(const NamedDecl *nDecl,
+                                      SourceLocation opLoc,
+                                      SourceLocation endLoc);
+  ExprResult GetReflexprTypeExpr(const TypeSourceInfo *TInfo, bool removeSugar,
+                                 SourceLocation opLoc, SourceLocation endLoc);
+  ExprResult GetReflexprTypeExpr(QualType Ty, bool removeSugar,
+                                 SourceLocation opLoc, SourceLocation endLoc);
+
+  ExprResult ActOnReflexprGlobalScopeExpr(bool idOnly, SourceLocation opLoc,
+                                          SourceRange argRange);
+  ExprResult ActOnReflexprSpecExpr(bool idOnly, tok::TokenKind SpecTok,
+                                   SourceLocation opLoc, SourceRange argRange);
+  ExprResult ActOnReflexprScopedExpr(bool idOnly, Scope *S, CXXScopeSpec &SS,
+                                     const IdentifierInfo &Ident,
+                                     SourceLocation opLoc,
+                                     SourceRange argRange);
+  ExprResult ActOnReflexprTypeExpr(bool idOnly, Scope *S, Declarator &D,
+                                   SourceLocation opLoc, SourceRange argRange);
+
+
+  ExprResult CreateUnaryPtrMetaobjectOpExpr(UnaryMetaobjectOp Oper,
+                                            MetaobjectOpResult OpRes,
+                                            ExprResult argExpr,
+                                            SourceLocation opLoc,
+                                            SourceLocation endLoc);
+  ExprResult CreateNaryPtrMetaobjectOpExpr(NaryMetaobjectOp Oper,
+                                           MetaobjectOpResult OpRes,
+                                           unsigned arity, ExprResult *argExpr,
+                                           SourceLocation opLoc,
+                                           SourceLocation endLoc);
+  ExprResult CreateUnaryStrMetaobjectOpExpr(UnaryMetaobjectOp Oper,
+                                            MetaobjectOpResult OpRes,
+                                            ExprResult argExpr,
+                                            SourceLocation opLoc,
+                                            SourceLocation endLoc);
+  ExprResult CreateNaryStrMetaobjectOpExpr(NaryMetaobjectOp Oper,
+                                           MetaobjectOpResult OpRes,
+                                           unsigned arity, ExprResult *argExpr,
+                                           SourceLocation opLoc,
+                                           SourceLocation endLoc);
+  ExprResult CreateUnaryIntMetaobjectOpExpr(UnaryMetaobjectOp Oper,
+                                            MetaobjectOpResult OpRes,
+                                            ExprResult argExpr,
+                                            SourceLocation opLoc,
+                                            SourceLocation endLoc);
+
+  ExprResult CreateUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
+                                         MetaobjectOpResult OpRes,
+                                         ExprResult argExpr,
+                                         SourceLocation opLoc,
+                                         SourceLocation endLoc);
+
+  ExprResult ActOnUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
+                                        MetaobjectOpResult OpRes,
+                                        ExprResult argExpr,
+                                        SourceLocation opLoc,
+                                        SourceLocation endLoc);
+
+  ExprResult ActOnUnrefltypeExpression(Expr *E, SourceLocation opLoc);
+
+  bool ActOnCXXNestedNameSpecifierUnrefltype(CXXScopeSpec &SS,
+                                             const DeclSpec &DS,
+                                             SourceLocation ColonColonLoc);
+
   ExprResult CreateUnaryExprOrTypeTraitExpr(TypeSourceInfo *TInfo,
                                             SourceLocation OpLoc,
                                             UnaryExprOrTypeTrait ExprKind,
@@ -7895,6 +7967,9 @@ public:
   ExprResult
   BuildExpressionFromIntegralTemplateArgument(const TemplateArgument &Arg,
                                               SourceLocation Loc);
+  ExprResult
+  BuildExpressionFromMetaobjectIdTemplateArgument(const TemplateArgument &Arg,
+                                                  SourceLocation Loc);
 
   /// Enumeration describing how template parameter lists are compared
   /// for equality.

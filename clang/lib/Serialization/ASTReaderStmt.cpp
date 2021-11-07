@@ -770,6 +770,51 @@ void ASTStmtReader::VisitOffsetOfExpr(OffsetOfExpr *E) {
     E->setIndexExpr(I, Record.readSubExpr());
 }
 
+void ASTStmtReader::VisitReflexprIdExpr(ReflexprIdExpr *E) {
+  VisitExpr(E);
+  E->setKind(static_cast<MetaobjectKind>(Record.readInt()));
+  E->setSeqKind(static_cast<MetaobjectSequenceKind>(Record.readInt()));
+  E->setArgKind(static_cast<ReflexprIdExpr::ArgumentKind>(Record.readInt()));
+  switch(E->getArgKind()) {
+    case ReflexprIdExpr::REAK_Nothing:
+      break;
+    case ReflexprIdExpr::REAK_Specifier:
+      E->setArgumentSpecifierKind(static_cast<tok::TokenKind>(Record.readInt()));
+      break;
+    case ReflexprIdExpr::REAK_NamedDecl:
+      E->setArgumentNamedDecl(readDeclAs<NamedDecl>());
+      break;
+    case ReflexprIdExpr::REAK_TypeInfo:
+      E->setArgumentTypeInfo(readTypeSourceInfo());
+      break;
+    case ReflexprIdExpr::REAK_BaseSpecifier:
+      CXXBaseSpecifier *BaseSpec = new (Record.getContext()) CXXBaseSpecifier;
+      *BaseSpec = Record.readCXXBaseSpecifier();
+      E->setArgumentBaseSpecifier(BaseSpec);
+      break;
+  }
+  E->setRemoveSugar(Record.readInt());
+  E->setHideProtected(Record.readInt());
+  E->setHidePrivate(Record.readInt());
+  E->setOperatorLoc(readSourceLocation());
+  E->setRParenLoc(readSourceLocation());
+}
+
+void ASTStmtReader::VisitMetaobjectIdExpr(MetaobjectIdExpr *E) {
+  VisitExpr(E);
+  E->setValue(Record.readAPInt());
+  E->setLocation(readSourceLocation());
+}
+
+void ASTStmtReader::VisitUnaryMetaobjectOpExpr(UnaryMetaobjectOpExpr *E) {
+  VisitExpr(E);
+  E->setKind(static_cast<UnaryMetaobjectOp>(Record.readInt()));
+  E->setResultKind(static_cast<MetaobjectOpResult>(Record.readInt()));
+  E->setArgumentExpr(Record.readSubExpr());
+  E->setOperatorLoc(readSourceLocation());
+  E->setRParenLoc(readSourceLocation());
+}
+
 void ASTStmtReader::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
   VisitExpr(E);
   E->setKind(static_cast<UnaryExprOrTypeTrait>(Record.readInt()));
@@ -2900,6 +2945,18 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
       S = OffsetOfExpr::CreateEmpty(Context,
                                     Record[ASTStmtReader::NumExprFields],
                                     Record[ASTStmtReader::NumExprFields + 1]);
+      break;
+
+    case EXPR_REFLEXPR_ID_ID:
+      S = new (Context) ReflexprIdExpr(Empty);
+      break;
+
+    case EXPR_METAOBJECT_ID_ID:
+      S = new (Context) MetaobjectIdExpr(Empty);
+      break;
+
+    case EXPR_UNARY_METAOBJECT_OP_ID:
+      S = new (Context) UnaryMetaobjectOpExpr(Empty);
       break;
 
     case EXPR_SIZEOF_ALIGN_OF:

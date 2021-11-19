@@ -426,13 +426,13 @@ struct _LIBCPP_TEMPLATE_VIS get_member_types {
 template <class _Tp>
 using get_member_types_t = typename get_member_types<_Tp>::type;
 
-template <Alias _Tp>
+template <size_t _I, ObjectSequence _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_element {
-  using type = __metaobject<__metaobject_get_element(__unwrap_metaobject_id_v<_Tp>)>;
+  using type = __metaobject<__metaobject_get_element(__unwrap_metaobject_id_v<_Tp>, _I)>;
 };
 
-template <class _Tp>
-using get_element_t = typename get_element<_Tp>::type;
+template <size_t _I, class _Tp>
+using get_element_t = typename get_element<_I, _Tp>::type;
 
 // sequence unpacking
 template <template <class...> class _Tpl, ObjectSequence _Tp>

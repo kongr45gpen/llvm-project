@@ -3777,23 +3777,6 @@ MemInitResult Parser::ParseMemInitializer(Decl *ConstructorDecl) {
   // : template_name<...>
   TypeResult TemplateTypeTy;
 
-  if (Tok.is(tok::annot_template_id)) {
-    TemplateIdAnnotation *TemplateId = takeTemplateIdAnnotation(Tok);
-    if (TemplateId->Kind == TNK_Type_template ||
-        TemplateId->Kind == TNK_Dependent_template_name) {
-      AnnotateTemplateIdTokenAsType(SS, /*IsClassName*/ true);
-      assert(Tok.is(tok::annot_typename) && "template-id -> type failed");
-      TemplateTypeTy = getTypeAnnotation(Tok);
-    }
-  }
-  // Uses of decltype will already have been converted to annot_decltype by
-  // ParseOptionalCXXScopeSpecifier at this point.
-  if (TemplateTypeTy.isInvalid() && Tok.isNot(tok::identifier) &&
-      Tok.isNot(tok::annot_decltype) && Tok.isNot(tok::annot___unrefltype)) {
-    Diag(Tok, diag::err_expected_member_or_base_name);
-    return true;
-  }
-
   if (Tok.is(tok::identifier)) {
     // Get the identifier. This may be a member name or a class name,
     // but we'll let the semantic analysis determine which it is.

@@ -1085,6 +1085,9 @@ def err_using_metaobject_id_without_reflection : Error<
   "'__metaobject_id' type used without reflection support - compile with -freflection-ts">;
 def err_using_metaobject_op_without_reflection : Error<
   "metaobject operation used without reflection support - compile with -freflection-ts">;
+def err_metaobject_op_arity : Error<
+  "Metaobject operation requires %0%select{| or more}1 argument%select{|s}2; "
+  "have %3 argument%s3">;
 def err_invalid_argument_for_reflexpr : Error<
   "%0 cannot be used as argument for the reflexpr operator">;
 

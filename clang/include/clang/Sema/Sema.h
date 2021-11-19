@@ -5370,18 +5370,34 @@ public:
                                             ExprResult argExpr,
                                             SourceLocation opLoc,
                                             SourceLocation endLoc);
+  ExprResult CreateNaryIntMetaobjectOpExpr(NaryMetaobjectOp Oper,
+                                           MetaobjectOpResult OpRes,
+                                           unsigned arity, ExprResult *argExpr,
+                                           SourceLocation opLoc,
+                                           SourceLocation endLoc);
 
   ExprResult CreateUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
                                          MetaobjectOpResult OpRes,
                                          ExprResult argExpr,
                                          SourceLocation opLoc,
                                          SourceLocation endLoc);
+  ExprResult CreateNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
+                                        MetaobjectOpResult OpRes,
+                                        unsigned arity, ExprResult *argExpr,
+                                        SourceLocation opLoc,
+                                        SourceLocation endLoc);
 
   ExprResult ActOnUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
                                         MetaobjectOpResult OpRes,
                                         ExprResult argExpr,
                                         SourceLocation opLoc,
                                         SourceLocation endLoc);
+
+  ExprResult ActOnNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
+                                       MetaobjectOpResult OpRes, unsigned arity,
+                                       ExprResult *argExpr,
+                                       SourceLocation opLoc,
+                                       SourceLocation endLoc);
 
   ExprResult ActOnUnrefltypeExpression(Expr *E, SourceLocation opLoc);
 

@@ -1328,6 +1328,14 @@ StmtProfiler::VisitUnaryMetaobjectOpExpr(const UnaryMetaobjectOpExpr *S) {
 }
 
 void
+StmtProfiler::VisitNaryMetaobjectOpExpr(const NaryMetaobjectOpExpr *S) {
+  VisitExpr(S);
+  ID.AddInteger(S->getKind());
+  ID.AddInteger(S->getResultKind());
+  // [reflection-ts] FIXME
+}
+
+void
 StmtProfiler::VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr *S) {
   VisitExpr(S);
   ID.AddInteger(S->getKind());

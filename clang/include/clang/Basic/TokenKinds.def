@@ -526,6 +526,11 @@ METAOBJECT_OBJ_OP_1(hide_private         , Metaobject   ,
 METAOBJECT_INT_OP_1(get_size             , UInt         ,
                     GetSize              , KEYREFLECTION)
 
+METAOBJECT_OP_2(get_element          , Metaobject   ,
+                GetElement           , KEYREFLECTION)
+METAOBJECT_OP_2(reflects_same        , Bool         ,
+                ReflectsSame         , KEYREFLECTION)
+
 // C++20 / coroutines TS keywords
 COROUTINES_KEYWORD(co_await)
 COROUTINES_KEYWORD(co_return)

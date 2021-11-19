@@ -455,6 +455,13 @@ protected:
     unsigned ResKind : 3;
   };
 
+  class NaryMetaobjectOpExprBitfields {
+    friend class NaryMetaobjectOpExpr;
+    unsigned : NumExprBits;
+    unsigned Kind : 1;
+    unsigned ResKind : 3;
+  };
+
   class UnaryExprOrTypeTraitExprBitfields {
     friend class UnaryExprOrTypeTraitExpr;
 
@@ -1047,6 +1054,7 @@ protected:
     UnaryOperatorBitfields UnaryOperatorBits;
     ReflexprIdExprBitfields ReflexprIdExprBits;
     UnaryMetaobjectOpExprBitfields UnaryMetaobjectOpExprBits;
+    NaryMetaobjectOpExprBitfields NaryMetaobjectOpExprBits;
     UnaryExprOrTypeTraitExprBitfields UnaryExprOrTypeTraitExprBits;
     ArrayOrMatrixSubscriptExprBitfields ArrayOrMatrixSubscriptExprBits;
     CallExprBitfields CallExprBits;

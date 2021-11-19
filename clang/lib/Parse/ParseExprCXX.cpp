@@ -3888,6 +3888,22 @@ static UnaryMetaobjectOp UnaryMetaobjectOpFromTokKind(tok::TokenKind kind) {
   }
 }
 
+// Reflection and Metaobject operations
+static NaryMetaobjectOp NaryMetaobjectOpFromTokKind(tok::TokenKind kind) {
+  switch (kind) {
+  default:
+    llvm_unreachable("Not a known metaobject operation");
+#define METAOBJECT_OP_2(Spelling, Result, Name, Key)                           \
+  case tok::kw___metaobject_##Spelling:                                        \
+    return NMOO_##Name;
+#include "clang/Basic/TokenKinds.def"
+#define METAOBJECT_OP_1(Spelling, Result, Name, Key)                           \
+  case tok::kw___metaobject_##Spelling:
+#include "clang/Basic/TokenKinds.def"
+    llvm_unreachable("Not an n-ary metaobject operation!");
+  }
+}
+
 static MetaobjectOpResult MetaobjectOpResultFromTokKind(tok::TokenKind kind) {
   switch (kind) {
   default:
@@ -3926,9 +3942,7 @@ ExprResult Parser::ParseMetaobjectOpExpression() {
   if (Arity == 1) {
     return ParseUnaryMetaobjectOpExpression(OpTok, OpLoc);
   }
-  llvm_unreachable("not implemented yet");
-  // [reflection-ts] FIXME
-  //return ParseNaryMetaobjectOpExpression(OpTok, OpLoc, Arity);
+  return ParseNaryMetaobjectOpExpression(OpTok, OpLoc, Arity);
 }
 
 ExprResult
@@ -3955,6 +3969,51 @@ Parser::ParseUnaryMetaobjectOpExpression(Token OpTok,
     Parens.consumeClose();
     return Actions.ActOnUnaryMetaobjectOpExpr(Operation, OpResult, ArgExpr,
                                               OpLoc, Parens.getCloseLocation());
+  }
+  return ExprError();
+}
+
+ExprResult Parser::ParseNaryMetaobjectOpExpression(Token OpTok,
+                                                   SourceLocation OpLoc,
+                                                   unsigned Arity) {
+  BalancedDelimiterTracker Parens(*this, tok::l_paren);
+  if (Parens.expectAndConsume(diag::err_expected_lparen_after, OpTok.getName()))
+    return ExprError();
+
+  NaryMetaobjectOp Operation = NaryMetaobjectOpFromTokKind(OpTok.getKind());
+  MetaobjectOpResult OpResult = MetaobjectOpResultFromTokKind(OpTok.getKind());
+
+  ExprResult ArgExpr[3];
+  // The first argument must always be a __metaobject_id expression
+  bool NotCastExpr = false;
+  ArgExpr[0] = ParseCastExpression(AnyCastExpr,
+                                   false,
+                                   NotCastExpr,
+                                   NotTypeCast);
+
+  if (ArgExpr[0].isInvalid())
+    return ExprError();
+
+  for (unsigned i = 1; i < Arity; ++i) {
+
+    if (Tok.isNot(tok::comma)) {
+      Diag(Tok.getLocation(), diag::err_metaobject_op_arity)
+          << Arity << 0 << (Arity > 1) << 1 << SourceRange(Tok.getLocation());
+    } else {
+      ConsumeToken(); // ','
+    }
+    ArgExpr[i] = ParseCastExpression(AnyCastExpr,
+                                     false,
+                                     NotCastExpr,
+                                     NotTypeCast);
+    if (ArgExpr[i].isInvalid())
+      return ExprError();
+  }
+
+  if (Tok.is(tok::r_paren)) {
+    Parens.consumeClose();
+    return Actions.ActOnNaryMetaobjectOpExpr(
+        Operation, OpResult, Arity, ArgExpr, OpLoc, Parens.getCloseLocation());
   }
   return ExprError();
 }

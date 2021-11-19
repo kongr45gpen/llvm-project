@@ -171,6 +171,7 @@ def CoyieldExpr : StmtNode<CoroutineSuspendExpr>;
 def ReflexprIdExpr : StmtNode<Expr>;
 def MetaobjectIdExpr : StmtNode<Expr>;
 def UnaryMetaobjectOpExpr : StmtNode<Expr>;
+def NaryMetaobjectOpExpr : StmtNode<Expr>;
 
 // C++20 Concepts expressions
 def ConceptSpecializationExpr : StmtNode<Expr>;

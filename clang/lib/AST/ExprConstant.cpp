@@ -10763,6 +10763,7 @@ public:
     return Success(E->getValue(), E);
   }
   bool VisitUnaryMetaobjectOpExpr(const UnaryMetaobjectOpExpr *E);
+  bool VisitNaryMetaobjectOpExpr(const NaryMetaobjectOpExpr *E);
 
   bool VisitCXXBoolLiteralExpr(const CXXBoolLiteralExpr *E) {
     return Success(E->getValue(), E);
@@ -13014,6 +13015,24 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
 /// VisitUnaryMetaobjectOpExpr - Evaluate a __metaobject_{operation}
 bool IntExprEvaluator::VisitUnaryMetaobjectOpExpr(
     const UnaryMetaobjectOpExpr *E) {
+
+  if (E->hasIntResult()) {
+    llvm::APSInt result;
+    if (E->getIntResult(Info.Ctx, &Info, result)) {
+      return Success(result, E);
+    }
+  } else if (E->hasObjResult()) {
+    llvm::APInt result;
+    if (E->getObjResult(Info.Ctx, &Info, result)) {
+      return Success(result, E);
+    }
+  }
+  return false;
+}
+
+/// VisitNaryMetaobjectOpExpr - Evaluate a __metaobject_{operation}
+bool IntExprEvaluator::VisitNaryMetaobjectOpExpr(
+    const NaryMetaobjectOpExpr *E) {
 
   if (E->hasIntResult()) {
     llvm::APSInt result;
@@ -15334,6 +15353,10 @@ static ICEDiag CheckICE(const Expr* E, const ASTContext &Ctx) {
     return CheckEvalInICE(E, Ctx);
   }
   case Expr::UnaryMetaobjectOpExprClass: {
+    // [reflection-ts] FIXME
+    return CheckEvalInICE(E, Ctx);
+  }
+  case Expr::NaryMetaobjectOpExprClass: {
     // [reflection-ts] FIXME
     return CheckEvalInICE(E, Ctx);
   }

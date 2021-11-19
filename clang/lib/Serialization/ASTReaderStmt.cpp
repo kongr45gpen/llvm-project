@@ -815,6 +815,18 @@ void ASTStmtReader::VisitUnaryMetaobjectOpExpr(UnaryMetaobjectOpExpr *E) {
   E->setRParenLoc(readSourceLocation());
 }
 
+void ASTStmtReader::VisitNaryMetaobjectOpExpr(NaryMetaobjectOpExpr *E) {
+  VisitExpr(E);
+  E->setKind(static_cast<NaryMetaobjectOp>(Record.readInt()));
+  E->setResultKind(static_cast<MetaobjectOpResult>(Record.readInt()));
+  unsigned Arity = Record.readInt();
+  for(unsigned i=0; i<Arity; ++i) {
+    E->setArgumentExpr(i, Record.readSubExpr());
+  }
+  E->setOperatorLoc(readSourceLocation());
+  E->setRParenLoc(readSourceLocation());
+}
+
 void ASTStmtReader::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
   VisitExpr(E);
   E->setKind(static_cast<UnaryExprOrTypeTrait>(Record.readInt()));
@@ -2957,6 +2969,10 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
 
     case EXPR_UNARY_METAOBJECT_OP_ID:
       S = new (Context) UnaryMetaobjectOpExpr(Empty);
+      break;
+
+    case EXPR_NARY_METAOBJECT_OP_ID:
+      S = new (Context) NaryMetaobjectOpExpr(Empty);
       break;
 
     case EXPR_SIZEOF_ALIGN_OF:

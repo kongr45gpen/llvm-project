@@ -543,6 +543,10 @@ public:
   void VisitUnaryMetaobjectOpExpr(const UnaryMetaobjectOpExpr *Ex,
                                   ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
+  /// VisitNaryMetaobjectOpExpr - Transfer function for metaobject operation.
+  void VisitNaryMetaobjectOpExpr(const NaryMetaobjectOpExpr *Ex,
+                                 ExplodedNode *Pred, ExplodedNodeSet &Dst);
+
   /// VisitUnaryExprOrTypeTraitExpr - Transfer function for sizeof.
   void VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr *Ex,
                                      ExplodedNode *Pred, ExplodedNodeSet &Dst);

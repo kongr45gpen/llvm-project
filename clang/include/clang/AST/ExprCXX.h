@@ -5381,6 +5381,101 @@ public:
   child_range children();
 };
 
+/// NaryMetaobjectOpExpr - n-ary metaobject operation expression
+class NaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
+
+  Stmt *ArgExpr[2];
+  SourceLocation OpLoc, EndLoc;
+
+public:
+  /// \brief Construct an empty metaobject operation expression.
+  explicit NaryMetaobjectOpExpr(EmptyShell Empty)
+      : Expr(NaryMetaobjectOpExprClass, Empty), ArgExpr{nullptr, nullptr} {}
+
+  NaryMetaobjectOpExpr(ASTContext &, NaryMetaobjectOp Oper,
+                       MetaobjectOpResult OpRes, QualType resultType,
+                       unsigned arity, Expr **argExpr, SourceLocation opLoc,
+                       SourceLocation endLoc);
+
+  static constexpr unsigned MinArity = 2;
+  static constexpr unsigned MaxArity = 2;
+
+  unsigned getArity() const { return 2; }
+
+  NaryMetaobjectOp getKind() const {
+    return NaryMetaobjectOp(NaryMetaobjectOpExprBits.Kind);
+  }
+  void setKind(NaryMetaobjectOp Kind) {
+    NaryMetaobjectOpExprBits.Kind = unsigned(Kind);
+  }
+
+  MetaobjectOpResult getResultKind() const {
+    return MetaobjectOpResult(NaryMetaobjectOpExprBits.ResKind);
+  }
+  void setResultKind(MetaobjectOpResult ResKind) {
+    NaryMetaobjectOpExprBits.ResKind = unsigned(ResKind);
+  }
+
+  Expr *getArgumentExpr(unsigned i) const {
+    assert(i < getArity());
+    return static_cast<Expr *>(ArgExpr[i]);
+  }
+
+  void setArgumentExpr(unsigned i, Expr *E) {
+    assert(i < getArity());
+    ArgExpr[i] = E;
+  }
+
+  bool queryArgUIntValue(ASTContext &Ctx, uint64_t &val, unsigned i) const {
+    return queryExprUIntValue(Ctx, val, getArgumentExpr(i));
+  }
+
+  ReflexprIdExpr *getArgumentReflexprIdExpr(ASTContext &Ctx, unsigned i,
+                                            void *EvlInfo = nullptr) const {
+    return MetaobjectOpExprBase::getReflexprIdExpr(Ctx, getArgumentExpr(i),
+                                                   EvlInfo);
+  }
+
+  static StringRef getOperationSpelling(NaryMetaobjectOp MoOp);
+  StringRef getOperationSpelling() const {
+    return getOperationSpelling(getKind());
+  }
+
+  static bool isOperationApplicable(MetaobjectKind MoK, NaryMetaobjectOp MoOp);
+  static bool isOperationApplicable(ASTContext &Ctx, ReflexprIdExpr* REE,
+                                    NaryMetaobjectOp MoOp) {
+    return isOperationApplicable(REE->getKind(), MoOp);
+  }
+
+  static bool opReflectsSame(ASTContext&, ReflexprIdExpr *REE1,
+                             ReflexprIdExpr *REE2);
+  static ReflexprIdExpr *opGetElement(ASTContext&, ReflexprIdExpr *REE,
+                                      unsigned idx);
+
+  bool hasIntResult() const;
+
+  bool getIntResult(ASTContext &Ctx, void *EvlInfo, llvm::APSInt &result) const;
+
+  bool hasObjResult() const;
+
+  bool getObjResult(ASTContext &Ctx, void *EvlInfo, llvm::APInt &result) const;
+
+  SourceLocation getOperatorLoc() const { return OpLoc; }
+  void setOperatorLoc(SourceLocation L) { OpLoc = L; }
+
+  SourceLocation getRParenLoc() const { return EndLoc; }
+  void setRParenLoc(SourceLocation L) { EndLoc = L; }
+
+  SourceLocation getBeginLoc() const LLVM_READONLY { return OpLoc; }
+  SourceLocation getEndLoc() const LLVM_READONLY { return getRParenLoc(); }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == NaryMetaobjectOpExprClass;
+  }
+
+  // Iterators
+  child_range children();
+};
 
 } // namespace clang
 

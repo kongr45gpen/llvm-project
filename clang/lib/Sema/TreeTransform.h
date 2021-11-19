@@ -2549,6 +2549,20 @@ public:
                                                  opLoc, rpLoc);
   }
 
+  /// Build a new multi-argument operator expression.
+  ///
+  /// By default, performs semantic analysis to build the new expression.
+  /// Subclasses may override this routine to provide different behavior.
+  ExprResult RebuildNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
+                                         MetaobjectOpResult OpRes,
+                                         unsigned arity, ExprResult* argExpr,
+                                         SourceLocation opLoc,
+                                         SourceLocation rpLoc) {
+    return getSema().CreateNaryMetaobjectOpExpr(Oper, OpRes,
+                                                arity, argExpr,
+                                                opLoc, rpLoc);
+  }
+
   /// Build a new sizeof, alignof or vec_step expression with a
   /// type argument.
   ///
@@ -10734,6 +10748,36 @@ TreeTransform<Derived>::TransformUnaryMetaobjectOpExpr(UnaryMetaobjectOpExpr *E)
                                                NewExpr,
                                                E->getOperatorLoc(),
                                                E->getRParenLoc());
+}
+
+template<typename Derived>
+ExprResult
+TreeTransform<Derived>::TransformNaryMetaobjectOpExpr(NaryMetaobjectOpExpr *E) {
+
+  unsigned Arity = E->getArity();
+  ExprResult ArgExpr[NaryMetaobjectOpExpr::MaxArity];
+
+  bool doRebuild = getDerived().AlwaysRebuild();
+
+  for(unsigned i=0; i<Arity; ++i) {
+
+    Expr* AE = E->getArgumentExpr(i);
+    ArgExpr[i] = getDerived().TransformExpr(AE);
+
+    if (AE != ArgExpr[i].get()) {
+      AE = ArgExpr[i].get();
+      doRebuild = true;
+    }
+  }
+
+  if(!doRebuild)
+    return E;
+
+  return getDerived().RebuildNaryMetaobjectOpExpr(E->getKind(),
+                                                  E->getResultKind(),
+                                                  Arity, ArgExpr,
+                                                  E->getOperatorLoc(),
+                                                  E->getRParenLoc());
 }
 
 template<typename Derived>

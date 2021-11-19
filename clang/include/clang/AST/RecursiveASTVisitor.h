@@ -2499,6 +2499,10 @@ DEF_TRAVERSE_STMT(UnaryMetaobjectOpExpr, {
   // [reflection-ts] FIXME
 })
 
+DEF_TRAVERSE_STMT(NaryMetaobjectOpExpr, {
+  // [reflection-ts] FIXME
+})
+
 DEF_TRAVERSE_STMT(UnaryExprOrTypeTraitExpr, {
   // The child-iterator will pick up the arg if it's an expression,
   // but not if it's a type.

@@ -826,6 +826,21 @@ void ASTStmtWriter::VisitUnaryMetaobjectOpExpr(UnaryMetaobjectOpExpr *E) {
   Code = serialization::EXPR_UNARY_METAOBJECT_OP_ID;
 }
 
+void ASTStmtWriter::VisitNaryMetaobjectOpExpr(NaryMetaobjectOpExpr *E) {
+  VisitExpr(E);
+  Record.push_back(E->getKind());
+  Record.push_back(E->getResultKind());
+
+  unsigned Arity = E->getArity();
+  Record.push_back(Arity);
+  for(unsigned i=0; i<Arity; ++i) {
+    Record.AddStmt(E->getArgumentExpr(i));
+  }
+  Record.AddSourceLocation(E->getOperatorLoc());
+  Record.AddSourceLocation(E->getRParenLoc());
+  Code = serialization::EXPR_NARY_METAOBJECT_OP_ID;
+}
+
 void ASTStmtWriter::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
   VisitExpr(E);
   Record.push_back(E->getKind());

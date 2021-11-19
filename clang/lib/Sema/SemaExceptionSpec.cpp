@@ -1368,6 +1368,7 @@ CanThrowResult Sema::canThrow(const Stmt *S) {
   case Expr::ReflexprIdExprClass:
   case Expr::MetaobjectIdExprClass:
   case Expr::UnaryMetaobjectOpExprClass:
+  case Expr::NaryMetaobjectOpExprClass:
   case Expr::UnaryExprOrTypeTraitExprClass:
   case Expr::UnresolvedLookupExprClass:
   case Expr::UnresolvedMemberExprClass:

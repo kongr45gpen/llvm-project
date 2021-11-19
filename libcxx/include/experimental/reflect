@@ -323,6 +323,14 @@ struct _LIBCPP_TEMPLATE_VIS uses_struct_key
 template <class _Tp>
 inline constexpr bool uses_struct_key_v = uses_struct_key<_Tp>::value;
 
+template <Object _T1, Object _T2>
+struct _LIBCPP_TEMPLATE_VIS reflects_same
+  : integral_constant<bool, __metaobject_reflects_same(
+      __unwrap_metaobject_id_v<_T1>, __unwrap_metaobject_id_v<_T2>)> {};
+
+template <class _T1, class _T2>
+inline constexpr bool reflects_same_v = reflects_same<_T1, _T2>::value;
+
 // integral
 template <Object _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_source_line
@@ -417,6 +425,14 @@ struct _LIBCPP_TEMPLATE_VIS get_member_types {
 
 template <class _Tp>
 using get_member_types_t = typename get_member_types<_Tp>::type;
+
+template <Alias _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_element {
+  using type = __metaobject<__metaobject_get_element(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <class _Tp>
+using get_element_t = typename get_element<_Tp>::type;
 
 // sequence unpacking
 template <template <class...> class _Tpl, ObjectSequence _Tp>

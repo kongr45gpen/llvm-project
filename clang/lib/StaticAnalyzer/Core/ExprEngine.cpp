@@ -1836,6 +1836,12 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
       Bldr.addNodes(Dst);
       break;
 
+    case Stmt::NaryMetaobjectOpExprClass:
+      Bldr.takeNodes(Pred);
+      VisitNaryMetaobjectOpExpr(cast<NaryMetaobjectOpExpr>(S), Pred, Dst);
+      Bldr.addNodes(Dst);
+      break;
+
     case Stmt::UnaryExprOrTypeTraitExprClass:
       Bldr.takeNodes(Pred);
       VisitUnaryExprOrTypeTraitExpr(cast<UnaryExprOrTypeTraitExpr>(S),

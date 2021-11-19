@@ -413,6 +413,7 @@ CXCursor cxcursor::MakeCXCursor(const Stmt *S, const Decl *Parent,
   case Stmt::ReflexprIdExprClass:
   case Stmt::MetaobjectIdExprClass:
   case Stmt::UnaryMetaobjectOpExprClass:
+  case Stmt::NaryMetaobjectOpExprClass: // [reflection-ts] FIXME this is wrong
   case Stmt::UnaryExprOrTypeTraitExprClass:
   case Stmt::CXXNoexceptExprClass:
     K = CXCursor_UnaryExpr;

@@ -1490,7 +1490,7 @@ void ASTContext::InitBuiltinTypes(const TargetInfo &Target,
   InitBuiltinType(NullPtrTy,           BuiltinType::NullPtr);
 
   // __metaobject_id type
-  InitBuiltinType(MetaobjectIdTy,      BuiltinType::MetaobjectId); 
+  InitBuiltinType(MetaobjectIdTy,      BuiltinType::MetaobjectId);
 
   // half type (OpenCL 6.1.1.1) / ARM NEON __fp16
   InitBuiltinType(HalfTy, BuiltinType::Half);

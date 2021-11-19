@@ -97,6 +97,18 @@ ExprDependence clang::computeDependence(UnaryMetaobjectOpExpr *E) {
   return Deps;
 }
 
+ExprDependence clang::computeDependence(NaryMetaobjectOpExpr *E) {
+  auto ArgDeps = ExprDependence::None;
+  for(unsigned a=0; a<E->getArity(); ++a) {
+    ArgDeps |= E->getArgumentExpr(a)->getDependence();
+  }
+  auto Deps = ArgDeps & ~ExprDependence::Type;
+  if (ArgDeps & ExprDependence::Type)
+    Deps |= ExprDependence::Value;
+  // [reflexpr-ts] FIXME
+  return Deps;
+}
+
 ExprDependence clang::computeDependence(UnaryExprOrTypeTraitExpr *E) {
   // Never type-dependent (C++ [temp.dep.expr]p3).
   // Value-dependent if the argument is type-dependent.

@@ -3503,7 +3503,10 @@ private:
   ExprResult ParseReflexprExpression(bool IdOnly);
   ExprResult ParseMetaobjectOpExpression();
   ExprResult ParseUnaryMetaobjectOpExpression(Token OpTok,
-                                              SourceLocation OpLoc);  
+                                              SourceLocation OpLoc);
+  ExprResult ParseNaryMetaobjectOpExpression(Token OpTok,
+                                             SourceLocation OpLoc,
+                                             unsigned Arity);
 
   //===--------------------------------------------------------------------===//
   // C++11/G++: Type Traits [Type-Traits.html in the GCC manual]

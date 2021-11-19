@@ -2327,7 +2327,8 @@ ReflexprIdExpr *MetaobjectIdExpr::asReflexprIdExpr(ASTContext &Context) const {
 
 Stmt::child_range MetaobjectIdExpr::children() {
   // [reflection-ts] FIXME
-  return child_range(child_iterator(), child_iterator());
+  return child_range(child_iterator(),
+                     child_iterator());
 }
 
 // MetaobjectOpExprBase
@@ -3188,6 +3189,7 @@ std::string UnaryMetaobjectOpExpr::getStrResult(ASTContext &Ctx,
   case UMOO_##OpName:                                                          \
     return op##OpName(Ctx, REE);
 #include "clang/Basic/TokenKinds.def"
+#undef METAOBJECT_STR_OP_1
   default: {
       llvm_unreachable("This metaobject operation does not return a string!");
     }
@@ -3289,6 +3291,169 @@ Stmt::child_range UnaryMetaobjectOpExpr::children() {
                      child_iterator(&ArgExpr + 1));
 }
 
+NaryMetaobjectOpExpr::NaryMetaobjectOpExpr(ASTContext &Ctx,
+                                           NaryMetaobjectOp Oper,
+                                           MetaobjectOpResult OpRes,
+                                           QualType resultType, unsigned arity,
+                                           Expr **argExpr, SourceLocation opLoc,
+                                           SourceLocation endLoc)
+    : Expr(NaryMetaobjectOpExprClass, resultType, VK_PRValue, OK_Ordinary),
+      OpLoc(opLoc), EndLoc(endLoc) {
+
+  for (unsigned i = 0; i < arity; ++i) {
+    ArgExpr[i] = argExpr[i];
+  }
+  for (unsigned i = arity; i < MaxArity; ++i) {
+    ArgExpr[i] = nullptr;
+  }
+
+  setDependence(computeDependence(this));
+  setKind(Oper);
+  setResultKind(OpRes);
+}
+
+StringRef NaryMetaobjectOpExpr::getOperationSpelling(NaryMetaobjectOp MoOp) {
+  switch (MoOp) {
+#define METAOBJECT_OP_2(Spelling, R, Name, K)                                  \
+  case NMOO_##Name:                                                            \
+    return #Spelling;
+#include "clang/Basic/TokenKinds.def"
+#undef METAOBJECT_OP_2
+  }
+  return StringRef();
+}
+
+bool NaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
+                                                 NaryMetaobjectOp MoOp) {
+
+  MetaobjectConcept MoC = translateMetaobjectKindToMetaobjectConcept(MoK);
+  switch (MoOp) {
+  case NMOO_ReflectsSame:
+    return conceptIsA(MoC, MOC_Object);
+  case NMOO_GetElement:
+    return conceptIsA(MoC, MOC_ObjectSequence);
+  }
+  return false;
+}
+
+bool NaryMetaobjectOpExpr::opReflectsSame(ASTContext &Ctx,
+                                          ReflexprIdExpr* REE1,
+                                          ReflexprIdExpr* REE2) {
+  if (REE1 == REE2)
+    return true;
+
+  if (REE1->isArgumentGlobalScope() && REE2->isArgumentGlobalScope())
+    return true;
+
+  if (REE1->isArgumentNoSpecifier() && REE2->isArgumentNoSpecifier())
+    return true;
+
+  if (REE1->isArgumentSpecifier() && REE2->isArgumentSpecifier()) {
+    return REE1->getArgumentSpecifierKind() ==
+           REE2->getArgumentSpecifierKind();
+  }
+
+  if (REE1->isArgumentNamedDecl() && REE2->isArgumentNamedDecl()) {
+    auto ND1 = REE1->getArgumentNamedDecl();
+    auto ND2 = REE2->getArgumentNamedDecl();
+    if (ND1 == ND2)
+      return true;
+    if (ND1->getDeclName() == ND2->getDeclName()) {
+      if (ND1->getDeclContext()->getRedeclContext()->Equals(
+              ND2->getDeclContext()->getRedeclContext())) {
+        if (ND1->getKind() == ND2->getKind()) {
+          // [reflection-ts] FIXME
+          return true;
+        }
+      }
+    }
+  }
+
+  if (REE1->isArgumentType() && REE2->isArgumentType()) {
+    auto Ty1 = REE1->getArgumentType();
+    auto Ty2 = REE2->getArgumentType();
+
+    if (Ctx.hasSameType(Ty1, Ty2)) {
+      return true;
+    }
+  }
+  // [reflection-ts] FIXME
+  return false;
+}
+
+ReflexprIdExpr *NaryMetaobjectOpExpr::opGetElement(ASTContext &Ctx,
+                                                   ReflexprIdExpr *REE,
+                                                   unsigned idx) {
+
+  findMatchingMetaobjSeqElement action(idx);
+  applyOnMetaobjSeqElements(Ctx, action, REE);
+  assert(action.result.decl || action.result.base);
+
+  if (REE->getSeqKind() == MOSK_BaseClasses) {
+    const CXXBaseSpecifier *BS = action.result.base;
+    assert(BS != nullptr);
+
+    return ReflexprIdExpr::getBaseSpecifierReflexprExpr(Ctx, BS);
+  } else {
+    const NamedDecl *ND = dyn_cast<NamedDecl>(action.result.decl);
+    assert(ND != nullptr);
+
+    return ReflexprIdExpr::getNamedDeclReflexprExpr(Ctx, ND);
+  }
+}
+
+bool NaryMetaobjectOpExpr::hasIntResult() const {
+  switch (getResultKind()) {
+    case MOOR_ULong:
+    case MOOR_UInt:
+    case MOOR_Bool:
+    case MOOR_Const:
+    case MOOR_Pointer:
+      return true;
+    case MOOR_String:
+    case MOOR_Metaobject:
+      break;
+  }
+  return false;
+}
+
+bool NaryMetaobjectOpExpr::getIntResult(ASTContext &Ctx, void *EvlInfo,
+                                        llvm::APSInt &result) const {
+  const auto opKind = getKind();
+  if(opKind == NMOO_ReflectsSame) {
+    ReflexprIdExpr *REE0 = getArgumentReflexprIdExpr(Ctx, 0, EvlInfo);
+    ReflexprIdExpr *REE1 = getArgumentReflexprIdExpr(Ctx, 1, EvlInfo);
+    if(REE0 && REE1) {
+      result = makeBoolResult(Ctx, opReflectsSame(Ctx, REE0, REE1));
+      return true;
+    }
+  }
+  return false;
+}
+
+bool NaryMetaobjectOpExpr::hasObjResult() const {
+  return getResultKind() == MOOR_Metaobject;
+}
+
+bool NaryMetaobjectOpExpr::getObjResult(ASTContext &Ctx, void *EvlInfo,
+                                        llvm::APInt &result) const {
+
+  const auto opKind = getKind();
+  if(opKind == NMOO_GetElement) {
+    ReflexprIdExpr *REE = getArgumentReflexprIdExpr(Ctx, 0, EvlInfo);
+    uint64_t index;
+    if (queryArgUIntValue(Ctx, index, 1)) {
+      result = makeMetaobjectResult(Ctx, opGetElement(Ctx, REE, index));
+      return true;
+    }
+  }
+  return false;
+}
+
+Stmt::child_range NaryMetaobjectOpExpr::children() {
+  return child_range(child_iterator(ArgExpr + 0),
+                     child_iterator(ArgExpr + getArity()));
+}
 // [reflection-ts]
 
 CUDAKernelCallExpr::CUDAKernelCallExpr(Expr *Fn, CallExpr *Config,

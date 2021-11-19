@@ -1633,6 +1633,9 @@ enum StmtCode {
   /// A UnaryMetaobjectOpExpr record.
   EXPR_UNARY_METAOBJECT_OP_ID,
 
+  /// A NaryMetaobjectOpExpr record.
+  EXPR_NARY_METAOBJECT_OP_ID,
+
   /// A SizefAlignOfExpr record.
   EXPR_SIZEOF_ALIGN_OF,
 

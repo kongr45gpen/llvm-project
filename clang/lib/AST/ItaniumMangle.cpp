@@ -4621,6 +4621,12 @@ recurse:
     break;
   }
 
+  case Expr::NaryMetaobjectOpExprClass: {
+    // [reflection-ts] FIXME
+    Out << "mb";
+    break;
+  }
+
   case Expr::UnaryExprOrTypeTraitExprClass: {
     // Non-instantiation-dependent traits are an <expr-primary> integer literal.
     const UnaryExprOrTypeTraitExpr *SAE = cast<UnaryExprOrTypeTraitExpr>(E);

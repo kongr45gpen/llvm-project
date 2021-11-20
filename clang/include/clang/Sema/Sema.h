@@ -1293,7 +1293,7 @@ public:
     /// \brief Describes whether we are in an expression constext which we have
     /// to handle differently.
     enum ExpressionKind {
-      EK_Decltype, EK_TemplateArgument, EK_Other
+      EK_Decltype, EK_Unrefltype, EK_TemplateArgument, EK_Other
     } ExprContext;
 
     ExpressionEvaluationContextRecord(ExpressionEvaluationContext Context,

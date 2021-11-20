@@ -6262,7 +6262,8 @@ QualType TreeTransform<Derived>::TransformUnrefltypeType(TypeLocBuilder &TLB,
   const UnrefltypeType *T = TL.getTypePtr();
 
   EnterExpressionEvaluationContext Unevaluated(
-    SemaRef, Sema::ExpressionEvaluationContext::ConstantEvaluated);
+      SemaRef, Sema::ExpressionEvaluationContext::ConstantEvaluated, nullptr,
+      Sema::ExpressionEvaluationContextRecord::EK_Unrefltype);
 
   ExprResult E = getDerived().TransformExpr(T->getUnderlyingExpr());
   if (E.isInvalid())
@@ -10723,7 +10724,6 @@ TreeTransform<Derived>::TransformReflexprIdExpr(ReflexprIdExpr *E) {
   }
 
   assert(!E->isTypeDependent());
-  // [reflection-ts] FIXME
   return E;
 }
 

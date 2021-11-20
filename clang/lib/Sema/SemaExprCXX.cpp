@@ -9042,9 +9042,8 @@ ExprResult Sema::CreateUnaryPtrMetaobjectOpExpr(UnaryMetaobjectOp Oper,
          "Cannot handle a non-pointer-returning operation here");
   assert(argExpr.isUsable());
 
-  //bool recreate = ExprEvalContexts.back().IsUnrefltype;
-  // [reflection-ts] FIXME
-  bool recreate = false;
+  bool recreate = ExprEvalContexts.back().ExprContext ==
+                  ExpressionEvaluationContextRecord::EK_Unrefltype;
   recreate |= argExpr.get()->isTypeDependent();
   recreate |= argExpr.get()->isValueDependent();
   recreate |= argExpr.get()->isInstantiationDependent();
@@ -9104,9 +9103,8 @@ ExprResult Sema::CreateUnaryStrMetaobjectOpExpr(UnaryMetaobjectOp Oper,
 
   // [reflection-ts] FIXME check if the arg exprs are valid and yield metaobject ids
 
-  // bool recreate = ExprEvalContexts.back().IsUnrefltype;
-  // [reflection-ts] FIXME
-  bool recreate = false;
+  bool recreate = ExprEvalContexts.back().ExprContext ==
+                  ExpressionEvaluationContextRecord::EK_Unrefltype;
   recreate |= argExpr.get()->isTypeDependent();
   recreate |= argExpr.get()->isValueDependent();
   recreate |= argExpr.get()->isInstantiationDependent();
@@ -9232,6 +9230,9 @@ ExprResult Sema::ActOnNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
 }
 
 ExprResult Sema::ActOnUnrefltypeExpression(Expr *E, SourceLocation opLoc) {
+  assert(ExprEvalContexts.back().ExprContext ==
+             ExpressionEvaluationContextRecord::EK_Unrefltype &&
+         "not in a __unrefltype expression");
 
   if (!E->isInstantiationDependent()) {
     if (const auto *REE = ReflexprIdExpr::fromExpr(Context, E)) {

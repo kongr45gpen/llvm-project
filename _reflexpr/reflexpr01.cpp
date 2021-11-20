@@ -10,7 +10,6 @@ auto main() -> int {
   static_assert(Object<ms>);
   static_assert(!ObjectSequence<mi>);
   static_assert(Type<mi>);
-  static_assert(get_id_v<mi> > 0);
   static_assert(Namespace<ms>);
   static_assert(GlobalScope<mg>);
   static_assert(GlobalScope<get_scope_t<ms>>);

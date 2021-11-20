@@ -1171,8 +1171,9 @@ SourceLocation Parser::ParseUnrefltypeSpecifier(DeclSpec &DS) {
     Token OpTok = Tok;
     ConsumeToken(); // eat __unrefltype
 
-    EnterExpressionEvaluationContext Context(
-      Actions, Sema::ExpressionEvaluationContext::ConstantEvaluated);
+    EnterExpressionEvaluationContext Unevaluated(
+      Actions, Sema::ExpressionEvaluationContext::ConstantEvaluated, nullptr,
+      Sema::ExpressionEvaluationContextRecord::EK_Unrefltype);
 
     BalancedDelimiterTracker Parens(*this, tok::l_paren);
     if (Parens.expectAndConsume(diag::err_expected_lparen_after,

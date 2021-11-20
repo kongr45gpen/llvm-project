@@ -3791,24 +3791,25 @@ ExprResult Parser::ParseReflexprExpression(bool idOnly) {
       }
       tpa.Revert();
     }
+    if (getLangOpts().ReflectionExt) {
     // (specifier)
-    // [reflection-ts] FIXME this is only an extension
-    if (Tok.isOneOf(tok::kw_private, tok::kw_protected, tok::kw_public,
-                    tok::kw_class, tok::kw_enum, tok::kw_struct, tok::kw_union,
-                    tok::kw_static)) {
-      TentativeParsingAction tpa(*this);
-      tok::TokenKind SpecTok = Tok.getKind();
-      ConsumeToken(); // specifier
-      if (Tok.is(tok::r_paren)) {
-        Parens.consumeClose();
-        ExprResult Res = Actions.ActOnReflexprSpecExpr(
-            idOnly, SpecTok, OpTok.getLocation(), Parens.getRange());
-        if (!Res.isInvalid()) {
-          tpa.Commit();
-          return Res;
+      if (Tok.isOneOf(tok::kw_private, tok::kw_protected, tok::kw_public,
+                      tok::kw_class, tok::kw_enum, tok::kw_struct, tok::kw_union,
+                      tok::kw_static)) {
+        TentativeParsingAction tpa(*this);
+        tok::TokenKind SpecTok = Tok.getKind();
+        ConsumeToken(); // specifier
+        if (Tok.is(tok::r_paren)) {
+          Parens.consumeClose();
+          ExprResult Res = Actions.ActOnReflexprSpecExpr(
+              idOnly, SpecTok, OpTok.getLocation(), Parens.getRange());
+          if (!Res.isInvalid()) {
+            tpa.Commit();
+            return Res;
+          }
         }
+        tpa.Revert();
       }
-      tpa.Revert();
     }
     /* (named-declaration) */ {
       TentativeParsingAction tpa(*this);

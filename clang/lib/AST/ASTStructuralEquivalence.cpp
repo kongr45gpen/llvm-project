@@ -984,9 +984,9 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
     break;
 
   case Type::Unrefltype:
-    if (!IsStructurallyEquivalent(
-            Context, cast<UnrefltypeType>(T1)->getUnderlyingExpr(),
-            cast<UnrefltypeType>(T2)->getUnderlyingExpr()))
+    if (!IsStructurallyEquivalent(Context,
+                                  cast<UnrefltypeType>(T1)->getUnderlyingExpr(),
+                                  cast<UnrefltypeType>(T2)->getUnderlyingExpr()))
       return false;
     break;
 

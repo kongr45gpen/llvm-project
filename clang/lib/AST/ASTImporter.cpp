@@ -1363,7 +1363,7 @@ ExpectedType ASTNodeImporter::VisitDecltypeType(const DecltypeType *T) {
 }
 
 ExpectedType ASTNodeImporter::VisitUnrefltypeType(const UnrefltypeType *T) {
-  // FIXME: Make sure that the "to" context supports C++0x!
+  // [reflection-ts] FIXME: Make sure that the "to" context supports C++2x!
   ExpectedExpr ToExprOrErr = import(T->getUnderlyingExpr());
   if (!ToExprOrErr)
     return ToExprOrErr.takeError();

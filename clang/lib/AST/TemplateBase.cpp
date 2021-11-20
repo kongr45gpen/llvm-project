@@ -136,12 +136,14 @@ static void printIntegral(const TemplateArgument &TemplArg, raw_ostream &Out,
 
 static void printMetaobjectId(const TemplateArgument &TemplArg, raw_ostream &Out,
                               const PrintingPolicy &Policy, bool IncludeType) {
-  const Type *T = TemplArg.getMetaobjectIdType().getTypePtr();
   const llvm::APInt &Val = TemplArg.getAsMetaobjectId();
 
-  // [reflection-ts] FIXME
-  (void)T;
-  (void)IncludeType;
+  if (Policy.MSVCFormatting)
+    IncludeType = false;
+
+  if (IncludeType) {
+    Out << "(__metaobject_id)";
+  }
   Out << Val;
 }
 

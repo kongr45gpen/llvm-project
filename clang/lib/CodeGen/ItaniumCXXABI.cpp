@@ -4218,7 +4218,7 @@ void ItaniumCXXABI::EmitFundamentalRTTIDescriptors(const CXXRecordDecl *RD) {
       getContext().FloatTy,            getContext().DoubleTy,
       getContext().LongDoubleTy,       getContext().Float128Ty,
       getContext().Char8Ty,            getContext().Char16Ty,
-      getContext().Char32Ty
+      getContext().Char32Ty,           getContext().MetaobjectIdTy
   };
   llvm::GlobalValue::DLLStorageClassTypes DLLStorageClass =
       RD->hasAttr<DLLExportAttr>()

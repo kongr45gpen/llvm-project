@@ -440,7 +440,7 @@ protected:
   class ReflexprIdExprBitfields {
     friend class ReflexprIdExpr;
     unsigned : NumExprBits;
-    unsigned Kind : 5;
+    unsigned Kind : 6;
     unsigned SeqKind : 3;
     unsigned ArgKind : 3;
     unsigned RemoveSugar : 1;

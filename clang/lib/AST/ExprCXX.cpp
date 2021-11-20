@@ -1815,7 +1815,7 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const NamedDecl *nDecl,
       }
     }
   } else if (isa<TemplateTypeParmDecl>(nDecl)) {
-    setKind(MOK_TplTypeParam);
+    setKind(MOK_TemplateTypeParameter);
   } else if (isa<TypeDecl>(nDecl)) {
     setKind(MOK_Type);
   } else if (isa<FieldDecl>(nDecl)) {
@@ -1866,7 +1866,7 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const TypeSourceInfo *TInfo,
   RT = RT->getUnqualifiedDesugaredType();
 
   if (isa<TemplateTypeParmType>(RT)) {
-    setKind(MOK_TplTypeParam);
+    setKind(MOK_TemplateTypeParameter);
   } else if (isa<RecordType>(RT)) {
     setKind(isAlias ? MOK_ClassAlias : MOK_Class);
   } else if (isa<EnumType>(RT)) {
@@ -2077,6 +2077,8 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
     return "a namespace";
   case MOK_NamespaceAlias:
     return "a namespace alias";
+  case MOK_TemplateParameterScope:
+    return "a template parameter scope";
   case MOK_Type:
     return "a type";
   case MOK_Enum:
@@ -2085,8 +2087,17 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
     return "a record";
   case MOK_Class:
     return "a class";
+  case MOK_Function:
   case MOK_NamedFunction:
     return "a function";
+  case MOK_Constructor:
+    return "a constructor";
+  case MOK_Destructor:
+    return "a destructor";
+  case MOK_Operator:
+    return "an operator";
+  case MOK_ConversionOperator:
+    return "a conversion operator";
   case MOK_TypeAlias:
     return "a type alias";
   case MOK_EnumAlias:
@@ -2095,10 +2106,12 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
     return "a record alias";
   case MOK_ClassAlias:
     return "a class alias";
-  case MOK_TplTypeParam:
+  case MOK_TemplateTypeParameter:
     return "a template type parameter";
   case MOK_Variable:
     return "a variable";
+  case MOK_FunctionParameter:
+    return "a function parameter";
   case MOK_DataMember:
     return "a data member";
   case MOK_MemberType:
@@ -2143,6 +2156,8 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_Namespace;
   case MOK_NamespaceAlias:
     return MOC_NamespaceAlias;
+  case MOK_TemplateParameterScope:
+    return MOC_TemplateParameterScope;
   case MOK_Type:
     return MOC_Type;
   case MOK_Enum:
@@ -2151,6 +2166,16 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_Record;
   case MOK_Class:
     return MOC_Class;
+  case MOK_Function:
+    return MOC_Function;
+  case MOK_Constructor:
+    return MOC_Constructor;
+  case MOK_Destructor:
+    return MOC_Destructor;
+  case MOK_Operator:
+    return MOC_Operator;
+  case MOK_ConversionOperator:
+    return MOC_ConversionOperator;
   case MOK_TypeAlias:
     return MOC_TypeAlias;
   case MOK_EnumAlias:
@@ -2159,10 +2184,12 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_RecordAlias;
   case MOK_ClassAlias:
     return MOC_ClassAlias;
-  case MOK_TplTypeParam:
-    return MOC_TplTypeParam;
+  case MOK_TemplateTypeParameter:
+    return MOC_TemplateTypeParameter;
   case MOK_Variable:
     return MOC_Variable;
+  case MOK_FunctionParameter:
+    return MOC_FunctionParameter;
   case MOK_NamedFunction:
     return MOC_NamedFunction;
   case MOK_DataMember:
@@ -2457,8 +2484,8 @@ UnaryMetaobjectOpExpr::UnaryMetaobjectOpExpr(ASTContext &Ctx,
 
 StringRef UnaryMetaobjectOpExpr::getOperationSpelling(UnaryMetaobjectOp MoOp) {
   switch (MoOp) {
-#define METAOBJECT_OP_1(Spelling, R, Name, K)                                  \
-  case UMOO_##Name:                                                            \
+#define METAOBJECT_OP_1(Spelling, R, Name) \
+  case UMOO_##Name: \
     return #Spelling;
 #include "clang/Basic/TokenKinds.def"
       break;
@@ -2472,7 +2499,7 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   MetaobjectConcept MoC = translateMetaobjectKindToMetaobjectConcept(MoK);
   switch (MoOp) {
   case UMOO_GetIdValue:
-#define METAOBJECT_TRAIT(S, Concept, K) case UMOO_IsMeta##Concept:
+#define METAOBJECT_TRAIT(S, Concept) case UMOO_IsMeta##Concept:
 #include "clang/Basic/TokenKinds.def"
   case UMOO_SourceFileNameLen:
   case UMOO_GetSourceFileName:
@@ -2532,7 +2559,7 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
 bool UnaryMetaobjectOpExpr::getTraitValue(UnaryMetaobjectOp MoOp,
                                           MetaobjectConcept Cat) {
   switch (MoOp) {
-#define METAOBJECT_TRAIT(S, Concept, K)                                        \
+#define METAOBJECT_TRAIT(S, Concept)                                        \
   case UMOO_IsMeta##Concept:                                                   \
     return conceptIsA(Cat, MOC_##Concept);
 #include "clang/Basic/TokenKinds.def"
@@ -3115,13 +3142,13 @@ llvm::APSInt UnaryMetaobjectOpExpr::getIntResult(ASTContext &Ctx,
   assert(REE);
 
   switch (MoOp) {
-#define METAOBJECT_INT_OP_1(S, OpRes, OpName, K)                               \
-  case UMOO_##OpName:                                                          \
+#define METAOBJECT_INT_OP_1(S, OpRes, OpName) \
+  case UMOO_##OpName: \
     return make##OpRes##Result(Ctx, op##OpName(Ctx, REE));
 #include "clang/Basic/TokenKinds.def"
 #undef METAOBJECT_INT_OP_1
 
-#define METAOBJECT_TRAIT(S, Concept, K) case UMOO_IsMeta##Concept:
+#define METAOBJECT_TRAIT(S, Concept) case UMOO_IsMeta##Concept:
 #include "clang/Basic/TokenKinds.def"
 #undef METAOBJECT_TRAIT
     {
@@ -3155,8 +3182,8 @@ llvm::APInt UnaryMetaobjectOpExpr::getObjResult(ASTContext &Ctx,
   assert(REE);
 
   switch (MoOp) {
-#define METAOBJECT_OBJ_OP_1(S, OpRes, OpName, K)                               \
-  case UMOO_##OpName:                                                          \
+#define METAOBJECT_OBJ_OP_1(S, OpRes, OpName) \
+  case UMOO_##OpName: \
     return make##OpRes##Result(Ctx, op##OpName(Ctx, REE));
 #include "clang/Basic/TokenKinds.def"
 #undef METAOBJECT_OBJ_OP_1
@@ -3185,8 +3212,8 @@ std::string UnaryMetaobjectOpExpr::getStrResult(ASTContext &Ctx,
                                                 UnaryMetaobjectOp MoOp,
                                                 ReflexprIdExpr *REE) {
   switch (MoOp) {
-#define METAOBJECT_STR_OP_1(S, OpRes, OpName, K)                               \
-  case UMOO_##OpName:                                                          \
+#define METAOBJECT_STR_OP_1(S, OpRes, OpName) \
+  case UMOO_##OpName: \
     return op##OpName(Ctx, REE);
 #include "clang/Basic/TokenKinds.def"
 #undef METAOBJECT_STR_OP_1
@@ -3314,8 +3341,8 @@ NaryMetaobjectOpExpr::NaryMetaobjectOpExpr(ASTContext &Ctx,
 
 StringRef NaryMetaobjectOpExpr::getOperationSpelling(NaryMetaobjectOp MoOp) {
   switch (MoOp) {
-#define METAOBJECT_OP_2(Spelling, R, Name, K)                                  \
-  case NMOO_##Name:                                                            \
+#define METAOBJECT_OP_2(Spelling, R, Name) \
+  case NMOO_##Name: \
     return #Spelling;
 #include "clang/Basic/TokenKinds.def"
 #undef METAOBJECT_OP_2

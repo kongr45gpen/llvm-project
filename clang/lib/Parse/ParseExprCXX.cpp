@@ -3878,11 +3878,11 @@ static UnaryMetaobjectOp UnaryMetaobjectOpFromTokKind(tok::TokenKind kind) {
   switch (kind) {
   default:
     llvm_unreachable("Not a known metaobject operation");
-#define METAOBJECT_OP_1(Spelling, Result, Name, Key)                           \
+#define METAOBJECT_OP_1(Spelling, Result, Name) \
   case tok::kw___metaobject_##Spelling: \
     return UMOO_##Name;
 #include "clang/Basic/TokenKinds.def"
-#define METAOBJECT_OP_2(Spelling, Result, Name, Key) \
+#define METAOBJECT_OP_2(Spelling, Result, Name) \
   case tok::kw___metaobject_##Spelling:
 #include "clang/Basic/TokenKinds.def"
     llvm_unreachable("Not an unary metaobject operation!");
@@ -3894,11 +3894,11 @@ static NaryMetaobjectOp NaryMetaobjectOpFromTokKind(tok::TokenKind kind) {
   switch (kind) {
   default:
     llvm_unreachable("Not a known metaobject operation");
-#define METAOBJECT_OP_2(Spelling, Result, Name, Key)                           \
-  case tok::kw___metaobject_##Spelling:                                        \
+#define METAOBJECT_OP_2(Spelling, Result, Name) \
+  case tok::kw___metaobject_##Spelling: \
     return NMOO_##Name;
 #include "clang/Basic/TokenKinds.def"
-#define METAOBJECT_OP_1(Spelling, Result, Name, Key)                           \
+#define METAOBJECT_OP_1(Spelling, Result, Name) \
   case tok::kw___metaobject_##Spelling:
 #include "clang/Basic/TokenKinds.def"
     llvm_unreachable("Not an n-ary metaobject operation!");
@@ -3909,10 +3909,10 @@ static MetaobjectOpResult MetaobjectOpResultFromTokKind(tok::TokenKind kind) {
   switch (kind) {
   default:
     llvm_unreachable("Not a known metaobject operation");
-#define METAOBJECT_OP_1(Spelling, Result, Name, Key) \
+#define METAOBJECT_OP_1(Spelling, Result, Name) \
   case tok::kw___metaobject_##Spelling: \
     return MOOR_##Result;
-#define METAOBJECT_OP_2(Spelling, Result, Name, Key) \
+#define METAOBJECT_OP_2(Spelling, Result, Name) \
   case tok::kw___metaobject_##Spelling: \
     return MOOR_##Result;
 #include "clang/Basic/TokenKinds.def"
@@ -3923,7 +3923,7 @@ static unsigned MetaobjectOpArity(tok::TokenKind kind) {
   switch (kind) {
   default:
     llvm_unreachable("Not a known metaobject operation");
-#define METAOBJECT_OP(Arity, Spelling, Result, Name, Key) \
+#define METAOBJECT_OP(Arity, Spelling, Result, Name) \
   case tok::kw___metaobject_##Spelling: \
     return Arity;
 #include "clang/Basic/TokenKinds.def"

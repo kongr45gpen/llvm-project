@@ -1442,7 +1442,7 @@ ExprResult Parser::ParseCastExpression(CastParseKind ParseKind,
     }
     Res = ParseReflexprExpression(true);
     break;
-#define METAOBJECT_OP(A,Spelling,R,N,K) case tok::kw___metaobject_ ## Spelling:
+#define METAOBJECT_OP(A,Spelling,R,N) case tok::kw___metaobject_ ## Spelling:
 #include "clang/Basic/TokenKinds.def"
     if (!getLangOpts().ReflectionTS) {
       Diag(Tok, diag::err_using_metaobject_op_without_reflection)

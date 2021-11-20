@@ -57,28 +57,28 @@
 #define ARRAY_TYPE_TRAIT(I,E,K) KEYWORD(I,K)
 #endif
 #ifndef METAOBJECT_OP
-#define METAOBJECT_OP(A,S,R,N,K) KEYWORD(__metaobject_ ## S,K)
+#define METAOBJECT_OP(A,S,R,N) KEYWORD(__metaobject_ ## S,KEYREFLECTION)
 #endif
 #ifndef METAOBJECT_OP_2
-#define METAOBJECT_OP_2(S,R,N,K) METAOBJECT_OP(2,S,R,N,K)
+#define METAOBJECT_OP_2(S,R,N) METAOBJECT_OP(2,S,R,N)
 #endif
 #ifndef METAOBJECT_OP_1
-#define METAOBJECT_OP_1(S,R,N,K) METAOBJECT_OP(1,S,R,N,K)
+#define METAOBJECT_OP_1(S,R,N) METAOBJECT_OP(1,S,R,N)
 #endif
 #ifndef METAOBJECT_INT_OP_1
-#define METAOBJECT_INT_OP_1(S,R,N,K) METAOBJECT_OP_1(S,R,N,K)
+#define METAOBJECT_INT_OP_1(S,R,N) METAOBJECT_OP_1(S,R,N)
 #endif
 #ifndef METAOBJECT_PTR_OP_1
-#define METAOBJECT_PTR_OP_1(S,R,N,K) METAOBJECT_OP_1(S,R,N,K)
+#define METAOBJECT_PTR_OP_1(S,R,N) METAOBJECT_OP_1(S,R,N)
 #endif
 #ifndef METAOBJECT_STR_OP_1
-#define METAOBJECT_STR_OP_1(S,R,N,K) METAOBJECT_OP_1(S,R,N,K)
+#define METAOBJECT_STR_OP_1(S,R,N) METAOBJECT_OP_1(S,R,N)
 #endif
 #ifndef METAOBJECT_OBJ_OP_1
-#define METAOBJECT_OBJ_OP_1(S,R,N,K) METAOBJECT_OP_1(S,R,N,K)
+#define METAOBJECT_OBJ_OP_1(S,R,N) METAOBJECT_OP_1(S,R,N)
 #endif
 #ifndef METAOBJECT_TRAIT
-#define METAOBJECT_TRAIT(S,C,K) METAOBJECT_OP_1(is_meta_##S,Bool,IsMeta##C,K)
+#define METAOBJECT_TRAIT(S,C) METAOBJECT_OP_1(is_meta_##S,Bool,IsMeta##C)
 #endif
 #ifndef UNARY_EXPR_OR_TYPE_TRAIT
 #define UNARY_EXPR_OR_TYPE_TRAIT(I,E,K) KEYWORD(I,K)
@@ -430,106 +430,74 @@ REFLECTION_KEYWORD(__unrefltype)
 REFLECTION_KEYWORD(reflexpr)
 
 // reflection TS metaobject classification traits
-METAOBJECT_TRAIT(object            , Object          , KEYREFLECTION)
-METAOBJECT_TRAIT(object_sequence   , ObjectSequence  , KEYREFLECTION)
-METAOBJECT_TRAIT(named           , Named             , KEYREFLECTION)
-METAOBJECT_TRAIT(typed           , Typed             , KEYREFLECTION)
-METAOBJECT_TRAIT(scope           , Scope             , KEYREFLECTION)
-METAOBJECT_TRAIT(scope_member    , ScopeMember       , KEYREFLECTION)
-METAOBJECT_TRAIT(base            , Base              , KEYREFLECTION)
-METAOBJECT_TRAIT(template        , Template          , KEYREFLECTION)
-METAOBJECT_TRAIT(parameter       , Parameter         , KEYREFLECTION)
-METAOBJECT_TRAIT(enum_member     , EnumMember        , KEYREFLECTION)
-METAOBJECT_TRAIT(record_member   , RecordMember      , KEYREFLECTION)
-METAOBJECT_TRAIT(alias           , Alias             , KEYREFLECTION)
-METAOBJECT_TRAIT(constant        , Constant          , KEYREFLECTION)
-METAOBJECT_TRAIT(variable        , Variable          , KEYREFLECTION)
-METAOBJECT_TRAIT(namespace       , Namespace         , KEYREFLECTION)
-METAOBJECT_TRAIT(global_scope    , GlobalScope       , KEYREFLECTION)
-METAOBJECT_TRAIT(type            , Type              , KEYREFLECTION)
-METAOBJECT_TRAIT(tag_type        , TagType           , KEYREFLECTION)
-METAOBJECT_TRAIT(enum            , Enum              , KEYREFLECTION)
-METAOBJECT_TRAIT(record          , Record            , KEYREFLECTION)
-METAOBJECT_TRAIT(class           , Class             , KEYREFLECTION)
-METAOBJECT_TRAIT(function        , Function          , KEYREFLECTION)
-METAOBJECT_TRAIT(specifier       , Specifier         , KEYREFLECTION)
+METAOBJECT_TRAIT(object                   , Object)
+METAOBJECT_TRAIT(object_sequence          , ObjectSequence)
+METAOBJECT_TRAIT(named                    , Named)
+METAOBJECT_TRAIT(typed                    , Typed)
+METAOBJECT_TRAIT(scope                    , Scope)
+METAOBJECT_TRAIT(scope_member             , ScopeMember)
+METAOBJECT_TRAIT(base                     , Base)
+METAOBJECT_TRAIT(template                 , Template)
+METAOBJECT_TRAIT(enum_member              , EnumMember)
+METAOBJECT_TRAIT(record_member            , RecordMember)
+METAOBJECT_TRAIT(alias                    , Alias)
+METAOBJECT_TRAIT(constant                 , Constant)
+METAOBJECT_TRAIT(variable                 , Variable)
+METAOBJECT_TRAIT(function_parameter       , FunctionParameter)
+METAOBJECT_TRAIT(namespace                , Namespace)
+METAOBJECT_TRAIT(global_scope             , GlobalScope)
+METAOBJECT_TRAIT(template_parameter_scope , TemplateParameterScope)
+METAOBJECT_TRAIT(type                     , Type)
+METAOBJECT_TRAIT(tag_type                 , TagType)
+METAOBJECT_TRAIT(enum                     , Enum)
+METAOBJECT_TRAIT(record                   , Record)
+METAOBJECT_TRAIT(class                    , Class)
+METAOBJECT_TRAIT(function                 , Function)
+METAOBJECT_TRAIT(constructor              , Constructor)
+METAOBJECT_TRAIT(destructor               , Destructor)
+METAOBJECT_TRAIT(operator                 , Operator)
+METAOBJECT_TRAIT(conversion_operator      , ConversionOperator)
+METAOBJECT_TRAIT(specifier                , Specifier)
 
 // reflection TS metaobject unary operations
-METAOBJECT_INT_OP_1(get_id_value         , ULong        ,
-                    GetIdValue           , KEYREFLECTION)
-METAOBJECT_INT_OP_1(source_file_name_len , ULong        ,
-                    SourceFileNameLen    , KEYREFLECTION)
-METAOBJECT_STR_OP_1(get_source_file_name , String       ,
-                    GetSourceFileName    , KEYREFLECTION)
-METAOBJECT_INT_OP_1(get_source_line      , UInt         ,
-                    GetSourceLine        , KEYREFLECTION)
-METAOBJECT_INT_OP_1(get_source_column    , UInt         ,
-                    GetSourceColumn      , KEYREFLECTION)
-METAOBJECT_INT_OP_1(is_unnamed           , Bool         ,
-                    IsUnnamed            , KEYREFLECTION)
-METAOBJECT_INT_OP_1(name_len             , ULong        ,
-                    NameLen              , KEYREFLECTION)
-METAOBJECT_STR_OP_1(get_name             , String       ,
-                    GetName              , KEYREFLECTION)
-METAOBJECT_INT_OP_1(display_name_len     , ULong        ,
-                    DisplayNameLen       , KEYREFLECTION)
-METAOBJECT_STR_OP_1(get_display_name     , String       ,
-                    GetDisplayName       , KEYREFLECTION)
-METAOBJECT_INT_OP_1(is_scoped_enum       , Bool         ,
-                    IsScopedEnum         , KEYREFLECTION)
-METAOBJECT_OBJ_OP_1(get_scope            , Metaobject   ,
-                    GetScope             , KEYREFLECTION)
-METAOBJECT_OBJ_OP_1(get_aliased          , Metaobject   ,
-                    GetAliased           , KEYREFLECTION)
-METAOBJECT_OBJ_OP_1(get_type             , Metaobject   ,
-                    GetType              , KEYREFLECTION)
-METAOBJECT_OBJ_OP_1(get_tag_specifier    , Metaobject   ,
-                    GetTagSpecifier      , KEYREFLECTION)
-METAOBJECT_INT_OP_1(is_enum              , Bool         ,
-                    IsEnum               , KEYREFLECTION)
-METAOBJECT_INT_OP_1(is_union             , Bool         ,
-                    IsUnion              , KEYREFLECTION)
-METAOBJECT_INT_OP_1(uses_class_key       , Bool         ,
-                    UsesClassKey         , KEYREFLECTION)
-METAOBJECT_INT_OP_1(uses_struct_key      , Bool         ,
-                    UsesStructKey        , KEYREFLECTION)
-METAOBJECT_OBJ_OP_1(get_base_classes     , Metaobject   ,
-                    GetBaseClasses       , KEYREFLECTION)
-METAOBJECT_OBJ_OP_1(get_member_types     , Metaobject   ,
-                    GetMemberTypes       , KEYREFLECTION)
-METAOBJECT_OBJ_OP_1(get_member_variables , Metaobject   ,
-                    GetMemberVariables   , KEYREFLECTION)
-METAOBJECT_OBJ_OP_1(get_member_constants , Metaobject   ,
-                    GetMemberConstants   , KEYREFLECTION)
-METAOBJECT_OBJ_OP_1(get_base_class       , Metaobject   ,
-                    GetBaseClass         , KEYREFLECTION)
-METAOBJECT_OBJ_OP_1(get_access_specifier , Metaobject   ,
-                    GetAccessSpecifier   , KEYREFLECTION)
-METAOBJECT_INT_OP_1(is_public            , Bool         ,
-                    IsPublic             , KEYREFLECTION)
-METAOBJECT_INT_OP_1(is_protected         , Bool         ,
-                    IsProtected          , KEYREFLECTION)
-METAOBJECT_INT_OP_1(is_private           , Bool         ,
-                    IsPrivate            , KEYREFLECTION)
-METAOBJECT_INT_OP_1(is_static            , Bool         ,
-                    IsStatic             , KEYREFLECTION)
-METAOBJECT_INT_OP_1(is_virtual           , Bool         ,
-                    IsVirtual            , KEYREFLECTION)
-METAOBJECT_PTR_OP_1(get_pointer          , Pointer      ,
-                    GetPointer           , KEYREFLECTION)
-METAOBJECT_INT_OP_1(get_constant         , Const        ,
-                    GetConstant          , KEYREFLECTION)
-METAOBJECT_OBJ_OP_1(hide_protected       , Metaobject   ,
-                    HideProtected        , KEYREFLECTION)
-METAOBJECT_OBJ_OP_1(hide_private         , Metaobject   ,
-                    HidePrivate          , KEYREFLECTION)
-METAOBJECT_INT_OP_1(get_size             , UInt         ,
-                    GetSize              , KEYREFLECTION)
+METAOBJECT_INT_OP_1(get_id_value         , ULong        , GetIdValue)
+METAOBJECT_INT_OP_1(source_file_name_len , ULong        , SourceFileNameLen)
+METAOBJECT_STR_OP_1(get_source_file_name , String       , GetSourceFileName)
+METAOBJECT_INT_OP_1(get_source_line      , UInt         , GetSourceLine)
+METAOBJECT_INT_OP_1(get_source_column    , UInt         , GetSourceColumn)
+METAOBJECT_INT_OP_1(is_unnamed           , Bool         , IsUnnamed)
+METAOBJECT_INT_OP_1(name_len             , ULong        , NameLen)
+METAOBJECT_STR_OP_1(get_name             , String       , GetName)
+METAOBJECT_INT_OP_1(display_name_len     , ULong        , DisplayNameLen)
+METAOBJECT_STR_OP_1(get_display_name     , String       , GetDisplayName)
+METAOBJECT_INT_OP_1(is_scoped_enum       , Bool         , IsScopedEnum)
+METAOBJECT_OBJ_OP_1(get_scope            , Metaobject   , GetScope)
+METAOBJECT_OBJ_OP_1(get_aliased          , Metaobject   , GetAliased)
+METAOBJECT_OBJ_OP_1(get_type             , Metaobject   , GetType)
+METAOBJECT_OBJ_OP_1(get_tag_specifier    , Metaobject   , GetTagSpecifier)
+METAOBJECT_INT_OP_1(is_enum              , Bool         , IsEnum)
+METAOBJECT_INT_OP_1(is_union             , Bool         , IsUnion)
+METAOBJECT_INT_OP_1(uses_class_key       , Bool         , UsesClassKey)
+METAOBJECT_INT_OP_1(uses_struct_key      , Bool         , UsesStructKey)
+METAOBJECT_OBJ_OP_1(get_base_classes     , Metaobject   , GetBaseClasses)
+METAOBJECT_OBJ_OP_1(get_member_types     , Metaobject   , GetMemberTypes)
+METAOBJECT_OBJ_OP_1(get_member_variables , Metaobject   , GetMemberVariables)
+METAOBJECT_OBJ_OP_1(get_member_constants , Metaobject   , GetMemberConstants)
+METAOBJECT_OBJ_OP_1(get_base_class       , Metaobject   , GetBaseClass)
+METAOBJECT_OBJ_OP_1(get_access_specifier , Metaobject   , GetAccessSpecifier)
+METAOBJECT_INT_OP_1(is_public            , Bool         , IsPublic)
+METAOBJECT_INT_OP_1(is_protected         , Bool         , IsProtected)
+METAOBJECT_INT_OP_1(is_private           , Bool         , IsPrivate)
+METAOBJECT_INT_OP_1(is_static            , Bool         , IsStatic)
+METAOBJECT_INT_OP_1(is_virtual           , Bool         , IsVirtual)
+METAOBJECT_PTR_OP_1(get_pointer          , Pointer      , GetPointer)
+METAOBJECT_INT_OP_1(get_constant         , Const        , GetConstant)
+METAOBJECT_OBJ_OP_1(hide_protected       , Metaobject   , HideProtected)
+METAOBJECT_OBJ_OP_1(hide_private         , Metaobject   , HidePrivate)
+METAOBJECT_INT_OP_1(get_size             , UInt         , GetSize)
 
-METAOBJECT_OP_2(get_element          , Metaobject   ,
-                GetElement           , KEYREFLECTION)
-METAOBJECT_OP_2(reflects_same        , Bool         ,
-                ReflectsSame         , KEYREFLECTION)
+METAOBJECT_OP_2(get_element          , Metaobject   , GetElement)
+METAOBJECT_OP_2(reflects_same        , Bool         , ReflectsSame)
 
 // C++20 / coroutines TS keywords
 COROUTINES_KEYWORD(co_await)

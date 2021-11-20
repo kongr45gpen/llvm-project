@@ -14,8 +14,19 @@ auto main() -> int {
   static_assert(GlobalScope<mg>);
   static_assert(GlobalScope<get_scope_t<ms>>);
   static_assert(reflects_same_v<mg, get_scope_t<ms>>);
+  static_assert(get_name_v<mi>[0] == 'i');
+  static_assert(get_name_v<mi>[1] == 'n');
+  static_assert(get_name_v<mi>[2] == 't');
+  static_assert(get_name_v<mi>[3] == '\0');
 
   get_reflected_type_t<mi> i = 0;
+
+  if (get_source_file_name_v<ms> != nullptr) {
+  }
+  if (get_name_v<mi> != nullptr) {
+  }
+  if (get_display_name_v<mi> != nullptr) {
+  }
 
   return i;
 }

@@ -9101,37 +9101,21 @@ ExprResult Sema::CreateUnaryStrMetaobjectOpExpr(UnaryMetaobjectOp Oper,
          "Cannot handle a non-string-returning operation here");
   assert(argExpr.isUsable());
 
-  // [reflection-ts] FIXME check if the arg exprs are valid and yield metaobject ids
-
-  bool recreate = ExprEvalContexts.back().ExprContext ==
-                  ExpressionEvaluationContextRecord::EK_Unrefltype;
-  recreate |= argExpr.get()->isTypeDependent();
-  recreate |= argExpr.get()->isValueDependent();
-  recreate |= argExpr.get()->isInstantiationDependent();
-
-  if (recreate) {
-    return new (Context)
+  std::string Value;
+  if (!UnaryMetaobjectOpExpr::getStrResult(Context, Oper, nullptr,
+                                           argExpr.get(), Value)) {
+   return new (Context)
         UnaryMetaobjectOpExpr(Context, Oper, OpRes, Context.DependentTy,
                               argExpr.get(), opLoc, endLoc);
-  } else {
-
-    std::string Value;
-    if (!UnaryMetaobjectOpExpr::getStrResult(Context, Oper, nullptr,
-                                             argExpr.get(), Value)) {
-      return new (Context)
-          UnaryMetaobjectOpExpr(Context, Oper, OpRes, Context.DependentTy,
-                                argExpr.get(), opLoc, endLoc);
-    }
-    QualType CharTyConst = Context.CharTy;
-    CharTyConst.addConst();
-
-    QualType StrTy = Context.getConstantArrayType(
-        CharTyConst, llvm::APInt(32, Value.size() + 1),
-         nullptr, ArrayType::Normal, 0);
-
-    return StringLiteral::Create(Context, Value, StringLiteral::UTF8,
-                                 false /*pascal*/, StrTy, &opLoc, 1);
   }
+  QualType CharTyConst = Context.CharTy;
+  CharTyConst.addConst();
+
+  QualType StrTy = Context.getStringLiteralArrayType(
+      CharTyConst, Value.size());
+
+  return StringLiteral::Create(Context, Value, StringLiteral::UTF8,
+                               false /*pascal*/, StrTy, opLoc);
 }
 
 ExprResult Sema::CreateNaryStrMetaobjectOpExpr(NaryMetaobjectOp,
@@ -9200,14 +9184,11 @@ ExprResult Sema::CreateNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
   }
 
   if (OpRes == MOOR_Pointer) {
-    return CreateNaryPtrMetaobjectOpExpr(Oper, OpRes, Arity, argExpr, opLoc,
-                                         endLoc);
+    return CreateNaryPtrMetaobjectOpExpr(Oper, OpRes, Arity, argExpr, opLoc, endLoc);
   } else if (OpRes == MOOR_String) {
-    return CreateNaryStrMetaobjectOpExpr(Oper, OpRes, Arity, argExpr, opLoc,
-                                         endLoc);
+    return CreateNaryStrMetaobjectOpExpr(Oper, OpRes, Arity, argExpr, opLoc, endLoc);
   } else {
-    return CreateNaryIntMetaobjectOpExpr(Oper, OpRes, Arity, argExpr, opLoc,
-                                         endLoc);
+    return CreateNaryIntMetaobjectOpExpr(Oper, OpRes, Arity, argExpr, opLoc, endLoc);
   }
 }
 

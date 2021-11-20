@@ -5234,8 +5234,8 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
 
   static uintptr_t opGetIdValue(ASTContext &, ReflexprIdExpr*);
 
-  static std::size_t opSourceFileLen(ASTContext&, ReflexprIdExpr*);
-  static std::string opGetSourceFile(ASTContext&, ReflexprIdExpr*);
+  static std::size_t opSourceFileNameLen(ASTContext&, ReflexprIdExpr*);
+  static std::string opGetSourceFileName(ASTContext&, ReflexprIdExpr*);
   static unsigned opGetSourceLine(ASTContext&, ReflexprIdExpr*);
   static unsigned opGetSourceColumn(ASTContext&, ReflexprIdExpr*);
 

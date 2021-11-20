@@ -2474,8 +2474,8 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_GetIdValue:
 #define METAOBJECT_TRAIT(S, Concept, K) case UMOO_IsMeta##Concept:
 #include "clang/Basic/TokenKinds.def"
-  case UMOO_SourceFileLen:
-  case UMOO_GetSourceFile:
+  case UMOO_SourceFileNameLen:
+  case UMOO_GetSourceFileName:
   case UMOO_GetSourceLine:
   case UMOO_GetSourceColumn:
     return true;
@@ -2547,13 +2547,13 @@ uintptr_t UnaryMetaobjectOpExpr::opGetIdValue(ASTContext &Ctx, ReflexprIdExpr *R
   return REE->getIdValue(Ctx).getZExtValue();
 }
 
-std::size_t UnaryMetaobjectOpExpr::opSourceFileLen(ASTContext &Ctx,
-                                                   ReflexprIdExpr *REE) {
-  return opGetSourceFile(Ctx, REE).size();
+std::size_t UnaryMetaobjectOpExpr::opSourceFileNameLen(ASTContext &Ctx,
+                                                       ReflexprIdExpr *REE) {
+  return opGetSourceFileName(Ctx, REE).size();
 }
 
-std::string UnaryMetaobjectOpExpr::opGetSourceFile(ASTContext &Ctx,
-                                                   ReflexprIdExpr *REE) {
+std::string UnaryMetaobjectOpExpr::opGetSourceFileName(ASTContext &Ctx,
+                                                       ReflexprIdExpr *REE) {
   assert(REE);
 
   StringRef result;

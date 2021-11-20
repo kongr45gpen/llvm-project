@@ -457,10 +457,10 @@ METAOBJECT_TRAIT(specifier       , Specifier         , KEYREFLECTION)
 // reflection TS metaobject unary operations
 METAOBJECT_INT_OP_1(get_id_value         , ULong        ,
                     GetIdValue           , KEYREFLECTION)
-METAOBJECT_INT_OP_1(source_file_len      , ULong        ,
-                    SourceFileLen        , KEYREFLECTION)
-METAOBJECT_STR_OP_1(get_source_file      , String       ,
-                    GetSourceFile        , KEYREFLECTION)
+METAOBJECT_INT_OP_1(source_file_name_len , ULong        ,
+                    SourceFileNameLen    , KEYREFLECTION)
+METAOBJECT_STR_OP_1(get_source_file_name , String       ,
+                    GetSourceFileName    , KEYREFLECTION)
 METAOBJECT_INT_OP_1(get_source_line      , UInt         ,
                     GetSourceLine        , KEYREFLECTION)
 METAOBJECT_INT_OP_1(get_source_column    , UInt         ,

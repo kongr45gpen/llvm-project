@@ -452,11 +452,13 @@ METAOBJECT_TRAIT(tag_type                 , TagType)
 METAOBJECT_TRAIT(enum                     , Enum)
 METAOBJECT_TRAIT(record                   , Record)
 METAOBJECT_TRAIT(class                    , Class)
+METAOBJECT_TRAIT(callable                 , Callable)
 METAOBJECT_TRAIT(function                 , Function)
 METAOBJECT_TRAIT(constructor              , Constructor)
 METAOBJECT_TRAIT(destructor               , Destructor)
 METAOBJECT_TRAIT(operator                 , Operator)
 METAOBJECT_TRAIT(conversion_operator      , ConversionOperator)
+METAOBJECT_TRAIT(expression               , Expression)
 METAOBJECT_TRAIT(specifier                , Specifier)
 
 // reflection TS metaobject unary operations

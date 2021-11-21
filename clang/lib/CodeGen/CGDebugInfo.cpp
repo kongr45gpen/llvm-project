@@ -5092,6 +5092,12 @@ std::string CGDebugInfo::GetName(const Decl *D, bool Qualified) const {
             // this for now. Re-parsing the integers back into APInt is probably
             // feasible some day.
             return TA.getAsIntegral().getBitWidth() <= 64;
+          case TemplateArgument::MetaobjectId:
+            // Larger integers get encoded as DWARF blocks which are a bit
+            // harder to parse back into a large integer, etc - so punting on
+            // this for now. Re-parsing the integers back into APInt is probably
+            // feasible some day.
+            return TA.getAsMetaobjectId().getBitWidth() <= 64;
           case TemplateArgument::Type:
             return IsReconstitutableType(TA.getAsType());
           default:

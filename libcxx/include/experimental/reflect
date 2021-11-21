@@ -237,6 +237,22 @@ struct __is_Variable
 template <class _Tp>
 concept bool Variable = __is_a_concept_v<_Tp, __is_Variable>;
 
+// FunctionParameter
+template <__metaobject_id _Tp>
+struct __is_FunctionParameter
+  : integral_constant<bool, __metaobject_is_meta_function_parameter(_Tp)> {};
+
+template <class _Tp>
+concept bool FunctionParameter = __is_a_concept_v<_Tp, __is_FunctionParameter>;
+
+// Callable
+template <__metaobject_id _Tp>
+struct __is_Callable
+  : integral_constant<bool, __metaobject_is_meta_callable(_Tp)> {};
+
+template <class _Tp>
+concept bool Callable = __is_a_concept_v<_Tp, __is_Callable>;
+
 // Function
 template <__metaobject_id _Tp>
 struct __is_Function
@@ -244,6 +260,46 @@ struct __is_Function
 
 template <class _Tp>
 concept bool Function = __is_a_concept_v<_Tp, __is_Function>;
+
+// Constructor
+template <__metaobject_id _Tp>
+struct __is_Constructor
+  : integral_constant<bool, __metaobject_is_meta_constructor(_Tp)> {};
+
+template <class _Tp>
+concept bool Constructor = __is_a_concept_v<_Tp, __is_Constructor>;
+
+// Destructor
+template <__metaobject_id _Tp>
+struct __is_Destructor
+  : integral_constant<bool, __metaobject_is_meta_destructor(_Tp)> {};
+
+template <class _Tp>
+concept bool Destructor = __is_a_concept_v<_Tp, __is_Destructor>;
+
+// Operator
+template <__metaobject_id _Tp>
+struct __is_Operator
+  : integral_constant<bool, __metaobject_is_meta_operator(_Tp)> {};
+
+template <class _Tp>
+concept bool Operator = __is_a_concept_v<_Tp, __is_Operator>;
+
+// ConversionOperator
+template <__metaobject_id _Tp>
+struct __is_ConversionOperator
+  : integral_constant<bool, __metaobject_is_meta_conversion_operator(_Tp)> {};
+
+template <class _Tp>
+concept bool ConversionOperator = __is_a_concept_v<_Tp, __is_ConversionOperator>;
+
+// Expression
+template <__metaobject_id _Tp>
+struct __is_Expression
+  : integral_constant<bool, __metaobject_is_meta_expression(_Tp)> {};
+
+template <class _Tp>
+concept bool Expression = __is_a_concept_v<_Tp, __is_Expression>;
 
 // [reflection-ts] FIXME: Add the remaining concepts from the TS
 

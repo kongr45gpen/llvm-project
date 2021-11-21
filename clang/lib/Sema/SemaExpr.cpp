@@ -19012,7 +19012,8 @@ bool Sema::CheckCallReturnType(QualType ReturnType, SourceLocation Loc,
   // type or construct temporaries until we know whether this is the last call.
   if (ExprEvalContexts.back().ExprContext ==
       ExpressionEvaluationContextRecord::EK_Unrefltype) {
-    ExprEvalContexts.back().DelayedDecltypeCalls.push_back(CE);
+    // [reflection-ts] FIXME: do we need DelayedUnrefltypeCalls?
+    //ExprEvalContexts.back().DelayedUnrefltypeCalls.push_back(CE);
     return false;
   }
 

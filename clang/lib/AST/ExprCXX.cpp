@@ -2087,6 +2087,8 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
     return "a record";
   case MOK_Class:
     return "a class";
+  case MOK_Lambda:
+    return "a lambda";
   case MOK_Function:
   case MOK_NamedFunction:
     return "a function";
@@ -2110,6 +2112,8 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
     return "a template type parameter";
   case MOK_Variable:
     return "a variable";
+  case MOK_LambdaCapture:
+    return "a lambda capture";
   case MOK_FunctionParameter:
     return "a function parameter";
   case MOK_DataMember:
@@ -2166,6 +2170,8 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_Record;
   case MOK_Class:
     return MOC_Class;
+  case MOK_Lambda:
+    return MOC_Lambda;
   case MOK_Function:
     return MOC_Function;
   case MOK_Constructor:
@@ -2188,6 +2194,8 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_TemplateTypeParameter;
   case MOK_Variable:
     return MOC_Variable;
+  case MOK_LambdaCapture:
+    return MOC_LambdaCapture;
   case MOK_FunctionParameter:
     return MOC_FunctionParameter;
   case MOK_NamedFunction:

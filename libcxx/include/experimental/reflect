@@ -221,6 +221,14 @@ struct __is_Class
 template <class _Tp>
 concept bool Class = __is_a_concept_v<_Tp, __is_Class>;
 
+// Lambda
+template <__metaobject_id _Tp>
+struct __is_Lambda
+  : integral_constant<bool, __metaobject_is_meta_lambda(_Tp)> {};
+
+template <class _Tp>
+concept bool Lambda = __is_a_concept_v<_Tp, __is_Lambda>;
+
 // Constant
 template <__metaobject_id _Tp>
 struct __is_Constant
@@ -236,6 +244,14 @@ struct __is_Variable
 
 template <class _Tp>
 concept bool Variable = __is_a_concept_v<_Tp, __is_Variable>;
+
+// LambdaCapture
+template <__metaobject_id _Tp>
+struct __is_LambdaCapture
+  : integral_constant<bool, __metaobject_is_meta_lambda_capture(_Tp)> {};
+
+template <class _Tp>
+concept bool LambdaCapture = __is_a_concept_v<_Tp, __is_LambdaCapture>;
 
 // FunctionParameter
 template <__metaobject_id _Tp>

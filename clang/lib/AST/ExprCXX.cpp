@@ -2444,15 +2444,15 @@ llvm::APSInt MetaobjectOpExprBase::makeBoolResult(ASTContext&, bool v) {
 
 llvm::APSInt MetaobjectOpExprBase::makeSizeTResult(ASTContext &Ctx,
                                                    uint64_t v) {
-  unsigned w = Ctx.getTargetInfo().getTypeWidth(
+  const unsigned w = Ctx.getTargetInfo().getTypeWidth(
       Ctx.getTargetInfo().getSizeType());
-  return llvm::APSInt(llvm::APInt(w, v));
+  return llvm::APSInt(llvm::APInt(w, v, false));
 }
 
 llvm::APSInt MetaobjectOpExprBase::makeULongResult(ASTContext &Ctx,
                                                    uint64_t v) {
-  unsigned w = Ctx.getTargetInfo().getLongWidth();
-  return llvm::APSInt(llvm::APInt(w, v));
+  const unsigned w = Ctx.getTargetInfo().getLongWidth();
+  return llvm::APSInt(llvm::APInt(w, v, false));
 }
 
 llvm::APSInt MetaobjectOpExprBase::makeConstResult(ASTContext&,
@@ -2543,7 +2543,7 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
     return conceptIsA(MoC, MOC_Record);
   case UMOO_GetEnumerators:
     return conceptIsA(MoC, MOC_Enum);
-  case UMOO_GetBaseClass:
+  case UMOO_GetClass:
     return conceptIsA(MoC, MOC_Base);
   case UMOO_GetAccessSpecifier:
   case UMOO_IsPublic:
@@ -2883,7 +2883,7 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetMemberTypes(ASTContext &Ctx,
 }
 
 ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetDataMembers(ASTContext &Ctx,
-                                                            ReflexprIdExpr *REE) {
+                                                        ReflexprIdExpr *REE) {
   assert(REE);
 
   // [reflection-ts] FIXME check if operation is applicable
@@ -2891,15 +2891,15 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetDataMembers(ASTContext &Ctx,
 }
 
 ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetEnumerators(ASTContext &Ctx,
-                                                           ReflexprIdExpr *REE) {
+                                                        ReflexprIdExpr *REE) {
   assert(REE);
 
   // [reflection-ts] FIXME check if operation is applicable
   return ReflexprIdExpr::getSeqReflexprExpr(Ctx, REE, MOSK_Enumerators);
 }
 
-ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetBaseClass(ASTContext &Ctx,
-                                                      ReflexprIdExpr *REE) {
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetClass(ASTContext &Ctx,
+                                                  ReflexprIdExpr *REE) {
   assert(REE && REE->isArgumentBaseSpecifier());
 
   const CXXBaseSpecifier *BS = REE->getArgumentBaseSpecifier();
@@ -3002,13 +3002,11 @@ struct matchingMetaobjSeqElementUtils {
 };
 
 struct countMatchingMetaobjSeqElements : matchingMetaobjSeqElementUtils {
-  unsigned count;
-
-  countMatchingMetaobjSeqElements(unsigned c) : count(c) {}
+  uint64_t count{0ULL};
 
   template <typename Predicate, typename Iter>
-  void operator()(Predicate &matches, Iter i, Iter e, bool hideProtected,
-                  bool hidePrivate) {
+  void operator()(Predicate &matches, Iter i, Iter e,
+                  bool hideProtected, bool hidePrivate) {
 
     while (i != e) {
       if (matches(*i)) {
@@ -3030,11 +3028,10 @@ struct countMatchingMetaobjSeqElements : matchingMetaobjSeqElementUtils {
 uint64_t UnaryMetaobjectOpExpr::opGetSize(ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
 
-  countMatchingMetaobjSeqElements action(0U);
+  countMatchingMetaobjSeqElements action;
   applyOnMetaobjSeqElements(Ctx, action, REE);
   return action.count;
 }
-
 
 struct findMatchingMetaobjSeqElement : matchingMetaobjSeqElementUtils {
   unsigned index;

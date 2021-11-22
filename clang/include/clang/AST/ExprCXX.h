@@ -5264,7 +5264,7 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static ReflexprIdExpr *opGetDataMembers(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetEnumerators(ASTContext &, ReflexprIdExpr*);
 
-  static ReflexprIdExpr *opGetBaseClass(ASTContext &, ReflexprIdExpr*);
+  static ReflexprIdExpr *opGetClass(ASTContext &, ReflexprIdExpr*);
 
   static bool opIsScopedEnum(ASTContext &, ReflexprIdExpr*);
   static bool opIsStatic(ASTContext &, ReflexprIdExpr*);

@@ -383,14 +383,18 @@ inline constexpr bool is_union_v = is_union<_Tp>::value;
 
 template <Type _Tp>
 struct _LIBCPP_TEMPLATE_VIS uses_class_key
-  : integral_constant<bool, __metaobject_uses_class_key(__unwrap_metaobject_id_v<_Tp>)> {};
+  : integral_constant<
+    bool,
+    __metaobject_uses_class_key(__unwrap_metaobject_id_v<_Tp>)> {};
 
 template <Type _Tp>
 inline constexpr bool uses_class_key_v = uses_class_key<_Tp>::value;
 
 template <Type _Tp>
 struct _LIBCPP_TEMPLATE_VIS uses_struct_key
-  : integral_constant<bool, __metaobject_uses_struct_key(__unwrap_metaobject_id_v<_Tp>)> {};
+  : integral_constant<
+    bool,
+    __metaobject_uses_struct_key(__unwrap_metaobject_id_v<_Tp>)> {};
 
 template <Type _Tp>
 inline constexpr bool uses_struct_key_v = uses_struct_key<_Tp>::value;
@@ -406,14 +410,18 @@ inline constexpr bool reflects_same_v = reflects_same<_T1, _T2>::value;
 // integral
 template <Object _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_source_line
-  : integral_constant<size_t, __metaobject_get_source_line(__unwrap_metaobject_id_v<_Tp>)> {};
+  : integral_constant<
+    size_t,
+    __metaobject_get_source_line(__unwrap_metaobject_id_v<_Tp>)> {};
 
 template <Object _Tp>
 inline constexpr bool get_source_line_v = get_source_line<_Tp>::value;
 
 template <Object _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_source_column
-  : integral_constant<size_t, __metaobject_get_source_column(__unwrap_metaobject_id_v<_Tp>)> {};
+  : integral_constant<
+    size_t,
+    __metaobject_get_source_column(__unwrap_metaobject_id_v<_Tp>)> {};
 
 template <Object _Tp>
 inline constexpr bool get_source_column_v = get_source_column<_Tp>::value;
@@ -434,14 +442,16 @@ struct _LIBCPP_TEMPLATE_VIS get_constant
     __metaobject_get_constant(__unwrap_metaobject_id_v<_Tp>)> {};
 
 template <Constant _Tp>
-inline constexpr bool get_constant_v = get_constant<_Tp>::value;
+inline constexpr auto get_constant_v = get_constant<_Tp>::value;
 
 template <ObjectSequence _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_size
-  : integral_constant<size_t, __metaobject_get_size(__unwrap_metaobject_id_v<_Tp>)> {};
+  : integral_constant<
+    size_t,
+    __metaobject_get_size(__unwrap_metaobject_id_v<_Tp>)> {};
 
 template <ObjectSequence _Tp>
-inline constexpr bool get_size_v = get_size<_Tp>::value;
+inline constexpr size_t get_size_v = get_size<_Tp>::value;
 
 // string
 template <Object _Tp>
@@ -496,6 +506,14 @@ struct _LIBCPP_TEMPLATE_VIS get_aliased {
 
 template <Alias _Tp>
 using get_aliased_t = typename get_aliased<_Tp>::type;
+
+template <Base _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_class {
+  using type = __metaobject<__metaobject_get_class(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Base _Tp>
+using get_class_t = typename get_class<_Tp>::type;
 
 template <Class _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_base_classes {
@@ -579,7 +597,9 @@ concept bool Specifier = __is_a_concept_v<_Tp, __is_Specifier>;
 // get the metaobject id as an integer
 template <Object _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_id
-  : integral_constant<uintptr_t, __metaobject_get_id_value(__unwrap_metaobject_id_v<_Tp>)> {};
+  : integral_constant<
+    uintptr_t,
+    __metaobject_get_id_value(__unwrap_metaobject_id_v<_Tp>)> {};
 
 template <Object _Tp>
 inline constexpr uintptr_t get_id_v = get_id<_Tp>::value;

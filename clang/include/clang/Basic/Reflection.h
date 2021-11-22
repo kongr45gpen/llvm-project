@@ -76,7 +76,7 @@ namespace clang {
     MOC_Enumerator               = MOC_Constant | MOC_Named | MOC_EnumMember
   };
 
-  // When updating this also update ReflexprExprBitfields
+  // When updating this also update ReflexprIdExprBitfields
   enum MetaobjectKind {
     MOK_Object = 0,
     MOK_ObjectSequence,
@@ -185,7 +185,7 @@ namespace clang {
     UMOO_GetMemberTypes,
     UMOO_GetDataMembers,
     UMOO_GetEnumerators,
-    UMOO_GetBaseClass,
+    UMOO_GetClass,
     UMOO_GetAccessSpecifier,
     UMOO_IsPublic,
     UMOO_IsProtected,

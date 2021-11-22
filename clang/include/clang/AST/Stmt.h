@@ -451,7 +451,7 @@ protected:
   class UnaryMetaobjectOpExprBitfields {
     friend class UnaryMetaobjectOpExpr;
     unsigned : NumExprBits;
-    unsigned Kind : 6;
+    unsigned Kind : 7;
     unsigned ResKind : 3;
   };
 

@@ -120,8 +120,8 @@ namespace clang {
 
   enum MetaobjectSequenceKind {
     MOSK_None = 0,
-    MOSK_MemberConstants,
-    MOSK_MemberVariables,
+    MOSK_Enumerators,
+    MOSK_DataMembers,
     MOSK_MemberTypes,
     MOSK_BaseClasses,
     MOSK_All
@@ -183,8 +183,8 @@ namespace clang {
     UMOO_UsesStructKey,
     UMOO_GetBaseClasses,
     UMOO_GetMemberTypes,
-    UMOO_GetMemberVariables,
-    UMOO_GetMemberConstants,
+    UMOO_GetDataMembers,
+    UMOO_GetEnumerators,
     UMOO_GetBaseClass,
     UMOO_GetAccessSpecifier,
     UMOO_IsPublic,
@@ -209,8 +209,8 @@ namespace clang {
   // When updating this also update MetaobjectOpExprBitfields
   /// \brief Names for metaobject operation results
   enum MetaobjectOpResult {
-    MOOR_ULong = 0,
-    MOOR_UInt,
+    MOOR_SizeT = 0,
+    MOOR_ULong,
     MOOR_Bool,
     MOOR_Const,
     MOOR_String,

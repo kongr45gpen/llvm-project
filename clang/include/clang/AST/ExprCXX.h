@@ -5207,7 +5207,7 @@ protected:
   static AccessSpecifier getArgumentAccess(ASTContext &Ctx, ReflexprIdExpr*);
 
   static llvm::APSInt makeBoolResult(ASTContext &Ctx, bool);
-  static llvm::APSInt makeUIntResult(ASTContext &Ctx, unsigned);
+  static llvm::APSInt makeSizeTResult(ASTContext &Ctx, uint64_t);
   static llvm::APSInt makeULongResult(ASTContext &Ctx, uint64_t);
   static llvm::APSInt makeConstResult(ASTContext &Ctx, llvm::APSInt);
   static llvm::APInt makeMetaobjectResult(ASTContext &Ctx, ReflexprIdExpr*);
@@ -5234,15 +5234,15 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
 
   static uintptr_t opGetIdValue(ASTContext &, ReflexprIdExpr*);
 
-  static std::size_t opSourceFileNameLen(ASTContext&, ReflexprIdExpr*);
+  static uint64_t opSourceFileNameLen(ASTContext&, ReflexprIdExpr*);
   static std::string opGetSourceFileName(ASTContext&, ReflexprIdExpr*);
-  static unsigned opGetSourceLine(ASTContext&, ReflexprIdExpr*);
-  static unsigned opGetSourceColumn(ASTContext&, ReflexprIdExpr*);
+  static uint64_t opGetSourceLine(ASTContext&, ReflexprIdExpr*);
+  static uint64_t opGetSourceColumn(ASTContext&, ReflexprIdExpr*);
 
   static bool opIsUnnamed(ASTContext &, ReflexprIdExpr*);
-  static std::size_t opNameLen(ASTContext &, ReflexprIdExpr*);
+  static uint64_t opNameLen(ASTContext &, ReflexprIdExpr*);
   static std::string opGetName(ASTContext &, ReflexprIdExpr*);
-  static std::size_t opDisplayNameLen(ASTContext &, ReflexprIdExpr*);
+  static uint64_t opDisplayNameLen(ASTContext &, ReflexprIdExpr*);
   static std::string opGetDisplayName(ASTContext &, ReflexprIdExpr*);
 
   static ReflexprIdExpr *opGetScope(ASTContext &, ReflexprIdExpr*);
@@ -5261,8 +5261,8 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
 
   static ReflexprIdExpr *opGetBaseClasses(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetMemberTypes(ASTContext &, ReflexprIdExpr*);
-  static ReflexprIdExpr *opGetMemberVariables(ASTContext &, ReflexprIdExpr*);
-  static ReflexprIdExpr *opGetMemberConstants(ASTContext &, ReflexprIdExpr*);
+  static ReflexprIdExpr *opGetDataMembers(ASTContext &, ReflexprIdExpr*);
+  static ReflexprIdExpr *opGetEnumerators(ASTContext &, ReflexprIdExpr*);
 
   static ReflexprIdExpr *opGetBaseClass(ASTContext &, ReflexprIdExpr*);
 
@@ -5274,7 +5274,7 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static ReflexprIdExpr *opHideProtected(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opHidePrivate(ASTContext &, ReflexprIdExpr*);
 
-  static unsigned opGetSize(ASTContext &, ReflexprIdExpr*);
+  static uint64_t opGetSize(ASTContext &, ReflexprIdExpr*);
 public:
   /// \brief Construct an empty metaobject operation expression.
   explicit UnaryMetaobjectOpExpr(EmptyShell Empty)

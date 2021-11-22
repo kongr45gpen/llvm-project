@@ -1,15 +1,22 @@
 #include <experimental/reflect>
 
+enum class weekdays {
+  monday, tuesday, wednesday, thursday, friday, saturday, sunday
+};
+
 auto main() -> int {
   using namespace std::experimental::reflect;
   static_assert(!Type<int>);
   using mg = reflexpr(::);
   using mi = reflexpr(int);
   using ms = reflexpr(std);
+  using mw = reflexpr(weekdays);
   static_assert(Object<mi>);
   static_assert(Object<ms>);
   static_assert(!ObjectSequence<mi>);
   static_assert(Type<mi>);
+  static_assert(Type<mw>);
+  static_assert(Enum<mw>);
   static_assert(Namespace<ms>);
   static_assert(GlobalScope<mg>);
   static_assert(GlobalScope<get_scope_t<ms>>);
@@ -18,6 +25,8 @@ auto main() -> int {
   static_assert(get_name_v<mi>[1] == 'n');
   static_assert(get_name_v<mi>[2] == 't');
   static_assert(get_name_v<mi>[3] == '\0');
+  static_assert(get_source_line_v<mw> > 0);
+  //static_assert(get_size_v<get_enumerators_t<mw>>);
 
   get_reflected_type_t<mi> i = 0;
 

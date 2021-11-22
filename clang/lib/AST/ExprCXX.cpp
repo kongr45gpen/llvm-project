@@ -2373,10 +2373,10 @@ QualType MetaobjectOpExprBase::getResultKindType(ASTContext &Ctx,
   switch (OpRes) {
   case MOOR_Metaobject:
     return Ctx.MetaobjectIdTy;
+  case MOOR_SizeT:
+    return Ctx.getSizeType();
   case MOOR_ULong:
     return Ctx.UnsignedLongTy;
-  case MOOR_UInt:
-    return Ctx.UnsignedIntTy;
   case MOOR_Bool:
     return Ctx.BoolTy;
   case MOOR_Const:
@@ -2442,8 +2442,10 @@ llvm::APSInt MetaobjectOpExprBase::makeBoolResult(ASTContext&, bool v) {
            : llvm::APSInt::getMinValue(1, true);
 }
 
-llvm::APSInt MetaobjectOpExprBase::makeUIntResult(ASTContext &Ctx, unsigned v) {
-  unsigned w = Ctx.getTargetInfo().getIntWidth();
+llvm::APSInt MetaobjectOpExprBase::makeSizeTResult(ASTContext &Ctx,
+                                                   uint64_t v) {
+  unsigned w = Ctx.getTargetInfo().getTypeWidth(
+      Ctx.getTargetInfo().getSizeType());
   return llvm::APSInt(llvm::APInt(w, v));
 }
 
@@ -2537,9 +2539,10 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_GetBaseClasses:
     return conceptIsA(MoC, MOC_Class);
   case UMOO_GetMemberTypes:
-  case UMOO_GetMemberVariables:
-  case UMOO_GetMemberConstants:
-    return conceptIsA(MoC, MOC_Scope);
+  case UMOO_GetDataMembers:
+    return conceptIsA(MoC, MOC_Record);
+  case UMOO_GetEnumerators:
+    return conceptIsA(MoC, MOC_Enum);
   case UMOO_GetBaseClass:
     return conceptIsA(MoC, MOC_Base);
   case UMOO_GetAccessSpecifier:
@@ -2582,8 +2585,8 @@ uintptr_t UnaryMetaobjectOpExpr::opGetIdValue(ASTContext &Ctx, ReflexprIdExpr *R
   return REE->getIdValue(Ctx).getZExtValue();
 }
 
-std::size_t UnaryMetaobjectOpExpr::opSourceFileNameLen(ASTContext &Ctx,
-                                                       ReflexprIdExpr *REE) {
+uint64_t UnaryMetaobjectOpExpr::opSourceFileNameLen(ASTContext &Ctx,
+                                                    ReflexprIdExpr *REE) {
   return opGetSourceFileName(Ctx, REE).size();
 }
 
@@ -2599,7 +2602,7 @@ std::string UnaryMetaobjectOpExpr::opGetSourceFileName(ASTContext &Ctx,
   return result.str();
 }
 
-unsigned UnaryMetaobjectOpExpr::opGetSourceLine(ASTContext &Ctx,
+uint64_t UnaryMetaobjectOpExpr::opGetSourceLine(ASTContext &Ctx,
                                                 ReflexprIdExpr *REE) {
   assert(REE);
 
@@ -2611,7 +2614,7 @@ unsigned UnaryMetaobjectOpExpr::opGetSourceLine(ASTContext &Ctx,
   return result;
 }
 
-unsigned UnaryMetaobjectOpExpr::opGetSourceColumn(ASTContext &Ctx,
+uint64_t UnaryMetaobjectOpExpr::opGetSourceColumn(ASTContext &Ctx,
                                                   ReflexprIdExpr *REE) {
   assert(REE);
 
@@ -2644,8 +2647,8 @@ bool UnaryMetaobjectOpExpr::opIsUnnamed(ASTContext &Ctx, ReflexprIdExpr *REE) {
   return true;
 }
 
-std::size_t UnaryMetaobjectOpExpr::opNameLen(ASTContext &Ctx,
-                                             ReflexprIdExpr *REE) {
+uint64_t UnaryMetaobjectOpExpr::opNameLen(ASTContext &Ctx,
+                                          ReflexprIdExpr *REE) {
   return opGetName(Ctx, REE).size();
 }
 
@@ -2679,8 +2682,8 @@ std::string UnaryMetaobjectOpExpr::opGetName(ASTContext &Ctx,
   llvm_unreachable("Unable to get metaobject name!");
 }
 
-std::size_t UnaryMetaobjectOpExpr::opDisplayNameLen(ASTContext &Ctx,
-                                                    ReflexprIdExpr *REE) {
+uint64_t UnaryMetaobjectOpExpr::opDisplayNameLen(ASTContext &Ctx,
+                                                 ReflexprIdExpr *REE) {
   assert(REE);
 
   return opGetDisplayName(Ctx, REE).size();
@@ -2879,20 +2882,20 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetMemberTypes(ASTContext &Ctx,
   return ReflexprIdExpr::getSeqReflexprExpr(Ctx, REE, MOSK_MemberTypes);
 }
 
-ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetMemberVariables(ASTContext &Ctx,
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetDataMembers(ASTContext &Ctx,
                                                             ReflexprIdExpr *REE) {
   assert(REE);
 
   // [reflection-ts] FIXME check if operation is applicable
-  return ReflexprIdExpr::getSeqReflexprExpr(Ctx, REE, MOSK_MemberVariables);
+  return ReflexprIdExpr::getSeqReflexprExpr(Ctx, REE, MOSK_DataMembers);
 }
 
-ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetMemberConstants(ASTContext &Ctx,
-                                                            ReflexprIdExpr *REE) {
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetEnumerators(ASTContext &Ctx,
+                                                           ReflexprIdExpr *REE) {
   assert(REE);
 
   // [reflection-ts] FIXME check if operation is applicable
-  return ReflexprIdExpr::getSeqReflexprExpr(Ctx, REE, MOSK_MemberConstants);
+  return ReflexprIdExpr::getSeqReflexprExpr(Ctx, REE, MOSK_Enumerators);
 }
 
 ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetBaseClass(ASTContext &Ctx,
@@ -2964,12 +2967,12 @@ static void applyOnMetaobjSeqElements(ASTContext &Ctx, Action &act,
           return isa<TypeDecl>(d);
         };
         act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
-      } else if (REE->getSeqKind() == MOSK_MemberVariables) {
+      } else if (REE->getSeqKind() == MOSK_DataMembers) {
         auto matches = [](const Decl *d) -> bool {
           return isa<FieldDecl>(d) || isa<VarDecl>(d);
         };
         act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
-      } else if (REE->getSeqKind() == MOSK_MemberConstants) {
+      } else if (REE->getSeqKind() == MOSK_Enumerators) {
         auto matches = [](const Decl *d) -> bool {
           return isa<EnumConstantDecl>(d);
         };
@@ -3024,7 +3027,7 @@ struct countMatchingMetaobjSeqElements : matchingMetaobjSeqElementUtils {
   }
 };
 
-unsigned UnaryMetaobjectOpExpr::opGetSize(ASTContext &Ctx, ReflexprIdExpr *REE) {
+uint64_t UnaryMetaobjectOpExpr::opGetSize(ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
 
   countMatchingMetaobjSeqElements action(0U);
@@ -3130,8 +3133,8 @@ void UnaryMetaobjectOpExpr::unpackSequence(ASTContext &Ctx, ReflexprIdExpr *REE,
 
 bool UnaryMetaobjectOpExpr::hasIntResult() const {
   switch (getResultKind()) {
+    case MOOR_SizeT:
     case MOOR_ULong:
-    case MOOR_UInt:
     case MOOR_Bool:
     case MOOR_Const:
     case MOOR_Pointer:
@@ -3439,8 +3442,8 @@ ReflexprIdExpr *NaryMetaobjectOpExpr::opGetElement(ASTContext &Ctx,
 
 bool NaryMetaobjectOpExpr::hasIntResult() const {
   switch (getResultKind()) {
+    case MOOR_SizeT:
     case MOOR_ULong:
-    case MOOR_UInt:
     case MOOR_Bool:
     case MOOR_Const:
     case MOOR_Pointer:

@@ -418,6 +418,24 @@ struct _LIBCPP_TEMPLATE_VIS get_source_column
 template <Object _Tp>
 inline constexpr bool get_source_column_v = get_source_column<_Tp>::value;
 
+template <Variable _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_pointer
+  : integral_constant<
+    __unrefltype(__metaobject_get_constant(__unwrap_metaobject_id_v<_Tp>)),
+    __metaobject_get_pointer(__unwrap_metaobject_id_v<_Tp>)> {};
+
+template <Constant _Tp>
+inline constexpr bool get_pointer_v = get_pointer<_Tp>::value;
+
+template <Constant _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_constant
+  : integral_constant<
+    __unrefltype(__metaobject_get_constant(__unwrap_metaobject_id_v<_Tp>)),
+    __metaobject_get_constant(__unwrap_metaobject_id_v<_Tp>)> {};
+
+template <Constant _Tp>
+inline constexpr bool get_constant_v = get_constant<_Tp>::value;
+
 template <ObjectSequence _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_size
   : integral_constant<size_t, __metaobject_get_size(__unwrap_metaobject_id_v<_Tp>)> {};
@@ -495,6 +513,23 @@ struct _LIBCPP_TEMPLATE_VIS get_member_types {
 template <Record _Tp>
 using get_member_types_t = typename get_member_types<_Tp>::type;
 
+template <Record _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_data_members {
+  using type = __metaobject<__metaobject_get_data_members(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Record _Tp>
+using get_data_members_t = typename get_data_members<_Tp>::type;
+
+template <Enum _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_enumerators {
+  using type = __metaobject<__metaobject_get_enumerators(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Enum _Tp>
+using get_enumerators_t = typename get_enumerators<_Tp>::type;
+
+// get sequence element
 template <size_t _I, ObjectSequence _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_element {
   using type = __metaobject<__metaobject_get_element(__unwrap_metaobject_id_v<_Tp>, _I)>;

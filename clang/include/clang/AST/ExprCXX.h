@@ -5267,9 +5267,14 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static ReflexprIdExpr *opGetClass(ASTContext &, ReflexprIdExpr*);
 
   static bool opIsScopedEnum(ASTContext &, ReflexprIdExpr*);
-  static bool opIsStatic(ASTContext &, ReflexprIdExpr*);
 
+  static bool opIsConstexpr(ASTContext &, ReflexprIdExpr*);
+  static bool opIsExplicit(ASTContext &, ReflexprIdExpr*);
+  static bool opIsInline(ASTContext &, ReflexprIdExpr*);
+  static bool opIsStatic(ASTContext &, ReflexprIdExpr*);
   static bool opIsVirtual(ASTContext &, ReflexprIdExpr*);
+  static bool opIsPureVirtual(ASTContext &, ReflexprIdExpr*);
+  static bool opIsFinal(ASTContext &, ReflexprIdExpr*);
 
   static ReflexprIdExpr *opHideProtected(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opHidePrivate(ASTContext &, ReflexprIdExpr*);

@@ -2551,10 +2551,28 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_IsPrivate:
     return conceptIsA(MoC, MOC_RecordMember) ||
            conceptIsA(MoC, MOC_Base);
+  case UMOO_IsConstexpr:
+    return conceptIsA(MoC, MOC_Variable) ||
+           conceptIsA(MoC, MOC_Callable);
+  case UMOO_IsExplicit:
+    return conceptIsA(MoC, MOC_Constructor) ||
+           conceptIsA(MoC, MOC_ConversionOperator);
+  case UMOO_IsInline:
+    return conceptIsA(MoC, MOC_Namespace) ||
+           conceptIsA(MoC, MOC_Callable);
   case UMOO_IsStatic:
-    return conceptIsA(MoC, MOC_Variable);
+    return conceptIsA(MoC, MOC_Variable) ||
+           conceptIsA(MoC, MOC_MemberFunction);
   case UMOO_IsVirtual:
-    return conceptIsA(MoC, MOC_Base);
+    return conceptIsA(MoC, MOC_Base) ||
+           conceptIsA(MoC, MOC_Destructor) ||
+           conceptIsA(MoC, MOC_MemberFunction);
+  case UMOO_IsPureVirtual:
+    return conceptIsA(MoC, MOC_Destructor) ||
+           conceptIsA(MoC, MOC_MemberFunction);
+  case UMOO_IsFinal:
+    return conceptIsA(MoC, MOC_Class) ||
+           conceptIsA(MoC, MOC_MemberFunction);
   case UMOO_GetPointer:
     return conceptIsA(MoC, MOC_Variable);
   case UMOO_GetConstant:
@@ -2906,15 +2924,6 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetClass(ASTContext &Ctx,
   return ReflexprIdExpr::getTypeReflexprIdExpr(Ctx, BS->getTypeSourceInfo(), true);
 }
 
-bool UnaryMetaobjectOpExpr::opIsVirtual(ASTContext &Ctx, ReflexprIdExpr *REE) {
-  assert(REE);
-
-  if (REE->isArgumentBaseSpecifier()) {
-    return REE->getArgumentBaseSpecifier()->isVirtual();
-  }
-  return false;
-}
-
 bool UnaryMetaobjectOpExpr::opIsScopedEnum(ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
 
@@ -2925,6 +2934,27 @@ bool UnaryMetaobjectOpExpr::opIsScopedEnum(ASTContext &Ctx, ReflexprIdExpr *REE)
   return true;
 }
 
+bool UnaryMetaobjectOpExpr::opIsConstexpr(ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  // [reflection-ts] FIXME
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsExplicit(ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  // [reflection-ts] FIXME
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsInline(ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  // [reflection-ts] FIXME
+  return false;
+}
+
 bool UnaryMetaobjectOpExpr::opIsStatic(ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
 
@@ -2932,6 +2962,29 @@ bool UnaryMetaobjectOpExpr::opIsStatic(ASTContext &Ctx, ReflexprIdExpr *REE) {
     if (const auto *VD = dyn_cast<VarDecl>(ND))
       return VD->isStaticDataMember() || VD->isStaticLocal();
   }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsVirtual(ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  if (REE->isArgumentBaseSpecifier()) {
+    return REE->getArgumentBaseSpecifier()->isVirtual();
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsPureVirtual(ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  // [reflection-ts] FIXME
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsFinal(ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  // [reflection-ts] FIXME
   return false;
 }
 

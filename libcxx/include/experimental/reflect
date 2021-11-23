@@ -429,10 +429,10 @@ inline constexpr bool get_source_column_v = get_source_column<_Tp>::value;
 template <Variable _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_pointer
   : integral_constant<
-    __unrefltype(__metaobject_get_constant(__unwrap_metaobject_id_v<_Tp>)),
+    __unrefltype(__metaobject_get_pointer(__unwrap_metaobject_id_v<_Tp>)),
     __metaobject_get_pointer(__unwrap_metaobject_id_v<_Tp>)> {};
 
-template <Constant _Tp>
+template <Variable _Tp>
 inline constexpr bool get_pointer_v = get_pointer<_Tp>::value;
 
 template <Constant _Tp>

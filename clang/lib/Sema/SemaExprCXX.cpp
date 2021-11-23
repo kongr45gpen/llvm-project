@@ -8907,7 +8907,7 @@ ExprResult Sema::OptionallyWrapReflexprExpr(bool idOnly, ExprResult E) {
 
 ExprResult Sema::GetReflexprGlobalScopeExpr(SourceLocation opLoc,
                                             SourceLocation endLoc) {
-  return ReflexprIdExpr::getGlobalScopeReflexprExpr(Context, opLoc, endLoc);
+  return ReflexprIdExpr::getGlobalScopeReflexprIdExpr(Context, opLoc, endLoc);
 }
 
 /// ActOnUnaryExprOrTypeTraitExpr - Handle reflexpr([::]) expression
@@ -8921,8 +8921,8 @@ ExprResult Sema::ActOnReflexprGlobalScopeExpr(bool idOnly,
 ExprResult Sema::GetReflexprSpecExpr(tok::TokenKind specTok,
                                      SourceLocation opLoc,
                                      SourceLocation endLoc) {
-  return ReflexprIdExpr::getSpecifierReflexprExpr(Context, specTok,
-                                                  opLoc, endLoc);
+  return ReflexprIdExpr::getSpecifierReflexprIdExpr(Context, specTok,
+                                                    opLoc, endLoc);
 }
 
 /// ActOnUnaryExprOrTypeTraitExpr - Handle reflexpr(specifier) expression
@@ -8936,7 +8936,8 @@ ExprResult Sema::ActOnReflexprSpecExpr(bool idOnly, tok::TokenKind specTok,
 ExprResult Sema::GetReflexprNamedDeclExpr(const NamedDecl *nDecl,
                                           SourceLocation opLoc,
                                           SourceLocation endLoc) {
-  return ReflexprIdExpr::getNamedDeclReflexprExpr(Context, nDecl, opLoc, endLoc);
+  return ReflexprIdExpr::getNamedDeclReflexprIdExpr(Context, nDecl,
+                                                    opLoc, endLoc);
 }
 
 /// ActOnUnaryExprOrTypeTraitExpr - Handle reflexpr(name) expression
@@ -8963,15 +8964,15 @@ ExprResult Sema::ActOnReflexprScopedExpr(bool idOnly, Scope *S,
 ExprResult Sema::GetReflexprTypeExpr(const TypeSourceInfo *TInfo,
                                      bool removeSugar, SourceLocation opLoc,
                                      SourceLocation endLoc) {
-  return ReflexprIdExpr::getTypeReflexprExpr(Context, TInfo, removeSugar, opLoc,
-                                           endLoc);
+  return ReflexprIdExpr::getTypeReflexprIdExpr(Context, TInfo, removeSugar,
+                                               opLoc, endLoc);
 }
 
 ExprResult Sema::GetReflexprTypeExpr(QualType Ty, bool removeSugar,
                                      SourceLocation opLoc,
                                      SourceLocation endLoc) {
-  return ReflexprIdExpr::getTypeReflexprExpr(Context, Ty, removeSugar, opLoc,
-                                             endLoc);
+  return ReflexprIdExpr::getTypeReflexprIdExpr(Context, Ty, removeSugar,
+                                               opLoc, endLoc);
 }
 
 ExprResult Sema::ActOnReflexprTypeExpr(bool idOnly, Scope *S, Declarator &D,
@@ -9055,7 +9056,7 @@ ExprResult Sema::CreateUnaryPtrMetaobjectOpExpr(UnaryMetaobjectOp Oper,
   } else {
     ValueDecl *valDecl =
         const_cast<ValueDecl *>(UnaryMetaobjectOpExpr::getValueDeclResult(
-            Context, Oper, nullptr, argExpr.get()));
+            Context, Oper, argExpr.get(), nullptr));
 
     assert(valDecl != nullptr);
     QualType valPtrTy =

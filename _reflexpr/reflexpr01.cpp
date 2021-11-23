@@ -1,7 +1,12 @@
 #include <experimental/reflect>
 
 enum class weekdays {
-  monday, tuesday, wednesday, thursday, friday, saturday, sunday
+  monday = 1, tuesday, wednesday, thursday, friday, saturday, sunday
+};
+
+struct mystruct {
+  int i{0};
+  float f{1.F};
 };
 
 auto main() -> int {
@@ -11,6 +16,7 @@ auto main() -> int {
   using mi = reflexpr(int);
   using ms = reflexpr(std);
   using mw = reflexpr(weekdays);
+  using mm = reflexpr(mystruct);
   static_assert(Object<mi>);
   static_assert(Object<ms>);
   static_assert(!ObjectSequence<mi>);
@@ -21,6 +27,7 @@ auto main() -> int {
   static_assert(GlobalScope<mg>);
   static_assert(GlobalScope<get_scope_t<ms>>);
   static_assert(ObjectSequence<get_enumerators_t<mw>>);
+  static_assert(ObjectSequence<get_data_members_t<mm>>);
   static_assert(reflects_same_v<mg, get_scope_t<ms>>);
   static_assert(get_name_v<mi>[0] == 'i');
   static_assert(get_name_v<mi>[1] == 'n');
@@ -28,6 +35,12 @@ auto main() -> int {
   static_assert(get_name_v<mi>[3] == '\0');
   static_assert(get_source_line_v<mw> > 0);
   static_assert(get_size_v<get_enumerators_t<mw>> == 7);
+  static_assert(Constant<get_element_t<0, get_enumerators_t<mw>>>);
+  static_assert(get_constant_v<get_element_t<0, get_enumerators_t<mw>>> == weekdays::monday);
+  static_assert(get_size_v<get_enumerators_t<mw>> == 7);
+  static_assert(get_size_v<get_data_members_t<mm>> == 2);
+  static_assert(Variable<get_element_t<1, get_data_members_t<mm>>>);
+  static_assert(get_pointer_v<get_element_t<1, get_data_members_t<mm>>>);
 
   get_reflected_type_t<mi> i = 0;
 

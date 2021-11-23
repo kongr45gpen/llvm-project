@@ -4946,50 +4946,50 @@ public:
   ReflexprIdExpr(const ReflexprIdExpr &that);
 
   static ReflexprIdExpr*
-  getGlobalScopeReflexprExpr(ASTContext &Ctx,
-                             SourceLocation opLoc = SourceLocation(),
-                             SourceLocation endLoc = SourceLocation());
-
-  static ReflexprIdExpr*
-  getNoSpecifierReflexprExpr(ASTContext &Ctx,
-                             SourceLocation opLoc = SourceLocation(),
-                             SourceLocation endLoc = SourceLocation());
-
-  static ReflexprIdExpr*
-  getSpecifierReflexprExpr(ASTContext &Ctx, tok::TokenKind specTok,
-                           SourceLocation opLoc = SourceLocation(),
-                           SourceLocation endLoc = SourceLocation());
-
-  static ReflexprIdExpr*
-  getNamedDeclReflexprExpr(ASTContext &Ctx, const NamedDecl *nDecl,
-                           SourceLocation opLoc = SourceLocation(),
-                           SourceLocation endLoc = SourceLocation());
-
-  static ReflexprIdExpr*
-  getTypeReflexprExpr(ASTContext &Ctx, const TypeSourceInfo *TInfo,
-                      bool removeSugar,
-                      SourceLocation opLoc = SourceLocation(),
-                      SourceLocation endLoc = SourceLocation());
-
-  static ReflexprIdExpr*
-  getTypeReflexprExpr(ASTContext &Ctx, QualType Ty, bool removeSugar,
-                      SourceLocation opLoc = SourceLocation(),
-                      SourceLocation endLoc = SourceLocation());
-
-  static ReflexprIdExpr*
-  getBaseSpecifierReflexprExpr(ASTContext &Ctx, const CXXBaseSpecifier *bSpec,
+  getGlobalScopeReflexprIdExpr(ASTContext &Ctx,
                                SourceLocation opLoc = SourceLocation(),
                                SourceLocation endLoc = SourceLocation());
 
   static ReflexprIdExpr*
-  getSeqReflexprExpr(ASTContext &Ctx, ReflexprIdExpr *that,
-                     MetaobjectSequenceKind MoSK);
+  getNoSpecifierReflexprIdExpr(ASTContext &Ctx,
+                               SourceLocation opLoc = SourceLocation(),
+                               SourceLocation endLoc = SourceLocation());
+
+  static ReflexprIdExpr*
+  getSpecifierReflexprIdExpr(ASTContext &Ctx, tok::TokenKind specTok,
+                             SourceLocation opLoc = SourceLocation(),
+                             SourceLocation endLoc = SourceLocation());
+
+  static ReflexprIdExpr*
+  getNamedDeclReflexprIdExpr(ASTContext &Ctx, const NamedDecl *nDecl,
+                             SourceLocation opLoc = SourceLocation(),
+                             SourceLocation endLoc = SourceLocation());
+
+  static ReflexprIdExpr*
+  getTypeReflexprIdExpr(ASTContext &Ctx, const TypeSourceInfo *TInfo,
+                        bool removeSugar,
+                        SourceLocation opLoc = SourceLocation(),
+                        SourceLocation endLoc = SourceLocation());
+
+  static ReflexprIdExpr*
+  getTypeReflexprIdExpr(ASTContext &Ctx, QualType Ty, bool removeSugar,
+                        SourceLocation opLoc = SourceLocation(),
+                        SourceLocation endLoc = SourceLocation());
+
+  static ReflexprIdExpr*
+  getBaseSpecifierReflexprIdExpr(ASTContext &Ctx, const CXXBaseSpecifier *bSpec,
+                                 SourceLocation opLoc = SourceLocation(),
+                                 SourceLocation endLoc = SourceLocation());
+
+  static ReflexprIdExpr*
+  getSeqReflexprIdExpr(ASTContext &Ctx, ReflexprIdExpr *that,
+                       MetaobjectSequenceKind MoSK);
 
 
   static ReflexprIdExpr*
-  getHideProtectedReflexprExpr(ASTContext &Ctx, ReflexprIdExpr *that);
+  getHideProtectedReflexprIdExpr(ASTContext &Ctx, ReflexprIdExpr *that);
   static ReflexprIdExpr*
-  getHidePrivateReflexprExpr(ASTContext &Ctx, ReflexprIdExpr *that);
+  getHidePrivateReflexprIdExpr(ASTContext &Ctx, ReflexprIdExpr *that);
   static ReflexprIdExpr*
   fromMetaobjectId(ASTContext &, const llvm::APInt&);
 
@@ -5363,7 +5363,7 @@ public:
                                    const ValueDecl *valDecl);
 
   bool hasOpResultType() const;
-  QualType getOpResultType(ASTContext &) const;
+  QualType getOpResultType(ASTContext &);
 
   SourceLocation getOperatorLoc() const { return OpLoc; }
   void setOperatorLoc(SourceLocation L) { OpLoc = L; }

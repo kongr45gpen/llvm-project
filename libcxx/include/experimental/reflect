@@ -333,6 +333,30 @@ struct __is_Expression
 template <class _Tp>
 concept bool Expression = __is_a_concept_v<_Tp, __is_Expression>;
 
+// ParenthesizedExpression
+template <__metaobject_id _Tp>
+struct __is_ParenthesizedExpression
+  : integral_constant<bool, __metaobject_is_meta_parenthesized_expression(_Tp)> {};
+
+template <class _Tp>
+concept bool ParenthesizedExpression = __is_a_concept_v<_Tp, __is_ParenthesizedExpression>;
+
+// FunctionCallExpression
+template <__metaobject_id _Tp>
+struct __is_FunctionCallExpression
+  : integral_constant<bool, __metaobject_is_meta_function_call_expression(_Tp)> {};
+
+template <class _Tp>
+concept bool FunctionCallExpression = __is_a_concept_v<_Tp, __is_FunctionCallExpression>;
+
+// FunctionalTypeConversion
+template <__metaobject_id _Tp>
+struct __is_FunctionalTypeConversion
+  : integral_constant<bool, __metaobject_is_meta_functional_type_conversion(_Tp)> {};
+
+template <class _Tp>
+concept bool FunctionalTypeConversion = __is_a_concept_v<_Tp, __is_FunctionalTypeConversion>;
+
 // [reflection-ts] FIXME: Add the remaining concepts from the TS
 
 // metaobject unary operations
@@ -661,6 +685,22 @@ struct _LIBCPP_TEMPLATE_VIS get_id
 
 template <Object _Tp>
 inline constexpr uintptr_t get_id_v = get_id<_Tp>::value;
+
+template <ObjectSequence _Tp>
+struct _LIBCPP_TEMPLATE_VIS hide_private {
+  using type = __metaobject<__metaobject_hide_private(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <ObjectSequence _Tp>
+using hide_private_t = typename hide_private<_Tp>::type;
+
+template <ObjectSequence _Tp>
+struct _LIBCPP_TEMPLATE_VIS hide_protected {
+  using type = __metaobject<__metaobject_hide_protected(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <ObjectSequence _Tp>
+using hide_protected_t = typename hide_protected<_Tp>::type;
 
 #endif /* !_LIBCPP_HAS_NO_REFLECTION_EXT */
 

@@ -1814,8 +1814,12 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const NamedDecl *nDecl,
         }
       }
     }
-  } else if (isa<TemplateTypeParmDecl>(nDecl)) {
-    setKind(MOK_TemplateTypeParameter);
+  } else if (const auto *TTPD = dyn_cast<TemplateTypeParmDecl>(nDecl)) {
+    if (TTPD->getTypeForDecl()->isEnumeralType()) {
+      setKind(MOK_TemplateEnumTypeParameter);
+    } else {
+      setKind(MOK_TemplateTypeParameter);
+    }
   } else if (isa<TypeDecl>(nDecl)) {
     setKind(MOK_Type);
   } else if (isa<FieldDecl>(nDecl)) {
@@ -1865,8 +1869,12 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const TypeSourceInfo *TInfo,
 
   RT = RT->getUnqualifiedDesugaredType();
 
-  if (isa<TemplateTypeParmType>(RT)) {
-    setKind(MOK_TemplateTypeParameter);
+  if (const auto *TTPT = dyn_cast<TemplateTypeParmType>(RT)) {
+    if (TTPT->isEnumeralType()) {
+      setKind(MOK_TemplateEnumTypeParameter);
+    } else {
+      setKind(MOK_TemplateTypeParameter);
+    }
   } else if (isa<RecordType>(RT)) {
     setKind(isAlias ? MOK_ClassAlias : MOK_Class);
   } else if (isa<EnumType>(RT)) {
@@ -2109,6 +2117,7 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
   case MOK_ClassAlias:
     return "a class alias";
   case MOK_TemplateTypeParameter:
+  case MOK_TemplateEnumTypeParameter:
     return "a template type parameter";
   case MOK_Variable:
     return "a variable";
@@ -2192,6 +2201,8 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_ClassAlias;
   case MOK_TemplateTypeParameter:
     return MOC_TemplateTypeParameter;
+  case MOK_TemplateEnumTypeParameter:
+    return MOC_TemplateEnumTypeParameter;
   case MOK_Variable:
     return MOC_Variable;
   case MOK_LambdaCapture:
@@ -2588,8 +2599,8 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
 bool UnaryMetaobjectOpExpr::getTraitValue(UnaryMetaobjectOp MoOp,
                                           MetaobjectConcept Cat) {
   switch (MoOp) {
-#define METAOBJECT_TRAIT(S, Concept)                                        \
-  case UMOO_IsMeta##Concept:                                                   \
+#define METAOBJECT_TRAIT(S, Concept) \
+  case UMOO_IsMeta##Concept: \
     return conceptIsA(Cat, MOC_##Concept);
 #include "clang/Basic/TokenKinds.def"
   default:

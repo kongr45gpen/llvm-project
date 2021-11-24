@@ -9,6 +9,14 @@ struct mystruct {
   float f{1.F};
 };
 
+template <typename T>
+void foo(T x) {
+  using namespace std::experimental::reflect;
+  using mt = reflexpr(T);
+  static_assert(Alias<mt>);
+  static_assert(Type<get_aliased_t<mt>>);
+}
+
 auto main() -> int {
   using namespace std::experimental::reflect;
   static_assert(!Type<int>);
@@ -43,6 +51,10 @@ auto main() -> int {
   static_assert(get_pointer_v<get_element_t<1, get_data_members_t<mm>>>);
 
   get_reflected_type_t<mi> i = 0;
+
+  foo(0);
+  foo(weekdays::monday);
+  foo(mystruct{});
 
   if (get_source_file_name_v<ms> != nullptr) {
   }

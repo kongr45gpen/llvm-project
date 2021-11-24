@@ -285,6 +285,14 @@ struct __is_MemberFunction
 template <class _Tp>
 concept bool MemberFunction = __is_a_concept_v<_Tp, __is_MemberFunction>;
 
+// SpecialMemberFunction
+template <__metaobject_id _Tp>
+struct __is_SpecialMemberFunction
+  : integral_constant<bool, __metaobject_is_meta_special_member_function(_Tp)> {};
+
+template <class _Tp>
+concept bool SpecialMemberFunction = __is_a_concept_v<_Tp, __is_SpecialMemberFunction>;
+
 // Constructor
 template <__metaobject_id _Tp>
 struct __is_Constructor

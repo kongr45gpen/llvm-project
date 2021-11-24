@@ -157,6 +157,8 @@ namespace clang {
     UMOO_IsMetaLambda,
     UMOO_IsMetaCallable,
     UMOO_IsMetaFunction,
+    UMOO_IsMetaMemberFunction,
+    UMOO_IsMetaSpecialMemberFunction,
     UMOO_IsMetaConstructor,
     UMOO_IsMetaDestructor,
     UMOO_IsMetaOperator,

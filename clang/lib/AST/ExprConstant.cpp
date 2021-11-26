@@ -2001,6 +2001,8 @@ static bool IsGlobalLValue(APValue::LValueBase B) {
   case Expr::ObjCStringLiteralClass:
   case Expr::ObjCEncodeExprClass:
     return true;
+  case Expr::UnaryMetaobjectOpExprClass:
+    return cast<UnaryMetaobjectOpExpr>(E)->hasStrResult();
   case Expr::ObjCBoxedExprClass:
     return cast<ObjCBoxedExpr>(E)->isExpressibleAsConstantInitializer();
   case Expr::CallExprClass:
@@ -8691,6 +8693,22 @@ public:
     return true;
   }
 
+  bool VisitUnaryMetaobjectOpExpr(const UnaryMetaobjectOpExpr *E) {
+    std::string Value;
+    if (E->getStrResult(Info.Ctx, &Info, Value)) {
+      QualType CharTyConst = Info.Ctx.CharTy.withConst();
+      QualType StrTy = Info.Ctx.getStringLiteralArrayType(
+          CharTyConst, Value.size());
+      StringLiteral *SL =
+          StringLiteral::Create(Info.Ctx, Value, StringLiteral::UTF8,
+                                false, StrTy, E->getOperatorLoc());
+      evaluateLValue(SL, Result);
+      Result.addArray(Info, E, cast<ConstantArrayType>(StrTy));
+      return true;
+    }
+    return false;
+  }
+
   bool VisitSYCLUniqueStableNameExpr(const SYCLUniqueStableNameExpr *E) {
     std::string ResultStr = E->ComputeName(Info.Ctx);
 
@@ -10441,6 +10459,22 @@ namespace {
                             QualType AllocType = QualType()) {
       expandStringLiteral(Info, E, Result, AllocType);
       return true;
+    }
+    bool VisitUnaryMetaobjectOpExpr(const UnaryMetaobjectOpExpr *E) {
+      if (E->hasStrResult()) {
+        std::string ResultStr;
+        if (E->getStrResult(Info.Ctx, &Info, ResultStr)) {
+          QualType CharTyConst = Info.Ctx.CharTy.withConst();
+
+          QualType StrTy = Info.Ctx.getStringLiteralArrayType(
+              CharTyConst, ResultStr.size());
+          StringLiteral *SL =
+              StringLiteral::Create(Info.Ctx, ResultStr, StringLiteral::UTF8,
+                                    false, StrTy, E->getOperatorLoc());
+          return VisitStringLiteral(SL);
+        }
+      }
+      return false;
     }
   };
 } // end anonymous namespace
@@ -15595,9 +15629,27 @@ Optional<llvm::APInt> Expr::getMetaobjectIdExpr(void *InfoPtr,
       return None;
     }
   } else {
-    if (!isCXX11ConstantExpr(Ctx, &Result, Loc)) {
+    assert(!isValueDependent() &&
+           "Expression evaluator can't be called on a dependent expression.");
+
+    assert(Ctx.getLangOpts().ReflectionTS);
+
+    // Build evaluation settings.
+    Expr::EvalStatus Status;
+    SmallVector<PartialDiagnosticAt, 8> Diags;
+    Status.Diag = &Diags;
+    EvalInfo Info(Ctx, Status, EvalInfo::EM_ConstantExpression);
+
+    bool IsConstExpr = ::EvaluateAsRValue(Info, this, Result);
+    assert(!Status.HasSideEffects);
+    assert(Info.discardCleanups());
+
+    if (!Diags.empty()) {
+      IsConstExpr = false;
+      if (Loc) *Loc = Diags[0].first;
       return None;
     }
+    assert(IsConstExpr);
   }
 
   if (!Result.isMetaobjectId()) {

@@ -8986,54 +8986,6 @@ ExprResult Sema::ActOnReflexprTypeExpr(bool idOnly, Scope *S, Declarator &D,
       idOnly, GetReflexprTypeExpr(TInfo, true, opLoc, argRange.getEnd()));
 }
 
-ExprResult Sema::CreateUnaryIntMetaobjectOpExpr(UnaryMetaobjectOp Oper,
-                                                MetaobjectOpResult OpRes,
-                                                ExprResult argExpr,
-                                                SourceLocation opLoc,
-                                                SourceLocation endLoc) {
-  assert((OpRes != MOOR_String) &&
-         "Cannot handle a string-returning operation here");
-  assert((OpRes != MOOR_Pointer) &&
-         "Cannot handle a pointer-returning operation here");
-  assert(argExpr.isUsable());
-
-  // [reflection-ts] FIXME check if the arg expr is valid and yields metaobject id
-  Expr *ArgExpr = argExpr.get();
-
-  QualType resType =
-      UnaryMetaobjectOpExpr::getResultKindType(Context, 1, &ArgExpr, OpRes);
-
-  return new (Context) UnaryMetaobjectOpExpr(Context, Oper, OpRes, resType,
-                                             argExpr.get(), opLoc, endLoc);
-}
-
-ExprResult Sema::CreateNaryIntMetaobjectOpExpr(
-    NaryMetaobjectOp Oper, MetaobjectOpResult OpRes, unsigned Arity,
-    ExprResult *argExpr, SourceLocation opLoc, SourceLocation endLoc) {
-  assert((OpRes != MOOR_String) &&
-         "Cannot handle a string-returning operation here");
-  assert((OpRes != MOOR_Pointer) &&
-         "Cannot handle a pointer-returning operation here");
-  assert(argExpr[0].isUsable());
-
-  // [reflection-ts] FIXME check if the arg exprs are valid and yield metaobject ids
-
-  for (unsigned i = 1; i < Arity; ++i) {
-    assert(argExpr[i].isUsable());
-  }
-
-  Expr *ArgExpr[NaryMetaobjectOpExpr::MaxArity];
-  for (unsigned i = 0; i < Arity; ++i) {
-    ArgExpr[i] = argExpr[i].get();
-  }
-
-  QualType resType =
-      NaryMetaobjectOpExpr::getResultKindType(Context, Arity, ArgExpr, OpRes);
-
-  return new (Context) NaryMetaobjectOpExpr(Context, Oper, OpRes, resType,
-                                            Arity, ArgExpr, opLoc, endLoc);
-}
-
 ExprResult Sema::CreateUnaryPtrMetaobjectOpExpr(UnaryMetaobjectOp Oper,
                                                 MetaobjectOpResult OpRes,
                                                 ExprResult argExpr,
@@ -9086,57 +9038,17 @@ ExprResult Sema::CreateUnaryPtrMetaobjectOpExpr(UnaryMetaobjectOp Oper,
   }
 }
 
-ExprResult Sema::CreateNaryPtrMetaobjectOpExpr(NaryMetaobjectOp,
-                                               MetaobjectOpResult, unsigned,
-                                               ExprResult *, SourceLocation,
-                                               SourceLocation) {
-  llvm_unreachable("No n-ary pointer-returning metaobject operations!");
-}
-
-ExprResult Sema::CreateUnaryStrMetaobjectOpExpr(UnaryMetaobjectOp Oper,
-                                                MetaobjectOpResult OpRes,
-                                                ExprResult argExpr,
-                                                SourceLocation opLoc,
-                                                SourceLocation endLoc) {
-  assert((OpRes == MOOR_String) &&
-         "Cannot handle a non-string-returning operation here");
-  assert(argExpr.isUsable());
-
-  std::string Value;
-  if (!UnaryMetaobjectOpExpr::getStrResult(Context, Oper, nullptr,
-                                           argExpr.get(), Value)) {
-   return new (Context)
-        UnaryMetaobjectOpExpr(Context, Oper, OpRes, Context.DependentTy,
-                              argExpr.get(), opLoc, endLoc);
-  }
-  QualType CharTyConst = Context.CharTy;
-  CharTyConst.addConst();
-
-  QualType StrTy = Context.getStringLiteralArrayType(
-      CharTyConst, Value.size());
-
-  return StringLiteral::Create(Context, Value, StringLiteral::UTF8,
-                               false /*pascal*/, StrTy, opLoc);
-}
-
-ExprResult Sema::CreateNaryStrMetaobjectOpExpr(NaryMetaobjectOp,
-                                               MetaobjectOpResult, unsigned,
-                                               ExprResult *, SourceLocation,
-                                               SourceLocation) {
-  llvm_unreachable("No n-ary string-returning metaobject operations!");
-}
-
 ExprResult Sema::CreateUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
                                              MetaobjectOpResult OpRes,
                                              ExprResult argExpr,
                                              SourceLocation opLoc,
                                              SourceLocation endLoc) {
-  Expr *moE = argExpr.get();
+  Expr *ArgExpr = argExpr.get();
 
-  bool doChecks = !moE->isInstantiationDependent();
+  bool doChecks = !ArgExpr->isInstantiationDependent();
 
   if (doChecks) {
-    if (auto *REE = UnaryMetaobjectOpExpr::getReflexprIdExpr(Context, moE)) {
+    if (auto *REE = UnaryMetaobjectOpExpr::getReflexprIdExpr(Context, ArgExpr)) {
       if (!UnaryMetaobjectOpExpr::isOperationApplicable(Context, REE, Oper)) {
         Diag(opLoc, diag::err_metaobject_operation_not_applicable)
             << UnaryMetaobjectOpExpr::getOperationSpelling(Oper)
@@ -9147,13 +9059,13 @@ ExprResult Sema::CreateUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
     }
   }
 
-  if (OpRes == MOOR_Pointer) {
+  if(OpRes == MOOR_Pointer) {
+    // [reflection-ts] FIXME: get rid of this
     return CreateUnaryPtrMetaobjectOpExpr(Oper, OpRes, argExpr, opLoc, endLoc);
-  } else if (OpRes == MOOR_String) {
-    return CreateUnaryStrMetaobjectOpExpr(Oper, OpRes, argExpr, opLoc, endLoc);
-  } else {
-    return CreateUnaryIntMetaobjectOpExpr(Oper, OpRes, argExpr, opLoc, endLoc);
   }
+
+  return UnaryMetaobjectOpExpr::Create(Context, Oper, OpRes,
+                                       ArgExpr, opLoc, endLoc);
 }
 
 ExprResult Sema::CreateNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
@@ -9162,14 +9074,18 @@ ExprResult Sema::CreateNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
                                             SourceLocation opLoc,
                                             SourceLocation endLoc) {
 
+  Expr *ArgExpr[NaryMetaobjectOpExpr::MaxArity];
   for (unsigned i = 0; i < Arity; ++i) {
+  }
+  for (unsigned i = 0; i < Arity; ++i) {
+    assert(argExpr[i].isUsable());
+    ArgExpr[i] = argExpr[i].get();
 
-    Expr *moE = argExpr[i].get();
-    assert(moE);
-    bool doChecks = !moE->isInstantiationDependent();
+    bool doChecks = !ArgExpr[i]->isInstantiationDependent();
 
     if (doChecks) {
-      if (ReflexprIdExpr *REE = NaryMetaobjectOpExpr::getReflexprIdExpr(Context, moE)) {
+      if (ReflexprIdExpr *REE =
+          NaryMetaobjectOpExpr::getReflexprIdExpr(Context, ArgExpr[i])) {
         if (!NaryMetaobjectOpExpr::isOperationApplicable(Context, REE, Oper)) {
           Diag(opLoc, diag::err_metaobject_operation_not_applicable)
               << NaryMetaobjectOpExpr::getOperationSpelling(Oper)
@@ -9184,13 +9100,8 @@ ExprResult Sema::CreateNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
     }
   }
 
-  if (OpRes == MOOR_Pointer) {
-    return CreateNaryPtrMetaobjectOpExpr(Oper, OpRes, Arity, argExpr, opLoc, endLoc);
-  } else if (OpRes == MOOR_String) {
-    return CreateNaryStrMetaobjectOpExpr(Oper, OpRes, Arity, argExpr, opLoc, endLoc);
-  } else {
-    return CreateNaryIntMetaobjectOpExpr(Oper, OpRes, Arity, argExpr, opLoc, endLoc);
-  }
+  return NaryMetaobjectOpExpr::Create(Context, Oper, OpRes,
+                                      Arity, ArgExpr, opLoc, endLoc);
 }
 
 ExprResult Sema::ActOnUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,

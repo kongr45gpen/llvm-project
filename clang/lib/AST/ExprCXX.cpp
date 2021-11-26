@@ -2057,7 +2057,8 @@ ReflexprIdExpr::toMetaobjectId(ASTContext &Ctx,
   return Ctx.encodeMetaobject(that);
 }
 
-ReflexprIdExpr *ReflexprIdExpr::fromExpr(ASTContext &Ctx, Expr *E) {
+ReflexprIdExpr *ReflexprIdExpr::fromExpr(ASTContext &Ctx, Expr *E,
+                                         void *EvlInfo) {
   if (ReflexprIdExpr *REE = dyn_cast<ReflexprIdExpr>(E)) {
     return REE;
   }
@@ -2066,7 +2067,7 @@ ReflexprIdExpr *ReflexprIdExpr::fromExpr(ASTContext &Ctx, Expr *E) {
     return MIE->asReflexprIdExpr(Ctx);
   }
 
-  if (const auto MoId = E->getMetaobjectIdExpr(nullptr, Ctx)) {
+  if (const auto MoId = E->getMetaobjectIdExpr(EvlInfo, Ctx)) {
     return fromMetaobjectId(Ctx, *MoId);
   }
 
@@ -2378,44 +2379,6 @@ Stmt::child_range MetaobjectIdExpr::children() {
 }
 
 // MetaobjectOpExprBase
-QualType MetaobjectOpExprBase::getResultKindType(ASTContext &Ctx,
-                                                 unsigned arity, Expr **argExpr,
-                                                 MetaobjectOpResult OpRes) {
-  switch (OpRes) {
-  case MOOR_Metaobject:
-    return Ctx.MetaobjectIdTy;
-  case MOOR_SizeT:
-    return Ctx.getSizeType();
-  case MOOR_ULong:
-    return Ctx.UnsignedLongTy;
-  case MOOR_Bool:
-    return Ctx.BoolTy;
-  case MOOR_Const:
-    break;
-  case MOOR_Pointer:
-    llvm_unreachable("Pointer-returning operations are handled elsewhere");
-  case MOOR_String:
-    llvm_unreachable("String-returning operations are handled elsewhere");
-  }
-
-  assert(OpRes == MOOR_Const);
-
-  if (argExpr[0]->isInstantiationDependent()) {
-    return Ctx.DependentTy;
-  }
-
-  ReflexprIdExpr *REE = ReflexprIdExpr::fromExpr(Ctx, argExpr[0]);
-
-  if (REE->isArgumentNamedDecl()) {
-    if (const auto *ND = REE->getArgumentNamedDecl()) {
-      if (const auto *VD = dyn_cast<ValueDecl>(ND)) {
-        return VD->getType();
-      }
-    }
-  }
-  llvm_unreachable("Unable to find the type of constant-returning operation");
-}
-
 AccessSpecifier MetaobjectOpExprBase::getArgumentAccess(ASTContext &Ctx,
                                                         ReflexprIdExpr *REE) {
   return REE->getArgumentAccess(Ctx);
@@ -2489,6 +2452,63 @@ llvm::APSInt MetaobjectOpExprBase::opGetConstant(ASTContext &Ctx,
 }
 
 // __metaobj_{operation}
+QualType UnaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
+                                                  UnaryMetaobjectOp Oper,
+                                                  MetaobjectOpResult OpRes,
+                                                  Expr *argExpr) {
+  const bool isDependent =
+    argExpr->getDependence() & ExprDependence::TypeValueInstantiation;
+  switch (OpRes) {
+    case MOOR_Metaobject:
+      return Ctx.MetaobjectIdTy;
+    case MOOR_SizeT:
+      return Ctx.getSizeType();
+    case MOOR_ULong:
+      return Ctx.UnsignedLongTy;
+    case MOOR_Bool:
+      return Ctx.BoolTy;
+    case MOOR_Const: {
+      if (isDependent) {
+        return Ctx.DependentTy;
+      }
+
+      ReflexprIdExpr *REE = ReflexprIdExpr::fromExpr(Ctx, argExpr);
+      assert(REE);
+
+      if (REE->isArgumentNamedDecl()) {
+        if (const auto *ND = REE->getArgumentNamedDecl()) {
+          if (const auto *VD = dyn_cast<ValueDecl>(ND)) {
+            return VD->getType();
+          }
+        }
+      }
+      llvm_unreachable("Unable to find the type of constant-returning operation");
+    }
+    case MOOR_Pointer: {
+      if (isDependent) {
+        return Ctx.DependentTy;
+      }
+      // [reflection-ts] FIXME
+      llvm_unreachable("Pointer-returning operations are handled elsewhere");
+    }
+    case MOOR_String: {
+      if (isDependent) {
+        return Ctx.DependentTy;
+      }
+      QualType CharTyConst = Ctx.CharTy.withConst();
+      if (ReflexprIdExpr *REE = ReflexprIdExpr::fromExpr(Ctx, argExpr)) {
+        std::string Value;
+        if (getStrResult(Ctx, Oper, REE, nullptr, Value)) {
+          return Ctx.getStringLiteralArrayType(CharTyConst, Value.size());
+        }
+        llvm_unreachable("Unable to find the type of string-returning operation");
+      }
+      return Ctx.getPointerType(CharTyConst);
+    }
+  }
+  return QualType();
+}
+
 UnaryMetaobjectOpExpr::UnaryMetaobjectOpExpr(ASTContext &Ctx,
                                              UnaryMetaobjectOp Oper,
                                              MetaobjectOpResult OpRes,
@@ -2498,9 +2518,19 @@ UnaryMetaobjectOpExpr::UnaryMetaobjectOpExpr(ASTContext &Ctx,
     : Expr(UnaryMetaobjectOpExprClass, resultType, VK_PRValue, OK_Ordinary),
       ArgExpr(argExpr), OpLoc(opLoc), EndLoc(endLoc) {
 
-  setDependence(computeDependence(this));
   setKind(Oper);
   setResultKind(OpRes);
+  setDependence(computeDependence(this));
+}
+
+UnaryMetaobjectOpExpr *
+UnaryMetaobjectOpExpr::Create(ASTContext &Ctx, UnaryMetaobjectOp Oper,
+                              MetaobjectOpResult OpRes, Expr *argExpr,
+                              SourceLocation opLoc, SourceLocation endLoc) {
+  return new (Ctx)
+      UnaryMetaobjectOpExpr(Ctx, Oper, OpRes,
+                            getResultKindType(Ctx, Oper, OpRes, argExpr),
+                            argExpr, opLoc, endLoc);
 }
 
 StringRef UnaryMetaobjectOpExpr::getOperationSpelling(UnaryMetaobjectOp MoOp) {
@@ -3209,39 +3239,33 @@ bool UnaryMetaobjectOpExpr::hasIntResult() const {
   return false;
 }
 
-
-llvm::APSInt UnaryMetaobjectOpExpr::getIntResult(ASTContext &Ctx,
-                                                 UnaryMetaobjectOp MoOp,
-                                                 ReflexprIdExpr *REE) {
-  assert(REE);
-
-  switch (MoOp) {
+bool UnaryMetaobjectOpExpr::getIntResult(ASTContext &Ctx, void *EvlInfo,
+                                         llvm::APSInt &result) const {
+  if (ReflexprIdExpr *REE = getArgumentReflexprIdExpr(Ctx, EvlInfo)) {
+    const UnaryMetaobjectOp MoOp = getKind();
+    switch (MoOp) {
 #define METAOBJECT_INT_OP_1(S, OpRes, OpName) \
-  case UMOO_##OpName: \
-    return make##OpRes##Result(Ctx, op##OpName(Ctx, REE));
+      case UMOO_##OpName: \
+        result = make##OpRes##Result(Ctx, op##OpName(Ctx, REE)); \
+        return true;
 #include "clang/Basic/TokenKinds.def"
 #undef METAOBJECT_INT_OP_1
 
-#define METAOBJECT_TRAIT(S, Concept) case UMOO_IsMeta##Concept:
+#define METAOBJECT_TRAIT(S, Concept) \
+      case UMOO_IsMeta##Concept:
 #include "clang/Basic/TokenKinds.def"
 #undef METAOBJECT_TRAIT
-    {
-      MetaobjectKind MoK = REE->getKind();
-      MetaobjectConcept MoC = translateMetaobjectKindToMetaobjectConcept(MoK);
-      return makeBoolResult(Ctx, getTraitValue(MoOp, MoC));
+      {
+        MetaobjectKind MoK = REE->getKind();
+        MetaobjectConcept MoC = translateMetaobjectKindToMetaobjectConcept(MoK);
+        result = makeBoolResult(Ctx, getTraitValue(MoOp, MoC));
+        return true;
+      }
+      default: {
+        llvm_unreachable("This metaobject operation does not return int value!");
+      }
     }
-  default: {
-      llvm_unreachable("This metaobject operation does not return int value!");
-    }
-  }
-  llvm_unreachable("Metaobject operation not implemented yet!");
-}
-
-bool UnaryMetaobjectOpExpr::getIntResult(ASTContext &Ctx, void *EvlInfo,
-                                         Expr *argExpr, llvm::APSInt &result) const {
-  if (ReflexprIdExpr *REE = getReflexprIdExpr(Ctx, argExpr, EvlInfo)) {
-    result = getIntResult(Ctx, getKind(), REE);
-    return true;
+    llvm_unreachable("Metaobject operation not implemented yet!");
   }
   return false;
 }
@@ -3250,30 +3274,21 @@ bool UnaryMetaobjectOpExpr::hasObjResult() const {
   return getResultKind() == MOOR_Metaobject;
 }
 
-llvm::APInt UnaryMetaobjectOpExpr::getObjResult(ASTContext &Ctx,
-                                                UnaryMetaobjectOp MoOp,
-                                                ReflexprIdExpr *REE) {
-  assert(REE);
-
-  switch (MoOp) {
+bool UnaryMetaobjectOpExpr::getObjResult(ASTContext &Ctx, void *EvlInfo,
+                                         llvm::APInt &result) const {
+  if (ReflexprIdExpr *REE = getArgumentReflexprIdExpr(Ctx, EvlInfo)) {
+    switch (getKind()) {
 #define METAOBJECT_OBJ_OP_1(S, OpRes, OpName) \
-  case UMOO_##OpName: \
-    return make##OpRes##Result(Ctx, op##OpName(Ctx, REE));
+      case UMOO_##OpName: \
+        result = make##OpRes##Result(Ctx, op##OpName(Ctx, REE)); \
+        return true;
 #include "clang/Basic/TokenKinds.def"
 #undef METAOBJECT_OBJ_OP_1
-
-  default: {
-      llvm_unreachable("This metaobject operation does not return metaobject!");
+      default: {
+        llvm_unreachable("This metaobject operation does not return metaobject!");
+      }
     }
-  }
-  llvm_unreachable("Metaobject operation not implemented yet!");
-}
-
-bool UnaryMetaobjectOpExpr::getObjResult(ASTContext &Ctx, void *EvlInfo,
-                                         Expr *argExpr, llvm::APInt &result) const {
-  if (ReflexprIdExpr *REE = getReflexprIdExpr(Ctx, argExpr, EvlInfo)) {
-    result = getObjResult(Ctx, getKind(), REE);
-    return true;
+    llvm_unreachable("Metaobject operation not implemented yet!");
   }
   return false;
 }
@@ -3282,29 +3297,34 @@ bool UnaryMetaobjectOpExpr::hasStrResult() const {
   return getResultKind() == MOOR_String;
 }
 
-std::string UnaryMetaobjectOpExpr::getStrResult(ASTContext &Ctx,
-                                                UnaryMetaobjectOp MoOp,
-                                                ReflexprIdExpr *REE) {
-  switch (MoOp) {
+bool UnaryMetaobjectOpExpr::getStrResult(ASTContext &Ctx, UnaryMetaobjectOp Oper,
+                                         ReflexprIdExpr *REE,
+                                         void *EvlInfo, std::string &result) {
+  assert(REE);
+  switch (Oper) {
 #define METAOBJECT_STR_OP_1(S, OpRes, OpName) \
-  case UMOO_##OpName: \
-    return op##OpName(Ctx, REE);
+    case UMOO_##OpName: \
+      result = op##OpName(Ctx, REE); \
+      return true;
 #include "clang/Basic/TokenKinds.def"
 #undef METAOBJECT_STR_OP_1
-  default: {
+    default: {
       llvm_unreachable("This metaobject operation does not return a string!");
     }
   }
+  llvm_unreachable("Metaobject operation not implemented yet!");
 }
 
-bool UnaryMetaobjectOpExpr::getStrResult(ASTContext &Ctx,
-                                         UnaryMetaobjectOp MoOp, void *EvlInfo,
-                                         Expr *argExpr, std::string &result) {
-  if (ReflexprIdExpr *REE = getReflexprIdExpr(Ctx, argExpr, EvlInfo)) {
-    result = getStrResult(Ctx, MoOp, REE);
-    return true;
+bool UnaryMetaobjectOpExpr::getStrResult(ASTContext &Ctx, void *EvlInfo,
+                                         std::string &result) const {
+  if (ReflexprIdExpr *REE = getArgumentReflexprIdExpr(Ctx, EvlInfo)) {
+    return getStrResult(Ctx, getKind(), REE, EvlInfo, result);
   }
   return false;
+}
+
+bool UnaryMetaobjectOpExpr::hasPtrResult() const {
+  return getResultKind() == MOOR_Pointer;
 }
 
 const ValueDecl *UnaryMetaobjectOpExpr::getValueDeclResult(
@@ -3324,7 +3344,7 @@ const ValueDecl *UnaryMetaobjectOpExpr::getValueDeclResult(
 
 const ValueDecl *UnaryMetaobjectOpExpr::getValueDeclResult(
     ASTContext &Ctx, UnaryMetaobjectOp MoOp, Expr* argExpr, void *EvlInfo) {
-  if (ReflexprIdExpr *REE = getReflexprIdExpr(Ctx, argExpr, EvlInfo)) {
+  if (ReflexprIdExpr *REE = ReflexprIdExpr::fromExpr(Ctx, argExpr, EvlInfo)) {
     return getValueDeclResult(Ctx, MoOp, REE);
   }
   llvm_unreachable("Failed to query Metaobject information!");
@@ -3394,6 +3414,28 @@ Stmt::child_range UnaryMetaobjectOpExpr::children() {
                      child_iterator(&ArgExpr + 1));
 }
 
+QualType NaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
+                                                 NaryMetaobjectOp Oper,
+                                                 MetaobjectOpResult OpRes,
+                                                 unsigned arity, Expr **argExpr) {
+  switch (OpRes) {
+  case MOOR_Metaobject:
+    return Ctx.MetaobjectIdTy;
+  case MOOR_SizeT:
+    return Ctx.getSizeType();
+  case MOOR_ULong:
+    return Ctx.UnsignedLongTy;
+  case MOOR_Bool:
+    return Ctx.BoolTy;
+  case MOOR_Const:
+  case MOOR_Pointer:
+  case MOOR_String:
+    break;
+  }
+  llvm_unreachable("invalid n-ary metaobject operation result");
+  return QualType();
+}
+
 NaryMetaobjectOpExpr::NaryMetaobjectOpExpr(ASTContext &Ctx,
                                            NaryMetaobjectOp Oper,
                                            MetaobjectOpResult OpRes,
@@ -3410,9 +3452,22 @@ NaryMetaobjectOpExpr::NaryMetaobjectOpExpr(ASTContext &Ctx,
     ArgExpr[i] = nullptr;
   }
 
-  setDependence(computeDependence(this));
   setKind(Oper);
   setResultKind(OpRes);
+  setDependence(computeDependence(this));
+}
+
+NaryMetaobjectOpExpr *
+NaryMetaobjectOpExpr::Create(ASTContext &Ctx, NaryMetaobjectOp Oper,
+                             MetaobjectOpResult OpRes,
+                             unsigned arity, Expr **argExpr,
+                             SourceLocation opLoc, SourceLocation endLoc) {
+  QualType resType =
+      NaryMetaobjectOpExpr::getResultKindType(Ctx, Oper, OpRes,
+                                              arity, argExpr);
+
+  return new (Ctx) NaryMetaobjectOpExpr(Ctx, Oper, OpRes, resType,
+                                        arity, argExpr, opLoc, endLoc);
 }
 
 StringRef NaryMetaobjectOpExpr::getOperationSpelling(NaryMetaobjectOp MoOp) {

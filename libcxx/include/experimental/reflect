@@ -357,8 +357,6 @@ struct __is_FunctionalTypeConversion
 template <class _Tp>
 concept bool FunctionalTypeConversion = __is_a_concept_v<_Tp, __is_FunctionalTypeConversion>;
 
-// [reflection-ts] FIXME: Add the remaining concepts from the TS
-
 // metaobject unary operations
 
 // boolean
@@ -538,8 +536,9 @@ inline constexpr size_t get_size_v = get_size<_Tp>::value;
 // string
 template <Object _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_source_file_name {
-  static constexpr const auto value
-    = __metaobject_get_source_file_name(__unwrap_metaobject_id_v<_Tp>);
+  static constexpr const char value[
+    __metaobject_source_file_name_len(__unwrap_metaobject_id_v<_Tp>) + 1
+  ] = __metaobject_get_source_file_name(__unwrap_metaobject_id_v<_Tp>);
 };
 
 template <Object _Tp>
@@ -548,8 +547,9 @@ inline constexpr auto get_source_file_name_v = get_source_file_name<_Tp>::value;
 
 template <Named _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_name {
-  static constexpr const auto value
-    = __metaobject_get_name(__unwrap_metaobject_id_v<_Tp>);
+  static constexpr const char value[
+    __metaobject_name_len(__unwrap_metaobject_id_v<_Tp>) + 1
+  ] = __metaobject_get_name(__unwrap_metaobject_id_v<_Tp>);
 };
 
 template <Named _Tp>
@@ -557,8 +557,9 @@ inline constexpr auto get_name_v = get_name<_Tp>::value;
 
 template <Named _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_display_name {
-  static constexpr const auto value
-    = __metaobject_get_display_name(__unwrap_metaobject_id_v<_Tp>);
+  static constexpr const char value[
+    __metaobject_display_name_len(__unwrap_metaobject_id_v<_Tp>) + 1
+  ] = __metaobject_get_display_name(__unwrap_metaobject_id_v<_Tp>);
 };
 
 template <Named _Tp>

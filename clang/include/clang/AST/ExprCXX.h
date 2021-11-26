@@ -4999,7 +4999,7 @@ public:
     return toMetaobjectId(Ctx, this);
   }
 
-  static ReflexprIdExpr* fromExpr(ASTContext&, Expr *E);
+  static ReflexprIdExpr* fromExpr(ASTContext&, Expr *E, void *EvlInfo = nullptr);
 
   static StringRef getMetaobjectKindName(MetaobjectKind MoK);
   static StringRef getMetaobjectKindName(ASTContext &Ctx, ReflexprIdExpr* REE) {
@@ -5215,9 +5215,6 @@ protected:
   static llvm::APSInt opGetConstant(ASTContext &, ReflexprIdExpr*);
 
 public:
-  static QualType getResultKindType(ASTContext &Ctx, unsigned arity,
-                                    Expr **argExpr, MetaobjectOpResult OpRes);
-
   static ReflexprIdExpr *getReflexprIdExpr(ASTContext &Ctx, Expr *E,
                                            void *EvlInfo = nullptr);
 
@@ -5280,6 +5277,11 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static ReflexprIdExpr *opHidePrivate(ASTContext &, ReflexprIdExpr*);
 
   static uint64_t opGetSize(ASTContext &, ReflexprIdExpr*);
+
+  static QualType getResultKindType(ASTContext &Ctx,
+                                    UnaryMetaobjectOp Oper,
+                                    MetaobjectOpResult OpRes,
+                                    Expr *argExpr);
 public:
   /// \brief Construct an empty metaobject operation expression.
   explicit UnaryMetaobjectOpExpr(EmptyShell Empty)
@@ -5289,6 +5291,10 @@ public:
                         MetaobjectOpResult OpRes, QualType resultType,
                         Expr *argExpr, SourceLocation opLoc,
                         SourceLocation endLoc);
+
+  static UnaryMetaobjectOpExpr *
+  Create(ASTContext &Ctx, UnaryMetaobjectOp Oper, MetaobjectOpResult OpRes,
+         Expr *argExpr, SourceLocation opLoc, SourceLocation endLoc);
 
   UnaryMetaobjectOp getKind() const {
     return UnaryMetaobjectOp(UnaryMetaobjectOpExprBits.Kind);
@@ -5334,30 +5340,19 @@ public:
 
   bool hasIntResult() const;
 
-  static llvm::APSInt getIntResult(ASTContext &Ctx, UnaryMetaobjectOp,
-                                   ReflexprIdExpr*);
-  bool getIntResult(ASTContext &Ctx, void *EvlInfo,
-                    Expr *argExpr, llvm::APSInt &result) const;
-  bool getIntResult(ASTContext &Ctx, void *EvlInfo, llvm::APSInt &result) const {
-    return getIntResult(Ctx, EvlInfo, getArgumentExpr(), result);
-  }
+  bool getIntResult(ASTContext &Ctx, void *EvlInfo, llvm::APSInt &result) const;
 
   bool hasObjResult() const;
 
-  static llvm::APInt getObjResult(ASTContext &Ctx, UnaryMetaobjectOp,
-                                  ReflexprIdExpr*);
-  bool getObjResult(ASTContext &Ctx, void *EvlInfo,
-                    Expr *argExpr, llvm::APInt &result) const;
-  bool getObjResult(ASTContext &Ctx, void *EvlInfo, llvm::APInt &result) const {
-    return getObjResult(Ctx, EvlInfo, getArgumentExpr(), result);
-  }
+  bool getObjResult(ASTContext &Ctx, void *EvlInfo, llvm::APInt &result) const;
 
   bool hasStrResult() const;
 
-  static std::string getStrResult(ASTContext &, UnaryMetaobjectOp,
-                                  ReflexprIdExpr*);
-  static bool getStrResult(ASTContext &, UnaryMetaobjectOp, void *EvlInfo,
-                           Expr *argExpr, std::string &);
+  static bool getStrResult(ASTContext &Ctx, UnaryMetaobjectOp Oper,
+                           ReflexprIdExpr *REE, void *EvlInfo, std::string &);
+  bool getStrResult(ASTContext &Ctx, void *EvlInfo, std::string &) const;
+
+  bool hasPtrResult() const;
 
   static const ValueDecl *getValueDeclResult(ASTContext &, UnaryMetaobjectOp,
                                              ReflexprIdExpr*);
@@ -5392,6 +5387,10 @@ class NaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   Stmt *ArgExpr[2];
   SourceLocation OpLoc, EndLoc;
 
+  static QualType getResultKindType(ASTContext &Ctx,
+                                    NaryMetaobjectOp Oper,
+                                    MetaobjectOpResult OpRes,
+                                    unsigned arity, Expr **argExpr);
 public:
   /// \brief Construct an empty metaobject operation expression.
   explicit NaryMetaobjectOpExpr(EmptyShell Empty)
@@ -5401,6 +5400,11 @@ public:
                        MetaobjectOpResult OpRes, QualType resultType,
                        unsigned arity, Expr **argExpr, SourceLocation opLoc,
                        SourceLocation endLoc);
+
+  static NaryMetaobjectOpExpr *
+  Create(ASTContext &Ctx, NaryMetaobjectOp Oper, MetaobjectOpResult OpRes,
+         unsigned arity, Expr **argExpr,
+         SourceLocation opLoc, SourceLocation endLoc);
 
   static constexpr unsigned MinArity = 2;
   static constexpr unsigned MaxArity = 2;

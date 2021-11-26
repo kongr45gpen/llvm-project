@@ -7707,10 +7707,6 @@ Sema::BuildExpressionFromIntegralTemplateArgument(const TemplateArgument &Arg,
 /// Construct a new expression that refers to the given
 /// metaobject id template argument with the given source-location
 /// information.
-///
-/// This routine takes care of the mapping from an metaobject id template
-/// argument (which may have any integral type) to the appropriate
-/// literal value.
 ExprResult
 Sema::BuildExpressionFromMetaobjectIdTemplateArgument(const TemplateArgument &Arg,
                                                       SourceLocation Loc) {

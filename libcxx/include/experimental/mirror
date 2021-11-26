@@ -1,0 +1,219 @@
+// -*- C++ -*-
+//===--------------------------- reflect ----------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// This header is a non-standard extension of the ReflectionTS and may be
+// changed or removed without prior notice.
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXPERIMENTAL_MIRROR
+#define _LIBCPP_EXPERIMENTAL_MIRROR
+
+#include <experimental/__config>
+#include <__debug>
+#include <array>
+#include <cstdint>
+#include <type_traits>
+#include <string_view>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+#ifdef _LIBCPP_HAS_NO_REFLECTION
+# if defined(_LIBCPP_WARNING)
+    _LIBCPP_WARNING("<experimental/mirror> cannot be used with this compiler")
+# else
+#   warning <experimental/mirror> cannot be used with this compiler
+# endif
+#else
+# ifdef _LIBCPP_HAS_NO_REFLECTION_EXT
+#  if defined(_LIBCPP_WARNING)
+     _LIBCPP_WARNING("<experimental/mirror> cannot be used without reflection extension enabled ")
+#  else
+#    warning <experimental/mirror> cannot be used without reflection extension enabled
+#  endif
+# endif
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_REFLECTION) && !defined(_LIBCPP_HAS_NO_REFLECTION_EXT )
+
+_LIBCPP_BEGIN_NAMESPACE_EXPERIMENTAL
+namespace mirror {
+
+using metaobject = __metaobject_id;
+
+consteval bool is_meta_object(metaobject mo) {
+  return __metaobject_is_meta_object(mo);
+}
+
+consteval bool is_meta_object_sequence(metaobject mo) {
+  return __metaobject_is_meta_object_sequence(mo);
+}
+
+consteval bool is_meta_named(metaobject mo) {
+  return __metaobject_is_meta_named(mo);
+}
+
+consteval bool is_meta_alias(metaobject mo) {
+  return __metaobject_is_meta_alias(mo);
+}
+
+consteval bool is_meta_scope(metaobject mo) {
+  return __metaobject_is_meta_scope(mo);
+}
+
+consteval bool is_meta_typed(metaobject mo) {
+  return __metaobject_is_meta_typed(mo);
+}
+
+consteval bool is_meta_scope_member(metaobject mo) {
+  return __metaobject_is_meta_scope_member(mo);
+}
+
+consteval bool is_meta_enum_member(metaobject mo) {
+  return __metaobject_is_meta_enum_member(mo);
+}
+
+consteval bool is_meta_record_member(metaobject mo) {
+  return __metaobject_is_meta_record_member(mo);
+}
+
+consteval bool is_meta_base(metaobject mo) {
+  return __metaobject_is_meta_base(mo);
+}
+
+consteval bool is_meta_namespace(metaobject mo) {
+  return __metaobject_is_meta_namespace(mo);
+}
+
+consteval bool is_meta_global_scope(metaobject mo) {
+  return __metaobject_is_meta_global_scope(mo);
+}
+
+consteval bool is_meta_type(metaobject mo) {
+  return __metaobject_is_meta_type(mo);
+}
+
+consteval bool is_meta_enum(metaobject mo) {
+  return __metaobject_is_meta_enum(mo);
+}
+
+consteval bool is_meta_record(metaobject mo) {
+  return __metaobject_is_meta_record(mo);
+}
+
+consteval bool is_meta_class(metaobject mo) {
+  return __metaobject_is_meta_class(mo);
+}
+
+consteval bool is_meta_lambda(metaobject mo) {
+  return __metaobject_is_meta_lambda(mo);
+}
+
+consteval bool is_meta_constant(metaobject mo) {
+  return __metaobject_is_meta_constant(mo);
+}
+
+consteval bool is_meta_variable(metaobject mo) {
+  return __metaobject_is_meta_variable(mo);
+}
+
+consteval bool is_meta_lambda_capture(metaobject mo) {
+  return __metaobject_is_meta_lambda_capture(mo);
+}
+
+consteval bool is_meta_function_parameter(metaobject mo) {
+  return __metaobject_is_meta_function_parameter(mo);
+}
+
+consteval bool is_meta_callable(metaobject mo) {
+  return __metaobject_is_meta_callable(mo);
+}
+
+consteval bool is_meta_function(metaobject mo) {
+  return __metaobject_is_meta_function(mo);
+}
+
+consteval bool is_meta_member_function(metaobject mo) {
+  return __metaobject_is_meta_member_function(mo);
+}
+
+consteval bool is_meta_special_member_function(metaobject mo) {
+  return __metaobject_is_meta_special_member_function(mo);
+}
+
+consteval bool is_meta_constructor(metaobject mo) {
+  return __metaobject_is_meta_constructor(mo);
+}
+
+consteval bool is_meta_destructor(metaobject mo) {
+  return __metaobject_is_meta_destructor(mo);
+}
+
+consteval bool is_meta_operator(metaobject mo) {
+  return __metaobject_is_meta_operator(mo);
+}
+
+consteval bool is_meta_conversion_operator(metaobject mo) {
+  return __metaobject_is_meta_conversion_operator(mo);
+}
+
+// unary operations
+// boolean
+consteval size_t is_constexpr(metaobject mo) {
+  return __metaobject_is_constexpr(mo);
+}
+
+// integer
+consteval size_t get_source_line(metaobject mo) {
+  return __metaobject_get_source_line(mo);
+}
+
+consteval size_t get_source_column(metaobject mo) {
+  return __metaobject_get_source_column(mo);
+}
+
+consteval size_t get_size(metaobject mo) {
+  return __metaobject_get_size(mo);
+}
+
+// string
+consteval string_view get_source_file_name(metaobject mo) {
+  return {__metaobject_get_source_file_name(mo),
+          __metaobject_source_file_name_len(mo)};
+}
+
+consteval string_view get_name(metaobject mo) {
+  return {__metaobject_get_name(mo),
+          __metaobject_name_len(mo)};
+}
+
+consteval string_view get_display_name(metaobject mo) {
+  return {__metaobject_get_display_name(mo),
+          __metaobject_display_name_len(mo)};
+}
+
+// metaobject
+consteval metaobject get_scope(metaobject mo) {
+  return __metaobject_get_scope(mo);
+}
+
+consteval metaobject get_enumerators(metaobject mo) {
+  return __metaobject_get_enumerators(mo);
+}
+
+// unpacking
+
+
+} // namespace mirror
+_LIBCPP_END_NAMESPACE_EXPERIMENTAL
+
+#define mirror(...) __reflexpr_id(__VA_ARGS__)
+
+#endif /* !_LIBCPP_HAS_NO_REFLECTION && !_LIBCPP_HAS_NO_REFLECTION_EXT */
+
+#endif /* _LIBCPP_EXPERIMENTAL_MIRROR */

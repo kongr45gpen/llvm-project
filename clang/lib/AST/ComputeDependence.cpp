@@ -93,7 +93,11 @@ ExprDependence clang::computeDependence(UnaryMetaobjectOpExpr *E) {
   auto Deps = ArgDeps & ~ExprDependence::Type;
   if (ArgDeps & ExprDependence::Type)
     Deps |= ExprDependence::Value;
-  // [reflexpr-ts] FIXME
+  
+  if (E->getType()->isDependentType()) {
+    Deps |= ExprDependence::Type;
+  }
+  // [reflexpr-ts] FIXME: re-check if this is correct
   return Deps;
 }
 
@@ -105,7 +109,11 @@ ExprDependence clang::computeDependence(NaryMetaobjectOpExpr *E) {
   auto Deps = ArgDeps & ~ExprDependence::Type;
   if (ArgDeps & ExprDependence::Type)
     Deps |= ExprDependence::Value;
-  // [reflexpr-ts] FIXME
+
+  if (E->getType()->isDependentType()) {
+    Deps |= ExprDependence::Type;
+  }
+  // [reflexpr-ts] FIXME: re-check if this is correct
   return Deps;
 }
 

@@ -5350,31 +5350,6 @@ public:
                                             ExprResult argExpr,
                                             SourceLocation opLoc,
                                             SourceLocation endLoc);
-  ExprResult CreateNaryPtrMetaobjectOpExpr(NaryMetaobjectOp Oper,
-                                           MetaobjectOpResult OpRes,
-                                           unsigned arity, ExprResult *argExpr,
-                                           SourceLocation opLoc,
-                                           SourceLocation endLoc);
-  ExprResult CreateUnaryStrMetaobjectOpExpr(UnaryMetaobjectOp Oper,
-                                            MetaobjectOpResult OpRes,
-                                            ExprResult argExpr,
-                                            SourceLocation opLoc,
-                                            SourceLocation endLoc);
-  ExprResult CreateNaryStrMetaobjectOpExpr(NaryMetaobjectOp Oper,
-                                           MetaobjectOpResult OpRes,
-                                           unsigned arity, ExprResult *argExpr,
-                                           SourceLocation opLoc,
-                                           SourceLocation endLoc);
-  ExprResult CreateUnaryIntMetaobjectOpExpr(UnaryMetaobjectOp Oper,
-                                            MetaobjectOpResult OpRes,
-                                            ExprResult argExpr,
-                                            SourceLocation opLoc,
-                                            SourceLocation endLoc);
-  ExprResult CreateNaryIntMetaobjectOpExpr(NaryMetaobjectOp Oper,
-                                           MetaobjectOpResult OpRes,
-                                           unsigned arity, ExprResult *argExpr,
-                                           SourceLocation opLoc,
-                                           SourceLocation endLoc);
 
   ExprResult CreateUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
                                          MetaobjectOpResult OpRes,

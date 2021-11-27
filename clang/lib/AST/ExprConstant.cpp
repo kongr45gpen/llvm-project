@@ -8693,21 +8693,7 @@ public:
     return true;
   }
 
-  bool VisitUnaryMetaobjectOpExpr(const UnaryMetaobjectOpExpr *E) {
-    std::string Value;
-    if (E->getStrResult(Info.Ctx, &Info, Value)) {
-      QualType CharTyConst = Info.Ctx.CharTy.withConst();
-      QualType StrTy = Info.Ctx.getStringLiteralArrayType(
-          CharTyConst, Value.size());
-      StringLiteral *SL =
-          StringLiteral::Create(Info.Ctx, Value, StringLiteral::UTF8,
-                                false, StrTy, E->getOperatorLoc());
-      evaluateLValue(SL, Result);
-      Result.addArray(Info, E, cast<ConstantArrayType>(StrTy));
-      return true;
-    }
-    return false;
-  }
+  bool VisitUnaryMetaobjectOpExpr(const UnaryMetaobjectOpExpr *E);
 
   bool VisitSYCLUniqueStableNameExpr(const SYCLUniqueStableNameExpr *E) {
     std::string ResultStr = E->ComputeName(Info.Ctx);
@@ -9588,6 +9574,28 @@ bool PointerExprEvaluator::VisitCXXNewExpr(const CXXNewExpr *E) {
 
   return true;
 }
+
+bool PointerExprEvaluator::VisitUnaryMetaobjectOpExpr(
+    const UnaryMetaobjectOpExpr *E) {
+  std::string Value;
+  if (E->hasStrResult()) {
+    if (E->getStrResult(Info.Ctx, &Info, Value)) {
+      QualType CharTyConst = Info.Ctx.CharTy.withConst();
+      QualType StrTy = Info.Ctx.getStringLiteralArrayType(
+          CharTyConst, Value.size());
+      StringLiteral *SL =
+          StringLiteral::Create(Info.Ctx, Value, StringLiteral::UTF8,
+                                false, StrTy, E->getOperatorLoc());
+      evaluateLValue(SL, Result);
+      Result.addArray(Info, E, cast<ConstantArrayType>(StrTy));
+      return true;
+    }
+  }
+  if (E->hasPtrResult()) {
+    assert(false && "BLA");
+  }
+  return false;
+}
 //===----------------------------------------------------------------------===//
 // Member Pointer Evaluation
 //===----------------------------------------------------------------------===//
@@ -9616,6 +9624,7 @@ public:
 
   bool VisitCastExpr(const CastExpr *E);
   bool VisitUnaryAddrOf(const UnaryOperator *E);
+  bool VisitUnaryMetaobjectOpExpr(const UnaryMetaobjectOpExpr *E);
 };
 } // end anonymous namespace
 
@@ -9675,6 +9684,13 @@ bool MemberPointerExprEvaluator::VisitUnaryAddrOf(const UnaryOperator *E) {
   // C++11 [expr.unary.op]p3 has very strict rules on how the address of a
   // member can be formed.
   return Success(cast<DeclRefExpr>(E->getSubExpr())->getDecl());
+}
+
+bool MemberPointerExprEvaluator::VisitUnaryMetaobjectOpExpr(
+    const UnaryMetaobjectOpExpr *E) {
+  const ValueDecl *valDecl = E->getValueDeclResult(Info.Ctx, &Info);
+  assert(valDecl != nullptr);
+  return Success(valDecl);
 }
 
 //===----------------------------------------------------------------------===//

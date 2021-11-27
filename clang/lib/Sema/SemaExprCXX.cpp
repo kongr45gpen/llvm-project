@@ -8986,58 +8986,6 @@ ExprResult Sema::ActOnReflexprTypeExpr(bool idOnly, Scope *S, Declarator &D,
       idOnly, GetReflexprTypeExpr(TInfo, true, opLoc, argRange.getEnd()));
 }
 
-ExprResult Sema::CreateUnaryPtrMetaobjectOpExpr(UnaryMetaobjectOp Oper,
-                                                MetaobjectOpResult OpRes,
-                                                ExprResult argExpr,
-                                                SourceLocation opLoc,
-                                                SourceLocation endLoc) {
-  assert((OpRes == MOOR_Pointer) &&
-         "Cannot handle a non-pointer-returning operation here");
-  assert(argExpr.isUsable());
-
-  bool recreate = ExprEvalContexts.back().ExprContext ==
-                  ExpressionEvaluationContextRecord::EK_Unrefltype;
-  recreate |= argExpr.get()->isTypeDependent();
-  recreate |= argExpr.get()->isValueDependent();
-  recreate |= argExpr.get()->isInstantiationDependent();
-
-  if (recreate) {
-    return new (Context)
-        UnaryMetaobjectOpExpr(Context, Oper, OpRes, Context.DependentTy,
-                              argExpr.get(), opLoc, endLoc);
-  } else {
-    ValueDecl *valDecl =
-        const_cast<ValueDecl *>(UnaryMetaobjectOpExpr::getValueDeclResult(
-            Context, Oper, argExpr.get(), nullptr));
-
-    assert(valDecl != nullptr);
-    QualType valPtrTy =
-        UnaryMetaobjectOpExpr::getValueDeclType(Context, Oper, valDecl);
-
-    // [reflection-ts] FIXME We are just fooling the later checks, into thinking
-    // that the DRE had some nested-name specifier here.
-    // Do we need to build a *valid* NNS ?
-    NestedNameSpecifierLocBuilder NNSLB;
-    NNSLB.MakeGlobal(Context, opLoc);
-
-    DeclRefExpr *valDeclRefExpr =
-        DeclRefExpr::Create(Context, NNSLB.getWithLocInContext(Context), opLoc,
-                            valDecl, false /*EnclVarOrCapture?*/, opLoc,
-                            valDecl->getType(), VK_LValue, valDecl, nullptr);
-
-    MarkDeclRefReferenced(valDeclRefExpr);
-    if (FieldDecl *fldDecl = dyn_cast<FieldDecl>(valDecl)) {
-      UnusedPrivateFields.remove(fldDecl);
-    }
-
-    UnaryOperator *result =
-      UnaryOperator::Create(Context, valDeclRefExpr, UO_AddrOf,
-                            valPtrTy, VK_PRValue, OK_Ordinary,
-                            opLoc, false, FPOptionsOverride());
-    return result;
-  }
-}
-
 ExprResult Sema::CreateUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
                                              MetaobjectOpResult OpRes,
                                              ExprResult argExpr,
@@ -9057,11 +9005,6 @@ ExprResult Sema::CreateUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
         return ExprError();
       }
     }
-  }
-
-  if(OpRes == MOOR_Pointer) {
-    // [reflection-ts] FIXME: get rid of this
-    return CreateUnaryPtrMetaobjectOpExpr(Oper, OpRes, argExpr, opLoc, endLoc);
   }
 
   return UnaryMetaobjectOpExpr::Create(Context, Oper, OpRes,

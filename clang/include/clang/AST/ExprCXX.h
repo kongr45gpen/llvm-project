@@ -5356,8 +5356,7 @@ public:
 
   static const ValueDecl *getValueDeclResult(ASTContext &, UnaryMetaobjectOp,
                                              ReflexprIdExpr*);
-  static const ValueDecl *getValueDeclResult(ASTContext &, UnaryMetaobjectOp,
-                                             Expr* argExpr, void *EvlInfo);
+  const ValueDecl *getValueDeclResult(ASTContext &Ctx, void *EvlInfo) const;
 
   static QualType getValueDeclType(ASTContext &, UnaryMetaobjectOp,
                                    const ValueDecl *valDecl);

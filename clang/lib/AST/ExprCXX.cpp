@@ -2467,29 +2467,26 @@ QualType UnaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
       return Ctx.UnsignedLongTy;
     case MOOR_Bool:
       return Ctx.BoolTy;
-    case MOOR_Const: {
-      if (isDependent) {
-        return Ctx.DependentTy;
-      }
-
-      ReflexprIdExpr *REE = ReflexprIdExpr::fromExpr(Ctx, argExpr);
-      assert(REE);
-
-      if (REE->isArgumentNamedDecl()) {
-        if (const auto *ND = REE->getArgumentNamedDecl()) {
-          if (const auto *VD = dyn_cast<ValueDecl>(ND)) {
-            return VD->getType();
-          }
-        }
-      }
-      llvm_unreachable("Unable to find the type of constant-returning operation");
-    }
+    case MOOR_Const:
     case MOOR_Pointer: {
       if (isDependent) {
         return Ctx.DependentTy;
       }
-      // [reflection-ts] FIXME
-      llvm_unreachable("Pointer-returning operations are handled elsewhere");
+
+      if (ReflexprIdExpr *REE = ReflexprIdExpr::fromExpr(Ctx, argExpr)) {
+        if (REE->isArgumentNamedDecl()) {
+          if (const auto *ND = REE->getArgumentNamedDecl()) {
+            if (const auto *VD = dyn_cast<ValueDecl>(ND)) {
+              return UnaryMetaobjectOpExpr::getValueDeclType(Ctx, Oper, VD);
+            }
+          }
+        }
+        llvm_unreachable("Unable to find the type of constant-returning operation");
+      }
+      if (OpRes == MOOR_Const) {
+        return Ctx.getIntMaxType();
+      }
+      return Ctx.VoidPtrTy;
     }
     case MOOR_String: {
       if (isDependent) {
@@ -3328,24 +3325,24 @@ bool UnaryMetaobjectOpExpr::hasPtrResult() const {
 }
 
 const ValueDecl *UnaryMetaobjectOpExpr::getValueDeclResult(
-    ASTContext &Ctx, UnaryMetaobjectOp MoOp, ReflexprIdExpr *REE) {
+  ASTContext &Ctx, UnaryMetaobjectOp MoOp, ReflexprIdExpr *REE) {
   assert(REE);
 
   switch (MoOp) {
-  case UMOO_GetPointer:
-  case UMOO_GetConstant: {
-    return REE->findArgumentValueDecl(Ctx);
-  }
-  default:
-    break;
+    case UMOO_GetPointer:
+    case UMOO_GetConstant: {
+      return REE->findArgumentValueDecl(Ctx);
+    }
+    default:
+      break;
   }
   llvm_unreachable("Failed to get value declaration from metaobject!");
 }
 
 const ValueDecl *UnaryMetaobjectOpExpr::getValueDeclResult(
-    ASTContext &Ctx, UnaryMetaobjectOp MoOp, Expr* argExpr, void *EvlInfo) {
-  if (ReflexprIdExpr *REE = ReflexprIdExpr::fromExpr(Ctx, argExpr, EvlInfo)) {
-    return getValueDeclResult(Ctx, MoOp, REE);
+    ASTContext &Ctx, void *EvlInfo) const {
+  if (ReflexprIdExpr *REE = getArgumentReflexprIdExpr(Ctx, EvlInfo)) {
+    return getValueDeclResult(Ctx, getKind(), REE);
   }
   llvm_unreachable("Failed to query Metaobject information!");
 }

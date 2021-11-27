@@ -9007,7 +9007,10 @@ ExprResult Sema::CreateUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
     }
   }
 
-  return UnaryMetaobjectOpExpr::Create(Context, Oper, OpRes,
+  bool isDependent = ExprEvalContexts.back().ExprContext ==
+                     ExpressionEvaluationContextRecord::EK_Unrefltype;
+
+  return UnaryMetaobjectOpExpr::Create(Context, Oper, OpRes, isDependent,
                                        ArgExpr, opLoc, endLoc);
 }
 
@@ -9043,7 +9046,10 @@ ExprResult Sema::CreateNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
     }
   }
 
-  return NaryMetaobjectOpExpr::Create(Context, Oper, OpRes,
+  bool isDependent = ExprEvalContexts.back().ExprContext ==
+                     ExpressionEvaluationContextRecord::EK_Unrefltype;
+
+  return NaryMetaobjectOpExpr::Create(Context, Oper, OpRes, isDependent,
                                       Arity, ArgExpr, opLoc, endLoc);
 }
 

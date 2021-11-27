@@ -17,6 +17,8 @@ void foo(T x) {
   static_assert(Type<get_aliased_t<mt>>);
 }
 
+const int y = -1;
+
 auto main() -> int {
   using namespace std::experimental::reflect;
   static_assert(!Type<int>);
@@ -25,6 +27,8 @@ auto main() -> int {
   using ms = reflexpr(std);
   using mw = reflexpr(weekdays);
   using mm = reflexpr(mystruct);
+  using my = reflexpr(y);
+
   static_assert(Object<mi>);
   static_assert(Object<ms>);
   static_assert(!ObjectSequence<mi>);
@@ -47,10 +51,12 @@ auto main() -> int {
   static_assert(get_constant_v<get_element_t<0, get_enumerators_t<mw>>> == weekdays::monday);
   static_assert(get_size_v<get_enumerators_t<mw>> == 7);
   static_assert(get_size_v<get_data_members_t<mm>> == 2);
+  static_assert(Variable<my>);
+  static_assert(get_pointer_v<my>);
   static_assert(Variable<get_element_t<1, get_data_members_t<mm>>>);
   static_assert(get_pointer_v<get_element_t<1, get_data_members_t<mm>>>);
 
-  get_reflected_type_t<mi> i = 0;
+  get_reflected_type_t<mi> i = 1;
 
   foo(0);
   foo(weekdays::monday);
@@ -63,5 +69,5 @@ auto main() -> int {
   if (get_display_name_v<mi> != nullptr) {
   }
 
-  return i;
+  return i+(*get_pointer_v<my>);
 }

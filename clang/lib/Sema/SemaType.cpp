@@ -9052,7 +9052,7 @@ static QualType getUnrefltypeForExpr(Sema &S, Expr *E, SourceLocation Loc) {
   }
 
   if (UnaryMetaobjectOpExpr *UMOE = dyn_cast<UnaryMetaobjectOpExpr>(E)) {
-    QualType result = UMOE->getOpResultType(S.Context);
+    QualType result = UMOE->getType();
     if (result.isNull()) {
       S.Diag(Loc, diag::err_unrefltype_operator_not_applicable_to_operation)
         << UMOE->getOperationSpelling();

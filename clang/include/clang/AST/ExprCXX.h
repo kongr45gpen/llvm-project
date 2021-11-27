@@ -5281,6 +5281,7 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static QualType getResultKindType(ASTContext &Ctx,
                                     UnaryMetaobjectOp Oper,
                                     MetaobjectOpResult OpRes,
+                                    bool isDependent,
                                     Expr *argExpr);
 public:
   /// \brief Construct an empty metaobject operation expression.
@@ -5294,7 +5295,8 @@ public:
 
   static UnaryMetaobjectOpExpr *
   Create(ASTContext &Ctx, UnaryMetaobjectOp Oper, MetaobjectOpResult OpRes,
-         Expr *argExpr, SourceLocation opLoc, SourceLocation endLoc);
+         bool isDependent, Expr *argExpr,
+         SourceLocation opLoc, SourceLocation endLoc);
 
   UnaryMetaobjectOp getKind() const {
     return UnaryMetaobjectOp(UnaryMetaobjectOpExprBits.Kind);
@@ -5362,7 +5364,6 @@ public:
                                    const ValueDecl *valDecl);
 
   bool hasOpResultType() const;
-  QualType getOpResultType(ASTContext &);
 
   SourceLocation getOperatorLoc() const { return OpLoc; }
   void setOperatorLoc(SourceLocation L) { OpLoc = L; }
@@ -5389,6 +5390,7 @@ class NaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static QualType getResultKindType(ASTContext &Ctx,
                                     NaryMetaobjectOp Oper,
                                     MetaobjectOpResult OpRes,
+                                    bool isDependent,
                                     unsigned arity, Expr **argExpr);
 public:
   /// \brief Construct an empty metaobject operation expression.
@@ -5402,6 +5404,7 @@ public:
 
   static NaryMetaobjectOpExpr *
   Create(ASTContext &Ctx, NaryMetaobjectOp Oper, MetaobjectOpResult OpRes,
+         bool isDependent,
          unsigned arity, Expr **argExpr,
          SourceLocation opLoc, SourceLocation endLoc);
 

@@ -9592,7 +9592,31 @@ bool PointerExprEvaluator::VisitUnaryMetaobjectOpExpr(
     }
   }
   if (E->hasPtrResult()) {
-    assert(false && "BLA");
+    if(ValueDecl *valDecl = const_cast<ValueDecl *>(
+          E->getValueDeclResult(Info.Ctx, &Info))) {
+      QualType valPtrTy = UnaryMetaobjectOpExpr::getValueDeclType(
+          Info.Ctx, E->getKind(), valDecl);
+      assert(valPtrTy->isPointerType());
+
+      const SourceLocation opLoc = E->getOperatorLoc();
+
+      // [reflection-ts] FIXME We are just fooling the later checks,
+      // into thinking that the DRE had some nested-name specifier here.
+      // Do we need to build a *valid* NNS ?
+      NestedNameSpecifierLocBuilder NNSLB;
+      NNSLB.MakeGlobal(Info.Ctx, opLoc);
+
+      DeclRefExpr *valDeclRefExpr =
+          DeclRefExpr::Create(Info.Ctx, NNSLB.getWithLocInContext(Info.Ctx), opLoc,
+                              valDecl, false /*EnclVarOrCapture?*/, opLoc,
+                              valDecl->getType(), VK_LValue, valDecl, nullptr);
+
+      UnaryOperator *result =
+        UnaryOperator::Create(Info.Ctx, valDeclRefExpr, UO_AddrOf,
+                              valPtrTy, VK_PRValue, OK_Ordinary,
+                              opLoc, false, FPOptionsOverride());
+      return Success(result);
+    }
   }
   return false;
 }
@@ -9688,9 +9712,12 @@ bool MemberPointerExprEvaluator::VisitUnaryAddrOf(const UnaryOperator *E) {
 
 bool MemberPointerExprEvaluator::VisitUnaryMetaobjectOpExpr(
     const UnaryMetaobjectOpExpr *E) {
-  const ValueDecl *valDecl = E->getValueDeclResult(Info.Ctx, &Info);
-  assert(valDecl != nullptr);
-  return Success(valDecl);
+  if (E->hasPtrResult()) {
+    if (const ValueDecl *valDecl = E->getValueDeclResult(Info.Ctx, &Info)) {
+      return Success(valDecl);
+    }
+  }
+  return false;
 }
 
 //===----------------------------------------------------------------------===//
@@ -10476,22 +10503,7 @@ namespace {
       expandStringLiteral(Info, E, Result, AllocType);
       return true;
     }
-    bool VisitUnaryMetaobjectOpExpr(const UnaryMetaobjectOpExpr *E) {
-      if (E->hasStrResult()) {
-        std::string ResultStr;
-        if (E->getStrResult(Info.Ctx, &Info, ResultStr)) {
-          QualType CharTyConst = Info.Ctx.CharTy.withConst();
-
-          QualType StrTy = Info.Ctx.getStringLiteralArrayType(
-              CharTyConst, ResultStr.size());
-          StringLiteral *SL =
-              StringLiteral::Create(Info.Ctx, ResultStr, StringLiteral::UTF8,
-                                    false, StrTy, E->getOperatorLoc());
-          return VisitStringLiteral(SL);
-        }
-      }
-      return false;
-    }
+    bool VisitUnaryMetaobjectOpExpr(const UnaryMetaobjectOpExpr *E);
   };
 } // end anonymous namespace
 
@@ -10695,6 +10707,23 @@ bool ArrayExprEvaluator::VisitCXXConstructExpr(const CXXConstructExpr *E,
              .VisitCXXConstructExpr(E, Type);
 }
 
+bool ArrayExprEvaluator::VisitUnaryMetaobjectOpExpr(
+    const UnaryMetaobjectOpExpr *E) {
+  if (E->hasStrResult()) {
+    std::string ResultStr;
+    if (E->getStrResult(Info.Ctx, &Info, ResultStr)) {
+      QualType CharTyConst = Info.Ctx.CharTy.withConst();
+
+      QualType StrTy = Info.Ctx.getStringLiteralArrayType(
+          CharTyConst, ResultStr.size());
+      StringLiteral *SL =
+          StringLiteral::Create(Info.Ctx, ResultStr, StringLiteral::UTF8,
+                                false, StrTy, E->getOperatorLoc());
+      return VisitStringLiteral(SL);
+    }
+  }
+  return false;
+}
 //===----------------------------------------------------------------------===//
 // Integer Evaluation
 //

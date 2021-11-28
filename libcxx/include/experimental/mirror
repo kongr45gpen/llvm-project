@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===--------------------------- reflect ----------------------------------===//
+//===---------------------------- mirror ----------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -15,7 +15,6 @@
 #include <experimental/__config>
 #include <__debug>
 #include <array>
-#include <cstdint>
 #include <type_traits>
 #include <string_view>
 
@@ -32,9 +31,9 @@
 #else
 # ifdef _LIBCPP_HAS_NO_REFLECTION_EXT
 #  if defined(_LIBCPP_WARNING)
-     _LIBCPP_WARNING("<experimental/mirror> cannot be used without reflection extension enabled ")
+     _LIBCPP_WARNING("<experimental/mirror> cannot be used without -freflection-ext ")
 #  else
-#    warning <experimental/mirror> cannot be used without reflection extension enabled
+#    warning <experimental/mirror> cannot be used without -freflection-ext
 #  endif
 # endif
 #endif
@@ -164,8 +163,64 @@ consteval bool is_meta_conversion_operator(metaobject mo) {
 
 // unary operations
 // boolean
-consteval size_t is_constexpr(metaobject mo) {
+consteval bool is_constexpr(metaobject mo) {
   return __metaobject_is_constexpr(mo);
+}
+
+consteval bool is_explicit(metaobject mo) {
+  return __metaobject_is_explicit(mo);
+}
+
+consteval bool is_inline(metaobject mo) {
+  return __metaobject_is_inline(mo);
+}
+
+consteval bool is_static(metaobject mo) {
+  return __metaobject_is_static(mo);
+}
+
+consteval bool is_virtual(metaobject mo) {
+  return __metaobject_is_virtual(mo);
+}
+
+consteval bool is_pure_virtual(metaobject mo) {
+  return __metaobject_is_pure_virtual(mo);
+}
+
+consteval bool is_final(metaobject mo) {
+  return __metaobject_is_final(mo);
+}
+
+consteval bool is_private(metaobject mo) {
+  return __metaobject_is_private(mo);
+}
+
+consteval bool is_protected(metaobject mo) {
+  return __metaobject_is_protected(mo);
+}
+
+consteval bool is_public(metaobject mo) {
+  return __metaobject_is_public(mo);
+}
+
+consteval bool is_unnamed(metaobject mo) {
+  return __metaobject_is_unnamed(mo);
+}
+
+consteval bool is_enum(metaobject mo) {
+  return __metaobject_is_enum(mo);
+}
+
+consteval bool is_union(metaobject mo) {
+  return __metaobject_is_union(mo);
+}
+
+consteval bool uses_class_key(metaobject mo) {
+  return __metaobject_uses_class_key(mo);
+}
+
+consteval bool uses_struct_key(metaobject mo) {
+  return __metaobject_uses_struct_key(mo);
 }
 
 // integer
@@ -206,6 +261,30 @@ consteval metaobject get_scope(metaobject mo) {
   return __metaobject_get_scope(mo);
 }
 
+consteval metaobject get_type(metaobject mo) {
+  return __metaobject_get_type(mo);
+}
+
+consteval metaobject get_aliased(metaobject mo) {
+  return __metaobject_get_aliased(mo);
+}
+
+consteval metaobject get_class(metaobject mo) {
+  return __metaobject_get_class(mo);
+}
+
+consteval metaobject get_base_classes(metaobject mo) {
+  return __metaobject_get_base_classes(mo);
+}
+
+consteval metaobject get_member_types(metaobject mo) {
+  return __metaobject_get_member_types(mo);
+}
+
+consteval metaobject get_data_members(metaobject mo) {
+  return __metaobject_get_data_members(mo);
+}
+
 consteval metaobject get_enumerators(metaobject mo) {
   return __metaobject_get_enumerators(mo);
 }
@@ -224,6 +303,9 @@ consteval auto unpack() {
   return __unpack_metaobject_seq<__unpack_helper, mo>::unpack();
 }
 
+// unreflecting
+template <__metaobject_id MoId>
+using unrefltype = __unrefltype(MoId);
 
 } // namespace mirror
 _LIBCPP_END_NAMESPACE_EXPERIMENTAL

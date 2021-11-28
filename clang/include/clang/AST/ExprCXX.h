@@ -5206,10 +5206,10 @@ protected:
 
   static AccessSpecifier getArgumentAccess(ASTContext &Ctx, ReflexprIdExpr*);
 
-  static llvm::APSInt makeBoolResult(ASTContext &Ctx, bool);
-  static llvm::APSInt makeSizeTResult(ASTContext &Ctx, uint64_t);
-  static llvm::APSInt makeULongResult(ASTContext &Ctx, uint64_t);
-  static llvm::APSInt makeConstResult(ASTContext &Ctx, llvm::APSInt);
+  static llvm::APSInt makeBoolResult(ASTContext &Ctx, QualType, bool);
+  static llvm::APSInt makeSizeTResult(ASTContext &Ctx, QualType, uint64_t);
+  static llvm::APSInt makeULongResult(ASTContext &Ctx, QualType, uint64_t);
+  static llvm::APSInt makeConstResult(ASTContext &Ctx, QualType, llvm::APSInt);
   static llvm::APInt makeMetaobjectResult(ASTContext &Ctx, ReflexprIdExpr*);
 
   static llvm::APSInt opGetConstant(ASTContext &, ReflexprIdExpr*);

@@ -2410,27 +2410,30 @@ ReflexprIdExpr *MetaobjectOpExprBase::getReflexprIdExpr(ASTContext &Ctx,
   return nullptr;
 }
 
-llvm::APSInt MetaobjectOpExprBase::makeBoolResult(ASTContext&, bool v) {
+llvm::APSInt MetaobjectOpExprBase::makeBoolResult(ASTContext&, QualType,
+                                                  bool v) {
   // [reflection-ts] FIXME is there a better way to get true/false APSInt?
   return v ? llvm::APSInt::getMaxValue(1, true)
            : llvm::APSInt::getMinValue(1, true);
 }
 
-llvm::APSInt MetaobjectOpExprBase::makeSizeTResult(ASTContext &Ctx,
+llvm::APSInt MetaobjectOpExprBase::makeSizeTResult(ASTContext &Ctx, QualType,
                                                    uint64_t v) {
   const unsigned w = Ctx.getTargetInfo().getTypeWidth(
       Ctx.getTargetInfo().getSizeType());
   return llvm::APSInt(llvm::APInt(w, v, false));
 }
 
-llvm::APSInt MetaobjectOpExprBase::makeULongResult(ASTContext &Ctx,
+llvm::APSInt MetaobjectOpExprBase::makeULongResult(ASTContext &Ctx, QualType,
                                                    uint64_t v) {
   const unsigned w = Ctx.getTargetInfo().getLongWidth();
   return llvm::APSInt(llvm::APInt(w, v, false));
 }
 
-llvm::APSInt MetaobjectOpExprBase::makeConstResult(ASTContext&,
+llvm::APSInt MetaobjectOpExprBase::makeConstResult(ASTContext& Ctx,
+                                                   QualType Ty,
                                                    llvm::APSInt R) {
+  R = R.zextOrSelf(Ctx.getIntWidth(Ty));
   return R;
 }
 
@@ -3243,7 +3246,7 @@ bool UnaryMetaobjectOpExpr::getIntResult(ASTContext &Ctx, void *EvlInfo,
     switch (MoOp) {
 #define METAOBJECT_INT_OP_1(S, OpRes, OpName) \
       case UMOO_##OpName: \
-        result = make##OpRes##Result(Ctx, op##OpName(Ctx, REE)); \
+        result = make##OpRes##Result(Ctx, getType(), op##OpName(Ctx, REE)); \
         return true;
 #include "clang/Basic/TokenKinds.def"
 #undef METAOBJECT_INT_OP_1
@@ -3255,7 +3258,7 @@ bool UnaryMetaobjectOpExpr::getIntResult(ASTContext &Ctx, void *EvlInfo,
       {
         MetaobjectKind MoK = REE->getKind();
         MetaobjectConcept MoC = translateMetaobjectKindToMetaobjectConcept(MoK);
-        result = makeBoolResult(Ctx, getTraitValue(MoOp, MoC));
+        result = makeBoolResult(Ctx, getType(), getTraitValue(MoOp, MoC));
         return true;
       }
       default: {
@@ -3557,7 +3560,7 @@ bool NaryMetaobjectOpExpr::getIntResult(ASTContext &Ctx, void *EvlInfo,
     ReflexprIdExpr *REE0 = getArgumentReflexprIdExpr(Ctx, 0, EvlInfo);
     ReflexprIdExpr *REE1 = getArgumentReflexprIdExpr(Ctx, 1, EvlInfo);
     if(REE0 && REE1) {
-      result = makeBoolResult(Ctx, opReflectsSame(Ctx, REE0, REE1));
+      result = makeBoolResult(Ctx, getType(), opReflectsSame(Ctx, REE0, REE1));
       return true;
     }
   }

@@ -9594,8 +9594,7 @@ bool PointerExprEvaluator::VisitUnaryMetaobjectOpExpr(
   if (E->hasPtrResult()) {
     if(ValueDecl *valDecl = const_cast<ValueDecl *>(
           E->getValueDeclResult(Info.Ctx, &Info))) {
-      QualType valPtrTy = UnaryMetaobjectOpExpr::getValueDeclType(
-          Info.Ctx, E->getKind(), valDecl);
+      QualType valPtrTy = E->getType();
       assert(valPtrTy->isPointerType());
 
       const SourceLocation opLoc = E->getOperatorLoc();

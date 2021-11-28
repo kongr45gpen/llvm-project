@@ -73,13 +73,13 @@ ExprDependence clang::computeDependence(UnaryOperator *E,
 }
 
 ExprDependence clang::computeDependence(ReflexprIdExpr *E) {
-  // Value-dependent if the argument is type-dependent.
-  if (E->isArgumentType())
-    return turnTypeToValueDependence(
-        toExprDependence(E->getArgumentType()->getDependence()));
+  ExprDependence ArgDeps = ExprDependence::None;
 
-  // [reflexpr-ts] FIXME: check this
-  return ExprDependence::None;
+  if (E->isArgumentType())
+    ArgDeps = turnTypeToValueDependence(toExprDependence(
+        E->getArgumentTypeInfo()->getType()->getDependence()));
+
+  return ArgDeps;
 }
 
 ExprDependence clang::computeDependence(MetaobjectIdExpr *E) {

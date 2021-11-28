@@ -17,6 +17,14 @@ void foo(T x) {
   static_assert(Type<get_aliased_t<mt>>);
 }
 
+template <typename T>
+void bar(T x) {
+  using namespace std::experimental::reflect;
+  using mt = reflexpr(T);
+  static_assert(Alias<mt>);
+  static_assert(Enum<get_aliased_t<mt>>);
+}
+
 const int y = -1;
 
 auto main() -> int {
@@ -59,8 +67,9 @@ auto main() -> int {
   get_reflected_type_t<mi> i = 1;
 
   foo(0);
-  foo(weekdays::monday);
   foo(mystruct{});
+  foo(weekdays::monday);
+  bar(weekdays::monday);
 
   if (get_source_file_name_v<ms> != nullptr) {
   }

@@ -1714,7 +1714,6 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, MetaobjectKind kind,
       OperatorLoc(OperatorLoc),
       RParenLoc(RParenLoc) {
 
-  setDependence(computeDependence(this));
   setKind(kind);
   setSeqKind(MOSK_None);
   setArgKind(REAK_Nothing);
@@ -1722,6 +1721,7 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, MetaobjectKind kind,
   setRemoveSugar(false);
   setHideProtected(false);
   setHidePrivate(false);
+  setDependence(computeDependence(this));
 }
 
 ReflexprIdExpr::ReflexprIdExpr(QualType resultType, tok::TokenKind specTok,
@@ -1748,7 +1748,6 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const NamedDecl *nDecl,
       OperatorLoc(OperatorLoc),
       RParenLoc(RParenLoc) {
 
-  setDependence(computeDependence(this));
   if (isa<NamespaceAliasDecl>(nDecl)) {
     setKind(MOK_NamespaceAlias);
   } else if (isa<NamespaceDecl>(nDecl)) {
@@ -1845,6 +1844,7 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const NamedDecl *nDecl,
   setRemoveSugar(false);
   setHideProtected(false);
   setHidePrivate(false);
+  setDependence(computeDependence(this));
 }
 
 ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const TypeSourceInfo *TInfo,
@@ -1855,7 +1855,6 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const TypeSourceInfo *TInfo,
       OperatorLoc(OperatorLoc),
       RParenLoc(RParenLoc) {
 
-  setDependence(computeDependence(this));
   const Type *RT = TInfo->getType().getTypePtr();
 
   bool isAlias = false;
@@ -1888,6 +1887,7 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const TypeSourceInfo *TInfo,
   setRemoveSugar(removeSugar);
   setHideProtected(false);
   setHidePrivate(false);
+  setDependence(computeDependence(this));
 }
 
 ReflexprIdExpr::ReflexprIdExpr(QualType resultType,

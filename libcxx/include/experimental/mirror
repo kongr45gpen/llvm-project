@@ -181,6 +181,10 @@ consteval size_t get_size(metaobject mo) {
   return __metaobject_get_size(mo);
 }
 
+consteval auto get_constant(metaobject mo) {
+  return __metaobject_get_constant(mo);
+}
+
 // string
 consteval string_view get_source_file_name(metaobject mo) {
   return {__metaobject_get_source_file_name(mo),
@@ -207,6 +211,18 @@ consteval metaobject get_enumerators(metaobject mo) {
 }
 
 // unpacking
+template <__metaobject_id ... MoIds>
+struct __unpack_helper {
+  static consteval std::array<__metaobject_id, sizeof...(MoIds)>
+  unpack() {
+    return {{MoIds...}};
+  }
+};
+
+template <__metaobject_id mo>
+consteval auto unpack() {
+  return __unpack_metaobject_seq<__unpack_helper, mo>::unpack();
+}
 
 
 } // namespace mirror

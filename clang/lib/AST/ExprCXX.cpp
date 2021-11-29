@@ -2583,9 +2583,12 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_IsUnion:
     return conceptIsA(MoC, MOC_TagType);
   case UMOO_GetBaseClasses:
+  case UMOO_GetPublicBaseClasses:
     return conceptIsA(MoC, MOC_Class);
   case UMOO_GetMemberTypes:
+  case UMOO_GetPublicMemberTypes:
   case UMOO_GetDataMembers:
+  case UMOO_GetPublicDataMembers:
     return conceptIsA(MoC, MOC_Record);
   case UMOO_GetEnumerators:
     return conceptIsA(MoC, MOC_Enum);
@@ -2933,33 +2936,65 @@ bool UnaryMetaobjectOpExpr::opIsPrivate(ASTContext &Ctx, ReflexprIdExpr *REE) {
   return getArgumentAccess(Ctx, REE) == AS_private;
 }
 
-ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetBaseClasses(ASTContext &Ctx,
-                                                        ReflexprIdExpr *REE) {
-  return ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_BaseClasses);
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetBaseClasses(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+  REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_BaseClasses);
+  REE->setHideProtected(false);
+  REE->setHidePrivate(false);
+  return REE;
 }
 
-ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetMemberTypes(ASTContext &Ctx,
-                                                        ReflexprIdExpr *REE) {
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetPublicBaseClasses(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
-
-  // [reflection-ts] FIXME check if operation is applicable
-  return ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_MemberTypes);
+  REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_BaseClasses);
+  REE->setHideProtected(true);
+  REE->setHidePrivate(true);
+  return REE;
 }
 
-ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetDataMembers(ASTContext &Ctx,
-                                                        ReflexprIdExpr *REE) {
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetMemberTypes(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
-
-  // [reflection-ts] FIXME check if operation is applicable
-  return ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_DataMembers);
+  REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_MemberTypes);
+  REE->setHideProtected(false);
+  REE->setHidePrivate(false);
+  return REE;
 }
 
-ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetEnumerators(ASTContext &Ctx,
-                                                        ReflexprIdExpr *REE) {
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetPublicMemberTypes(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
+  REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_MemberTypes);
+  REE->setHideProtected(true);
+  REE->setHidePrivate(true);
+  return REE;
+}
 
-  // [reflection-ts] FIXME check if operation is applicable
-  return ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_Enumerators);
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetDataMembers(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+  REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_DataMembers);
+  REE->setHideProtected(false);
+  REE->setHidePrivate(false);
+  return REE;
+}
+
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetPublicDataMembers(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+  REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_DataMembers);
+  REE->setHideProtected(true);
+  REE->setHidePrivate(true);
+  return REE;
+}
+
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetEnumerators(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+  REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_Enumerators);
+  return REE;
 }
 
 ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetClass(ASTContext &Ctx,

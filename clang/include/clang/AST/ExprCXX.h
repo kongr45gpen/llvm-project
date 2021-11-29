@@ -5257,8 +5257,11 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static bool opIsPrivate(ASTContext &, ReflexprIdExpr*);
 
   static ReflexprIdExpr *opGetBaseClasses(ASTContext &, ReflexprIdExpr*);
+  static ReflexprIdExpr *opGetPublicBaseClasses(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetMemberTypes(ASTContext &, ReflexprIdExpr*);
+  static ReflexprIdExpr *opGetPublicMemberTypes(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetDataMembers(ASTContext &, ReflexprIdExpr*);
+  static ReflexprIdExpr *opGetPublicDataMembers(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetEnumerators(ASTContext &, ReflexprIdExpr*);
 
   static ReflexprIdExpr *opGetClass(ASTContext &, ReflexprIdExpr*);

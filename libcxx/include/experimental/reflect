@@ -454,6 +454,13 @@ struct _LIBCPP_TEMPLATE_VIS is_enum
 template <Type _Tp>
 inline constexpr auto is_enum_v = is_enum<_Tp>::value;
 
+template <Enum _Tp>
+struct _LIBCPP_TEMPLATE_VIS is_scoped_enum
+  : integral_constant<bool, __metaobject_is_scoped_enum(__unwrap_metaobject_id_v<_Tp>)> {};
+
+template <Enum _Tp>
+inline constexpr auto is_scoped_enum_v = is_scoped_enum<_Tp>::value;
+
 template <Type _Tp>
 struct _LIBCPP_TEMPLATE_VIS is_union
   : integral_constant<bool, __metaobject_is_union(__unwrap_metaobject_id_v<_Tp>)> {};
@@ -606,6 +613,14 @@ struct _LIBCPP_TEMPLATE_VIS get_base_classes {
 template <Class _Tp>
 using get_base_classes_t = typename get_base_classes<_Tp>::type;
 
+template <Class _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_public_base_classes {
+  using type = __metaobject<__metaobject_get_public_base_classes(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Class _Tp>
+using get_public_base_classes_t = typename get_public_base_classes<_Tp>::type;
+
 template <Record _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_member_types {
   using type = __metaobject<__metaobject_get_member_types(__unwrap_metaobject_id_v<_Tp>)>;
@@ -615,12 +630,28 @@ template <Record _Tp>
 using get_member_types_t = typename get_member_types<_Tp>::type;
 
 template <Record _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_public_member_types {
+  using type = __metaobject<__metaobject_get_public_member_types(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Record _Tp>
+using get_public_member_types_t = typename get_public_member_types<_Tp>::type;
+
+template <Record _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_data_members {
   using type = __metaobject<__metaobject_get_data_members(__unwrap_metaobject_id_v<_Tp>)>;
 };
 
 template <Record _Tp>
 using get_data_members_t = typename get_data_members<_Tp>::type;
+
+template <Record _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_public_data_members {
+  using type = __metaobject<__metaobject_get_public_data_members(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Record _Tp>
+using get_public_data_members_t = typename get_public_data_members<_Tp>::type;
 
 template <Enum _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_enumerators {

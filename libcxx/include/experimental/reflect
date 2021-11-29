@@ -495,7 +495,7 @@ struct _LIBCPP_TEMPLATE_VIS get_source_line
     __metaobject_get_source_line(__unwrap_metaobject_id_v<_Tp>)> {};
 
 template <Object _Tp>
-inline constexpr bool get_source_line_v = get_source_line<_Tp>::value;
+inline constexpr auto get_source_line_v = get_source_line<_Tp>::value;
 
 template <Object _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_source_column
@@ -504,7 +504,7 @@ struct _LIBCPP_TEMPLATE_VIS get_source_column
     __metaobject_get_source_column(__unwrap_metaobject_id_v<_Tp>)> {};
 
 template <Object _Tp>
-inline constexpr bool get_source_column_v = get_source_column<_Tp>::value;
+inline constexpr auto get_source_column_v = get_source_column<_Tp>::value;
 
 template <Variable _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_pointer

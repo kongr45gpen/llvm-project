@@ -2430,9 +2430,9 @@ llvm::APSInt MetaobjectOpExprBase::makeULongResult(ASTContext &Ctx, QualType,
   return llvm::APSInt(llvm::APInt(w, v, false));
 }
 
-llvm::APSInt MetaobjectOpExprBase::makeConstResult(ASTContext& Ctx,
-                                                   QualType Ty,
-                                                   llvm::APSInt R) {
+llvm::APSInt MetaobjectOpExprBase::makeConstantResult(ASTContext& Ctx,
+                                                      QualType Ty,
+                                                      llvm::APSInt R) {
   R = R.zextOrSelf(Ctx.getIntWidth(Ty));
   return R;
 }
@@ -2458,10 +2458,11 @@ llvm::APSInt MetaobjectOpExprBase::opGetConstant(ASTContext &Ctx,
 QualType UnaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
                                                   UnaryMetaobjectOp Oper,
                                                   MetaobjectOpResult OpRes,
-                                                  bool isDependent,
+                                                  bool inUnrefltype,
                                                   Expr *argExpr) {
-  isDependent |=
-    argExpr->getDependence() & ExprDependence::TypeValueInstantiation;
+  bool isDependent = inUnrefltype |
+    (argExpr->getDependence() & ExprDependence::TypeValueInstantiation);
+
   switch (OpRes) {
     case MOOR_Metaobject:
       return Ctx.MetaobjectIdTy;
@@ -2471,11 +2472,11 @@ QualType UnaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
       return Ctx.UnsignedLongTy;
     case MOOR_Bool:
       return Ctx.BoolTy;
-    case MOOR_Const:
+    case MOOR_Constant:
     case MOOR_Pointer: {
-      if (isDependent) {
+      if (OpRes == MOOR_Pointer && isDependent)
         return Ctx.DependentTy;
-      }
+
       if (ReflexprIdExpr *REE = ReflexprIdExpr::fromExpr(Ctx, argExpr)) {
         if (const auto *ND = REE->getArgumentNamedDecl()) {
           if (const auto *VD = dyn_cast<ValueDecl>(ND)) {
@@ -2484,9 +2485,13 @@ QualType UnaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
         }
         llvm_unreachable("Unable to find the type of constant-returning operation");
       }
-      if (OpRes == MOOR_Const) {
+
+      if (OpRes == MOOR_Constant && isDependent)
+        return Ctx.DependentTy;
+
+      if (OpRes == MOOR_Constant)
         return Ctx.getIntMaxType();
-      }
+
       return Ctx.VoidPtrTy;
     }
     case MOOR_String: {
@@ -2523,11 +2528,11 @@ UnaryMetaobjectOpExpr::UnaryMetaobjectOpExpr(ASTContext &Ctx,
 
 UnaryMetaobjectOpExpr *
 UnaryMetaobjectOpExpr::Create(ASTContext &Ctx, UnaryMetaobjectOp Oper,
-                              MetaobjectOpResult OpRes, bool isDependent,
+                              MetaobjectOpResult OpRes, bool inUnrefltype,
                               Expr *argExpr,
                               SourceLocation opLoc, SourceLocation endLoc) {
   QualType resType =
-      getResultKindType(Ctx, Oper, OpRes, isDependent, argExpr);
+      getResultKindType(Ctx, Oper, OpRes, inUnrefltype, argExpr);
 
   return new (Ctx) UnaryMetaobjectOpExpr(Ctx, Oper, OpRes, resType,
                                          argExpr, opLoc, endLoc);
@@ -3229,7 +3234,7 @@ bool UnaryMetaobjectOpExpr::hasIntResult() const {
     case MOOR_SizeT:
     case MOOR_ULong:
     case MOOR_Bool:
-    case MOOR_Const:
+    case MOOR_Constant:
       return true;
     case MOOR_Pointer:
     case MOOR_String:
@@ -3256,8 +3261,8 @@ bool UnaryMetaobjectOpExpr::getIntResult(ASTContext &Ctx, void *EvlInfo,
 #include "clang/Basic/TokenKinds.def"
 #undef METAOBJECT_TRAIT
       {
-        MetaobjectKind MoK = REE->getKind();
-        MetaobjectConcept MoC = translateMetaobjectKindToMetaobjectConcept(MoK);
+        MetaobjectConcept MoC =
+          translateMetaobjectKindToMetaobjectConcept(REE->getKind());
         result = makeBoolResult(Ctx, getType(), getTraitValue(MoOp, MoC));
         return true;
       }
@@ -3392,7 +3397,7 @@ Stmt::child_range UnaryMetaobjectOpExpr::children() {
 QualType NaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
                                                  NaryMetaobjectOp Oper,
                                                  MetaobjectOpResult OpRes,
-                                                 bool isDependent,
+                                                 bool inUnrefltype,
                                                  unsigned arity, Expr **argExpr) {
   switch (OpRes) {
   case MOOR_Metaobject:
@@ -3403,13 +3408,10 @@ QualType NaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
     return Ctx.UnsignedLongTy;
   case MOOR_Bool:
     return Ctx.BoolTy;
-  case MOOR_Const:
+  case MOOR_Constant:
   case MOOR_Pointer:
   case MOOR_String:
     break;
-  }
-  if (isDependent) {
-    return Ctx.DependentTy;
   }
   llvm_unreachable("invalid n-ary metaobject operation result");
   return QualType();
@@ -3438,11 +3440,11 @@ NaryMetaobjectOpExpr::NaryMetaobjectOpExpr(ASTContext &Ctx,
 
 NaryMetaobjectOpExpr *
 NaryMetaobjectOpExpr::Create(ASTContext &Ctx, NaryMetaobjectOp Oper,
-                             MetaobjectOpResult OpRes, bool isDependent,
+                             MetaobjectOpResult OpRes, bool inUnrefltype,
                              unsigned arity, Expr **argExpr,
                              SourceLocation opLoc, SourceLocation endLoc) {
   QualType resType =
-      getResultKindType(Ctx, Oper, OpRes, isDependent, arity, argExpr);
+      getResultKindType(Ctx, Oper, OpRes, inUnrefltype, arity, argExpr);
 
   return new (Ctx) NaryMetaobjectOpExpr(Ctx, Oper, OpRes, resType,
                                         arity, argExpr, opLoc, endLoc);
@@ -3543,7 +3545,7 @@ bool NaryMetaobjectOpExpr::hasIntResult() const {
     case MOOR_SizeT:
     case MOOR_ULong:
     case MOOR_Bool:
-    case MOOR_Const:
+    case MOOR_Constant:
       return true;
     case MOOR_Pointer:
     case MOOR_String:

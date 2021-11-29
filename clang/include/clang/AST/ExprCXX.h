@@ -5209,7 +5209,7 @@ protected:
   static llvm::APSInt makeBoolResult(ASTContext &Ctx, QualType, bool);
   static llvm::APSInt makeSizeTResult(ASTContext &Ctx, QualType, uint64_t);
   static llvm::APSInt makeULongResult(ASTContext &Ctx, QualType, uint64_t);
-  static llvm::APSInt makeConstResult(ASTContext &Ctx, QualType, llvm::APSInt);
+  static llvm::APSInt makeConstantResult(ASTContext &Ctx, QualType, llvm::APSInt);
   static llvm::APInt makeMetaobjectResult(ASTContext &Ctx, ReflexprIdExpr*);
 
   static llvm::APSInt opGetConstant(ASTContext &, ReflexprIdExpr*);
@@ -5295,7 +5295,7 @@ public:
 
   static UnaryMetaobjectOpExpr *
   Create(ASTContext &Ctx, UnaryMetaobjectOp Oper, MetaobjectOpResult OpRes,
-         bool isDependent, Expr *argExpr,
+         bool inUnrefltype, Expr *argExpr,
          SourceLocation opLoc, SourceLocation endLoc);
 
   UnaryMetaobjectOp getKind() const {
@@ -5404,7 +5404,7 @@ public:
 
   static NaryMetaobjectOpExpr *
   Create(ASTContext &Ctx, NaryMetaobjectOp Oper, MetaobjectOpResult OpRes,
-         bool isDependent,
+         bool inUnrefltype,
          unsigned arity, Expr **argExpr,
          SourceLocation opLoc, SourceLocation endLoc);
 

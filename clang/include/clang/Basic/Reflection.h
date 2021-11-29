@@ -224,7 +224,7 @@ namespace clang {
     MOOR_SizeT = 0,
     MOOR_ULong,
     MOOR_Bool,
-    MOOR_Const,
+    MOOR_Constant,
     MOOR_String,
     MOOR_Pointer,
     MOOR_Metaobject

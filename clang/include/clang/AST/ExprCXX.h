@@ -5244,6 +5244,7 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
 
   static ReflexprIdExpr *opGetScope(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetType(ASTContext &, ReflexprIdExpr*);
+  static ReflexprIdExpr *opGetUnderlyingType(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetAliased(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetTagSpecifier(ASTContext &, ReflexprIdExpr*);
 

@@ -182,6 +182,7 @@ namespace clang {
     UMOO_IsScopedEnum,
     UMOO_GetScope,
     UMOO_GetType,
+    UMOO_GetUnderlyingType,
     UMOO_GetAliased,
     UMOO_GetTagSpecifier,
     UMOO_IsEnum,

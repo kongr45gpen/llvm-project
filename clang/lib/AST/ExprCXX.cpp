@@ -2568,6 +2568,7 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_DisplayNameLen:
   case UMOO_GetDisplayName:
     return conceptIsA(MoC, MOC_Named);
+  case UMOO_GetUnderlyingType:
   case UMOO_IsScopedEnum:
     return conceptIsA(MoC, MOC_Enum);
   case UMOO_GetScope:
@@ -2809,6 +2810,26 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetType(ASTContext &Ctx,
   }
   // [reflection-ts] FIXME
   llvm_unreachable("Failed to get type!");
+
+  return REE;
+}
+
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetUnderlyingType(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  if (REE->isArgumentNamedDecl()) {
+    if (const auto *ED = dyn_cast<EnumDecl>(REE->getArgumentNamedDecl())) {
+      if (TypeSourceInfo *TInfo = ED->getIntegerTypeSourceInfo()) {
+        return ReflexprIdExpr::getTypeReflexprIdExpr(Ctx, TInfo, true);
+      }
+      QualType UTy = ED->getIntegerType();
+      return ReflexprIdExpr::getTypeReflexprIdExpr(Ctx, UTy, true);
+    }
+  }
+
+  // [reflection-ts] FIXME
+  llvm_unreachable("Failed to get underlying type!");
 
   return REE;
 }

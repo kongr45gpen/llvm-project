@@ -55,6 +55,7 @@ auto main() -> int {
   static_assert(get_name_v<mi>[3] == '\0');
   static_assert(get_source_line_v<mw> > 0);
   static_assert(get_size_v<get_enumerators_t<mw>> == 7);
+  static_assert(Type<get_underlying_type_t<mw>>);
   static_assert(Constant<get_element_t<0, get_enumerators_t<mw>>>);
   static_assert(get_constant_v<get_element_t<0, get_enumerators_t<mw>>> == weekdays::monday);
   static_assert(get_size_v<get_enumerators_t<mw>> == 7);

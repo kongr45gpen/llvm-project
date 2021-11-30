@@ -589,6 +589,14 @@ struct _LIBCPP_TEMPLATE_VIS get_type {
 template <Typed _Tp>
 using get_type_t = typename get_type<_Tp>::type;
 
+template <Enum _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_underlying_type {
+  using type = __metaobject<__metaobject_get_underlying_type(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Enum _Tp>
+using get_underlying_type_t = typename get_underlying_type<_Tp>::type;
+
 template <Alias _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_aliased {
   using type = __metaobject<__metaobject_get_aliased(__unwrap_metaobject_id_v<_Tp>)>;

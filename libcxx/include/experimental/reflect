@@ -361,7 +361,7 @@ concept bool FunctionalTypeConversion = __is_a_concept_v<_Tp, __is_FunctionalTyp
 
 // boolean
 template <Object _Tp>
-requires Variable<_Tp> || Callable<_Tp>
+requires (Variable<_Tp> || Callable<_Tp>)
 struct _LIBCPP_TEMPLATE_VIS is_constexpr
   : integral_constant<bool, __metaobject_is_constexpr(__unwrap_metaobject_id_v<_Tp>)> {};
 
@@ -369,7 +369,7 @@ template <Object _Tp>
 inline constexpr auto is_constexpr_v = is_constexpr<_Tp>::value;
 
 template <Object _Tp>
-requires Constructor<_Tp> || ConversionOperator<_Tp>
+requires (Constructor<_Tp> || ConversionOperator<_Tp>)
 struct _LIBCPP_TEMPLATE_VIS is_explicit
   : integral_constant<bool, __metaobject_is_explicit(__unwrap_metaobject_id_v<_Tp>)> {};
 
@@ -377,7 +377,7 @@ template <Object _Tp>
 inline constexpr auto is_explicit_v = is_explicit<_Tp>::value;
 
 template <Object _Tp>
-requires Namespace<_Tp> || Callable<_Tp>
+requires (Namespace<_Tp> || Callable<_Tp>)
 struct _LIBCPP_TEMPLATE_VIS is_inline
   : integral_constant<bool, __metaobject_is_inline(__unwrap_metaobject_id_v<_Tp>)> {};
 
@@ -385,7 +385,7 @@ template <Object _Tp>
 inline constexpr auto is_inline_v = is_inline<_Tp>::value;
 
 template <Object _Tp>
-requires Variable<_Tp> || MemberFunction<_Tp>
+requires (Variable<_Tp> || MemberFunction<_Tp>)
 struct _LIBCPP_TEMPLATE_VIS is_static
   : integral_constant<bool, __metaobject_is_static(__unwrap_metaobject_id_v<_Tp>)> {};
 
@@ -393,7 +393,7 @@ template <Object _Tp>
 inline constexpr auto is_static_v = is_static<_Tp>::value;
 
 template <Object _Tp>
-requires Base<_Tp> || Destructor<_Tp> || MemberFunction<_Tp>
+requires (Base<_Tp> || Destructor<_Tp> || MemberFunction<_Tp>)
 struct _LIBCPP_TEMPLATE_VIS is_virtual
   : integral_constant<bool, __metaobject_is_virtual(__unwrap_metaobject_id_v<_Tp>)> {};
 
@@ -401,7 +401,7 @@ template <Object _Tp>
 inline constexpr auto is_virtual_v = is_virtual<_Tp>::value;
 
 template <Object _Tp>
-requires Destructor<_Tp> || MemberFunction<_Tp>
+requires (Destructor<_Tp> || MemberFunction<_Tp>)
 struct _LIBCPP_TEMPLATE_VIS is_pure_virtual
   : integral_constant<bool, __metaobject_is_pure_virtual(__unwrap_metaobject_id_v<_Tp>)> {};
 
@@ -409,7 +409,7 @@ template <Object _Tp>
 inline constexpr auto is_pure_virtual_v = is_pure_virtual<_Tp>::value;
 
 template <Object _Tp>
-requires Class<_Tp> || MemberFunction<_Tp>
+requires (Class<_Tp> || MemberFunction<_Tp>)
 struct _LIBCPP_TEMPLATE_VIS is_final
   : integral_constant<bool, __metaobject_is_final(__unwrap_metaobject_id_v<_Tp>)> {};
 
@@ -417,7 +417,7 @@ template <Object _Tp>
 inline constexpr auto is_final_v = is_final<_Tp>::value;
 
 template <Object _Tp>
-requires RecordMember<_Tp> || Base<_Tp>
+requires (RecordMember<_Tp> || Base<_Tp>)
 struct _LIBCPP_TEMPLATE_VIS is_private
   : integral_constant<bool, __metaobject_is_private(__unwrap_metaobject_id_v<_Tp>)> {};
 
@@ -425,7 +425,7 @@ template <Object _Tp>
 inline constexpr auto is_private_v = is_private<_Tp>::value;
 
 template <Object _Tp>
-requires RecordMember<_Tp> || Base<_Tp>
+requires (RecordMember<_Tp> || Base<_Tp>)
 struct _LIBCPP_TEMPLATE_VIS is_protected
   : integral_constant<bool, __metaobject_is_protected(__unwrap_metaobject_id_v<_Tp>)> {};
 
@@ -433,7 +433,7 @@ template <Object _Tp>
 inline constexpr auto is_protected_v = is_protected<_Tp>::value;
 
 template <Object _Tp>
-requires RecordMember<_Tp> || Base<_Tp>
+requires (RecordMember<_Tp> || Base<_Tp>)
 struct _LIBCPP_TEMPLATE_VIS is_public
   : integral_constant<bool, __metaobject_is_public(__unwrap_metaobject_id_v<_Tp>)> {};
 

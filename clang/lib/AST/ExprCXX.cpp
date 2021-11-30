@@ -2474,19 +2474,17 @@ QualType UnaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
       return Ctx.BoolTy;
     case MOOR_Constant:
     case MOOR_Pointer: {
-      if (OpRes == MOOR_Pointer && isDependent)
-        return Ctx.DependentTy;
-
       if (ReflexprIdExpr *REE = ReflexprIdExpr::fromExpr(Ctx, argExpr)) {
         if (const auto *ND = REE->getArgumentNamedDecl()) {
           if (const auto *VD = dyn_cast<ValueDecl>(ND)) {
-            return UnaryMetaobjectOpExpr::getValueDeclType(Ctx, Oper, VD);
+            return UnaryMetaobjectOpExpr::getValueDeclType(Ctx, Oper, VD,
+                                                           isDependent);
           }
         }
         llvm_unreachable("Unable to find the type of constant-returning operation");
       }
 
-      if (OpRes == MOOR_Constant && isDependent)
+      if (isDependent)
         return Ctx.DependentTy;
 
       if (OpRes == MOOR_Constant)
@@ -3426,14 +3424,18 @@ bool UnaryMetaobjectOpExpr::hasOpResultType() const {
 
 QualType UnaryMetaobjectOpExpr::getValueDeclType(ASTContext &Ctx,
                                                  UnaryMetaobjectOp MoOp,
-                                                 const ValueDecl *valDecl) {
+                                                 const ValueDecl *valDecl,
+                                                 bool isDependent) {
   assert(valDecl != nullptr);
 
   QualType result;
 
   if (MoOp == UMOO_GetPointer) {
     if (const VarDecl *varDecl = dyn_cast<VarDecl>(valDecl)) {
-      result = Ctx.getPointerType(varDecl->getType());
+      if (isDependent)
+        result = Ctx.DependentTy;
+      else
+        result = Ctx.getPointerType(varDecl->getType());
     } else if (const FieldDecl *fldDecl = dyn_cast<FieldDecl>(valDecl)) {
       const RecordDecl *RD = fldDecl->getParent();
       QualType RecTy = Ctx.getRecordType(RD);

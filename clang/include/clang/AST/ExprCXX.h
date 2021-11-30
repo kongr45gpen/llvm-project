@@ -5365,7 +5365,8 @@ public:
   const ValueDecl *getValueDeclResult(ASTContext &Ctx, void *EvlInfo) const;
 
   static QualType getValueDeclType(ASTContext &, UnaryMetaobjectOp,
-                                   const ValueDecl *valDecl);
+                                   const ValueDecl *valDecl,
+                                   bool isDependent);
 
   bool hasOpResultType() const;
 

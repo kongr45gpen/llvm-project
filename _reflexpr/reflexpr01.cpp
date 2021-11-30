@@ -29,6 +29,8 @@ const int y = -1;
 
 auto main() -> int {
   using namespace std::experimental::reflect;
+  mystruct z{};
+
   static_assert(!Type<int>);
   using mg = reflexpr(::);
   using mi = reflexpr(int);
@@ -36,13 +38,16 @@ auto main() -> int {
   using mw = reflexpr(weekdays);
   using mm = reflexpr(mystruct);
   using my = reflexpr(y);
+  using mz = reflexpr(z);
 
   static_assert(Object<mi>);
   static_assert(Object<ms>);
   static_assert(!ObjectSequence<mi>);
   static_assert(Type<mi>);
   static_assert(Type<mw>);
+  static_assert(Type<mm>);
   static_assert(Enum<mw>);
+  static_assert(Record<mm>);
   static_assert(Namespace<ms>);
   static_assert(GlobalScope<mg>);
   static_assert(GlobalScope<get_scope_t<ms>>);
@@ -63,9 +68,11 @@ auto main() -> int {
   static_assert(Variable<my>);
   static_assert(get_pointer_v<my>);
   static_assert(Variable<get_element_t<1, get_data_members_t<mm>>>);
+  static_assert(Variable<mz>);
   static_assert(get_pointer_v<get_element_t<1, get_data_members_t<mm>>>);
 
-  get_reflected_type_t<mi> i = 1;
+  get_reflected_type_t<mi> i = -2;
+  z.i = 3;
 
   foo(0);
   foo(mystruct{});
@@ -79,5 +86,7 @@ auto main() -> int {
   if (get_display_name_v<mi> != nullptr) {
   }
 
-  return i+(*get_pointer_v<my>);
+  return i+
+    (*get_pointer_v<my>)+
+    (z.*get_pointer_v<get_element_t<0, get_data_members_t<mm>>>);
 }

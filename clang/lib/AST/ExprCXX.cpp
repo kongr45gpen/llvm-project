@@ -1819,6 +1819,26 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const NamedDecl *nDecl,
     } else {
       setKind(MOK_TemplateTypeParameter);
     }
+  } else if (const auto *FD = dyn_cast<FunctionDecl>(nDecl)) {
+    if (isa<CXXConstructorDecl>(FD)) {
+      setKind(MOK_Constructor);
+    } else if (isa<CXXDestructorDecl>(FD)) {
+      setKind(MOK_Destructor);
+    } else if (isa<CXXConversionDecl>(FD)) {
+      setKind(MOK_ConversionOperator);
+    } else if (const auto *CMF = dyn_cast<CXXMethodDecl>(FD)) {
+      if (CMF->isMoveAssignmentOperator() ||
+          CMF->isCopyAssignmentOperator() ||
+          CMF->isOverloadedOperator()) {
+        setKind(MOK_MemberOperator);
+      } else
+        setKind(MOK_MemberFunction);
+    } else {
+      if (FD->isOverloadedOperator())
+        setKind(MOK_Operator);
+      else
+        setKind(MOK_Function);
+    }
   } else if (isa<TypeDecl>(nDecl)) {
     setKind(MOK_Type);
   } else if (isa<FieldDecl>(nDecl)) {
@@ -2106,6 +2126,7 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
   case MOK_Destructor:
     return "a destructor";
   case MOK_Operator:
+  case MOK_MemberOperator:
     return "an operator";
   case MOK_ConversionOperator:
     return "a conversion operator";
@@ -2190,6 +2211,8 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_Destructor;
   case MOK_Operator:
     return MOC_Operator;
+  case MOK_MemberOperator:
+    return MOC_MemberOperator;
   case MOK_ConversionOperator:
     return MOC_ConversionOperator;
   case MOK_TypeAlias:
@@ -2588,6 +2611,11 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_GetPublicMemberTypes:
   case UMOO_GetDataMembers:
   case UMOO_GetPublicDataMembers:
+  case UMOO_GetMemberFunctions:
+  case UMOO_GetPublicMemberFunctions:
+  case UMOO_GetConstructors:
+  case UMOO_GetDestructors:
+  case UMOO_GetOperators:
     return conceptIsA(MoC, MOC_Record);
   case UMOO_GetEnumerators:
     return conceptIsA(MoC, MOC_Enum);
@@ -3009,6 +3037,51 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetPublicDataMembers(
   return REE;
 }
 
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetMemberFunctions(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+  REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_MemberFunctions);
+  REE->setHideProtected(false);
+  REE->setHidePrivate(false);
+  return REE;
+}
+
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetPublicMemberFunctions(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+  REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_MemberFunctions);
+  REE->setHideProtected(true);
+  REE->setHidePrivate(true);
+  return REE;
+}
+
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetConstructors(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+  REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_Constructors);
+  REE->setHideProtected(false);
+  REE->setHidePrivate(false);
+  return REE;
+}
+
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetDestructors(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+  REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_Destructors);
+  REE->setHideProtected(false);
+  REE->setHidePrivate(false);
+  return REE;
+}
+
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetOperators(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+  REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_Operators);
+  REE->setHideProtected(false);
+  REE->setHidePrivate(false);
+  return REE;
+}
+
 ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetEnumerators(
     ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
@@ -3037,21 +3110,36 @@ bool UnaryMetaobjectOpExpr::opIsScopedEnum(ASTContext &Ctx, ReflexprIdExpr *REE)
 bool UnaryMetaobjectOpExpr::opIsConstexpr(ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
 
-  // [reflection-ts] FIXME
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *VD = dyn_cast<VarDecl>(ND))
+      return VD->isConstexpr();
+    if (const auto *FD = dyn_cast<FunctionDecl>(ND))
+      return FD->isConstexpr();
+  }
   return false;
 }
 
 bool UnaryMetaobjectOpExpr::opIsExplicit(ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
 
-  // [reflection-ts] FIXME
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *CTD = dyn_cast<CXXConstructorDecl>(ND))
+      return CTD->isExplicit();
+    if (const auto *COD = dyn_cast<CXXConversionDecl>(ND))
+      return COD->isExplicit();
+  }
   return false;
 }
 
 bool UnaryMetaobjectOpExpr::opIsInline(ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
 
-  // [reflection-ts] FIXME
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *VD = dyn_cast<VarDecl>(ND))
+      return VD->isInline() || VD->isInlineSpecified();
+    if (const auto *FD = dyn_cast<FunctionDecl>(ND))
+      return FD->isInlineSpecified();
+  }
   return false;
 }
 
@@ -3061,6 +3149,12 @@ bool UnaryMetaobjectOpExpr::opIsStatic(ASTContext &Ctx, ReflexprIdExpr *REE) {
   if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
     if (const auto *VD = dyn_cast<VarDecl>(ND))
       return VD->isStaticDataMember() || VD->isStaticLocal();
+    if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
+      if (const auto *CMD = dyn_cast<CXXMethodDecl>(FD)) {
+        return CMD->isStatic();
+      }
+      return FD->isStatic();
+    }
   }
   return false;
 }
@@ -3071,13 +3165,28 @@ bool UnaryMetaobjectOpExpr::opIsVirtual(ASTContext &Ctx, ReflexprIdExpr *REE) {
   if (REE->isArgumentBaseSpecifier()) {
     return REE->getArgumentBaseSpecifier()->isVirtual();
   }
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
+      if (const auto *CMD = dyn_cast<CXXMethodDecl>(FD)) {
+        return CMD->isVirtual();
+      }
+      return FD->isVirtualAsWritten();
+    }
+  }
   return false;
 }
 
 bool UnaryMetaobjectOpExpr::opIsPureVirtual(ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
 
-  // [reflection-ts] FIXME
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
+      if (const auto *CMD = dyn_cast<CXXMethodDecl>(FD)) {
+        return CMD->isVirtual() && CMD->isPure();
+      }
+      return FD->isVirtualAsWritten() && FD->isPure();
+    }
+  }
   return false;
 }
 
@@ -3123,6 +3232,31 @@ static void applyOnMetaobjSeqElements(ASTContext &Ctx, Action &act,
       } else if (REE->getSeqKind() == MOSK_DataMembers) {
         auto matches = [](const Decl *d) -> bool {
           return isa<FieldDecl>(d) || isa<VarDecl>(d);
+        };
+        act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
+      } else if (REE->getSeqKind() == MOSK_Constructors) {
+        auto matches = [](const Decl *d) -> bool {
+          return isa<CXXConstructorDecl>(d);
+        };
+        act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
+      } else if (REE->getSeqKind() == MOSK_Destructors) {
+        auto matches = [](const Decl *d) -> bool {
+          return isa<CXXDestructorDecl>(d);
+        };
+        act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
+      } else if (REE->getSeqKind() == MOSK_Operators) {
+        auto matches = [](const Decl *d) -> bool {
+          if (const auto *CMF = dyn_cast<CXXMethodDecl>(d)) {
+            return CMF->isMoveAssignmentOperator() ||
+                   CMF->isCopyAssignmentOperator() ||
+                   CMF->isOverloadedOperator();
+          }
+          return false;
+        };
+        act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
+      } else if (REE->getSeqKind() == MOSK_MemberFunctions) {
+        auto matches = [](const Decl *d) -> bool {
+          return isa<CXXMethodDecl>(d);
         };
         act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
       } else if (REE->getSeqKind() == MOSK_Enumerators) {

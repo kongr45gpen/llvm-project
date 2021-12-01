@@ -5,6 +5,10 @@ enum class weekdays {
 };
 
 struct mystruct {
+  constexpr mystruct() noexcept = default;
+  constexpr mystruct(int i) noexcept
+    : i{i} {}
+
   int i{0};
   float f{1.F};
 };
@@ -70,6 +74,8 @@ auto main() -> int {
   static_assert(Variable<get_element_t<1, get_data_members_t<mm>>>);
   static_assert(Variable<mz>);
   static_assert(get_pointer_v<get_element_t<1, get_data_members_t<mm>>>);
+  static_assert(get_size_v<get_constructors_t<mm>>);
+  static_assert(Constructor<get_element_t<0, get_constructors_t<mm>>>);
 
   get_reflected_type_t<mi> i = -2;
   z.i = 3;

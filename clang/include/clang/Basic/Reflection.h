@@ -74,6 +74,7 @@ namespace clang {
     MOC_MemberClassAlias            = MOC_RecordMember | MOC_ClassAlias,
     MOC_MemberEnum                  = MOC_RecordMember | MOC_Enum,
     MOC_MemberEnumAlias             = MOC_RecordMember | MOC_EnumAlias,
+    MOC_MemberOperator              = MOC_MemberFunction | MOC_Operator,
     MOC_Enumerator                  = MOC_Constant | MOC_Named | MOC_EnumMember
   };
 
@@ -117,6 +118,7 @@ namespace clang {
     MOK_MemberEnum,
     MOK_MemberEnumAlias,
     MOK_MemberFunction,
+    MOK_MemberOperator,
     MOK_Enumerator
   };
 
@@ -125,6 +127,10 @@ namespace clang {
     MOSK_Enumerators,
     MOSK_DataMembers,
     MOSK_MemberTypes,
+    MOSK_MemberFunctions,
+    MOSK_Constructors,
+    MOSK_Destructors,
+    MOSK_Operators,
     MOSK_BaseClasses,
     MOSK_All
   };
@@ -195,6 +201,11 @@ namespace clang {
     UMOO_GetPublicMemberTypes,
     UMOO_GetDataMembers,
     UMOO_GetPublicDataMembers,
+    UMOO_GetMemberFunctions,
+    UMOO_GetPublicMemberFunctions,
+    UMOO_GetConstructors,
+    UMOO_GetDestructors,
+    UMOO_GetOperators,
     UMOO_GetEnumerators,
     UMOO_GetClass,
     UMOO_GetAccessSpecifier,

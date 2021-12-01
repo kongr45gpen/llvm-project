@@ -661,6 +661,46 @@ struct _LIBCPP_TEMPLATE_VIS get_public_data_members {
 template <Record _Tp>
 using get_public_data_members_t = typename get_public_data_members<_Tp>::type;
 
+template <Record _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_member_functions {
+  using type = __metaobject<__metaobject_get_member_functions(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Record _Tp>
+using get_member_functions_t = typename get_member_functions<_Tp>::type;
+
+template <Record _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_public_member_functions {
+  using type = __metaobject<__metaobject_get_public_member_functions(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Record _Tp>
+using get_public_member_functions_t = typename get_public_member_functions<_Tp>::type;
+
+template <Record _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_constructors {
+  using type = __metaobject<__metaobject_get_constructors(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Record _Tp>
+using get_constructors_t = typename get_constructors<_Tp>::type;
+
+template <Record _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_destructors {
+  using type = __metaobject<__metaobject_get_destructors(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Record _Tp>
+using get_destructors_t = typename get_destructors<_Tp>::type;
+
+template <Record _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_operators {
+  using type = __metaobject<__metaobject_get_operators(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Record _Tp>
+using get_operators_t = typename get_operators<_Tp>::type;
+
 template <Enum _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_enumerators {
   using type = __metaobject<__metaobject_get_enumerators(__unwrap_metaobject_id_v<_Tp>)>;

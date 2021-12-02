@@ -5281,6 +5281,12 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static bool opIsVirtual(ASTContext &, ReflexprIdExpr*);
   static bool opIsPureVirtual(ASTContext &, ReflexprIdExpr*);
   static bool opIsFinal(ASTContext &, ReflexprIdExpr*);
+  static bool opIsConst(ASTContext &, ReflexprIdExpr*);
+  static bool opIsVolatile(ASTContext &, ReflexprIdExpr*);
+  static bool opHasLValueRefQualifier(ASTContext &, ReflexprIdExpr*);
+  static bool opHasRValueRefQualifier(ASTContext &, ReflexprIdExpr*);
+  static bool opIsImplicitlyDeclared(ASTContext &, ReflexprIdExpr*);
+  static bool opIsDefaulted(ASTContext &, ReflexprIdExpr*);
 
   static ReflexprIdExpr *opHideProtected(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opHidePrivate(ASTContext &, ReflexprIdExpr*);

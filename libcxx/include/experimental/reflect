@@ -486,6 +486,34 @@ struct _LIBCPP_TEMPLATE_VIS uses_struct_key
 template <Type _Tp>
 inline constexpr auto uses_struct_key_v = uses_struct_key<_Tp>::value;
 
+template <MemberFunction _Tp>
+struct _LIBCPP_TEMPLATE_VIS is_const
+  : integral_constant<bool, __metaobject_is_const(__unwrap_metaobject_id_v<_Tp>)> {};
+
+template <MemberFunction _Tp>
+inline constexpr auto is_const_v = is_const<_Tp>::value;
+
+template <MemberFunction _Tp>
+struct _LIBCPP_TEMPLATE_VIS is_volatile
+  : integral_constant<bool, __metaobject_is_volatile(__unwrap_metaobject_id_v<_Tp>)> {};
+
+template <MemberFunction _Tp>
+inline constexpr auto is_volatile_v = is_volatile<_Tp>::value;
+
+template <MemberFunction _Tp>
+struct _LIBCPP_TEMPLATE_VIS has_lvalueref_qualifier
+  : integral_constant<bool, __metaobject_has_lvalueref_qualifier(__unwrap_metaobject_id_v<_Tp>)> {};
+
+template <MemberFunction _Tp>
+inline constexpr auto has_lvalueref_qualifier_v = has_lvalueref_qualifier<_Tp>::value;
+
+template <MemberFunction _Tp>
+struct _LIBCPP_TEMPLATE_VIS has_rvalueref_qualifier
+  : integral_constant<bool, __metaobject_has_rvalueref_qualifier(__unwrap_metaobject_id_v<_Tp>)> {};
+
+template <MemberFunction _Tp>
+inline constexpr auto has_rvalueref_qualifier_v = has_rvalueref_qualifier<_Tp>::value;
+
 template <Object _T1, Object _T2>
 struct _LIBCPP_TEMPLATE_VIS reflects_same
   : integral_constant<bool, __metaobject_reflects_same(

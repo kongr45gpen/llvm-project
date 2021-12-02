@@ -1760,13 +1760,17 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const NamedDecl *nDecl,
     }
   } else if (const auto *RD = dyn_cast<CXXRecordDecl>(nDecl)) {
     if (nDecl->isCXXClassMember()) {
-      if (RD && RD->isUnion()) {
+      if (RD->isLambda()) {
+        setKind(MOK_MemberLambda);
+      } else if (RD->isUnion()) {
         setKind(MOK_MemberRecord);
       } else {
         setKind(MOK_MemberClass);
       }
     } else {
-      if (RD && RD->isUnion()) {
+      if (RD->isLambda()) {
+        setKind(MOK_Lambda);
+      } else if (RD->isUnion()) {
         setKind(MOK_Record);
       } else {
         setKind(MOK_Class);
@@ -2136,6 +2140,8 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
     return "a enum alias";
   case MOK_RecordAlias:
     return "a record alias";
+  case MOK_LambdaAlias:
+    return "a lambda alias";
   case MOK_ClassAlias:
     return "a class alias";
   case MOK_TemplateTypeParameter:
@@ -2157,6 +2163,10 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
     return "a member record";
   case MOK_MemberRecordAlias:
     return "a member record alias";
+  case MOK_MemberLambda:
+    return "a member record";
+  case MOK_MemberLambdaAlias:
+    return "a member lambda alias";
   case MOK_MemberClass:
     return "a member class";
   case MOK_MemberClassAlias:
@@ -2221,6 +2231,8 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_EnumAlias;
   case MOK_RecordAlias:
     return MOC_RecordAlias;
+  case MOK_LambdaAlias:
+    return MOC_LambdaAlias;
   case MOK_ClassAlias:
     return MOC_ClassAlias;
   case MOK_TemplateTypeParameter:
@@ -2245,6 +2257,10 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_MemberRecord;
   case MOK_MemberRecordAlias:
     return MOC_MemberRecordAlias;
+  case MOK_MemberLambda:
+    return MOC_MemberLambda;
+  case MOK_MemberLambdaAlias:
+    return MOC_MemberLambdaAlias;
   case MOK_MemberClass:
     return MOC_MemberClass;
   case MOK_MemberClassAlias:
@@ -2649,6 +2665,14 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_IsFinal:
     return conceptIsA(MoC, MOC_Class) ||
            conceptIsA(MoC, MOC_MemberFunction);
+  case UMOO_IsConst:
+  case UMOO_IsVolatile:
+  case UMOO_HasLValueRefQualifier:
+  case UMOO_HasRValueRefQualifier:
+    return conceptIsA(MoC, MOC_MemberFunction);
+  case UMOO_IsImplicitlyDeclared:
+  case UMOO_IsDefaulted:
+    return conceptIsA(MoC, MOC_SpecialMemberFunction);
   case UMOO_GetPointer:
     return conceptIsA(MoC, MOC_Variable);
   case UMOO_GetConstant:
@@ -3194,6 +3218,78 @@ bool UnaryMetaobjectOpExpr::opIsFinal(ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
 
   // [reflection-ts] FIXME
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsConst(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *CMD = dyn_cast<CXXMethodDecl>(ND)) {
+      return CMD->isConst();
+    }
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsVolatile(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *CMD = dyn_cast<CXXMethodDecl>(ND)) {
+      return CMD->isVolatile();
+    }
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opHasLValueRefQualifier(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *CMD = dyn_cast<CXXMethodDecl>(ND)) {
+      return CMD->getRefQualifier() == RQ_LValue;
+    }
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opHasRValueRefQualifier(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *CMD = dyn_cast<CXXMethodDecl>(ND)) {
+      return CMD->getRefQualifier() == RQ_RValue;
+    }
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsImplicitlyDeclared(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
+      return !FD->isUserProvided() && !FD->isExplicitlyDefaulted();
+    }
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsDefaulted(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
+      return !FD->isDefaulted();
+    }
+  }
   return false;
 }
 

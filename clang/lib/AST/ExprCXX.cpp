@@ -1846,7 +1846,9 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const NamedDecl *nDecl,
   } else if (isa<FieldDecl>(nDecl)) {
     setKind(MOK_DataMember);
   } else if (const auto *VD = dyn_cast<VarDecl>(nDecl)) {
-    if (VD->isStaticDataMember()) {
+    if (isa<ParmVarDecl>(VD)) {
+      setKind(MOK_FunctionParameter);
+    } else if (VD->isStaticDataMember()) {
       setKind(MOK_DataMember);
     } else {
       setKind(MOK_Variable);

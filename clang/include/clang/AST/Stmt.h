@@ -441,11 +441,10 @@ protected:
     friend class ReflexprIdExpr;
     unsigned : NumExprBits;
     unsigned Kind : 6;
-    unsigned SeqKind : 3;
+    unsigned SeqKind : 4;
     unsigned ArgKind : 3;
+    unsigned Accessibility : 2;
     unsigned RemoveSugar : 1;
-    unsigned HideProtected : 1;
-    unsigned HidePrivate : 1;
   };
 
   class UnaryMetaobjectOpExprBitfields {

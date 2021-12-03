@@ -138,7 +138,15 @@ namespace clang {
     MOSK_Destructors,
     MOSK_Operators,
     MOSK_BaseClasses,
+    MOSK_Parameters,
     MOSK_All
+  };
+
+  enum MetaobjectAccessibility {
+    MOA_OnlyPublic = 0,
+    MOA_ContextDependent,
+    MOA_AllowProtected,
+    MOA_AllowPrivate
   };
 
   // When updating this also update UnaryMetaobjectOpExprBitfields
@@ -201,7 +209,7 @@ namespace clang {
     UMOO_IsUnion,
     UMOO_UsesClassKey,
     UMOO_UsesStructKey,
-    UMOO_GetBaseClasses,
+    UMOO_GetEnumerators,
     UMOO_GetPublicBaseClasses,
     UMOO_GetMemberTypes,
     UMOO_GetPublicMemberTypes,
@@ -212,7 +220,8 @@ namespace clang {
     UMOO_GetConstructors,
     UMOO_GetDestructors,
     UMOO_GetOperators,
-    UMOO_GetEnumerators,
+    UMOO_GetBaseClasses,
+    UMOO_GetParameters,
     UMOO_GetClass,
     UMOO_GetAccessSpecifier,
     UMOO_IsConstexpr,

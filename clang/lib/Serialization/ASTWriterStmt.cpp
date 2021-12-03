@@ -800,9 +800,8 @@ void ASTStmtWriter::VisitReflexprIdExpr(ReflexprIdExpr *E) {
       Record.AddCXXBaseSpecifier(*E->getArgumentBaseSpecifier());
       break;
   }
+  Record.push_back(E->getAccessibility());
   Record.push_back(E->getRemoveSugar());
-  Record.push_back(E->getHideProtected());
-  Record.push_back(E->getHidePrivate());
 
   Record.AddSourceLocation(E->getOperatorLoc());
   Record.AddSourceLocation(E->getRParenLoc());

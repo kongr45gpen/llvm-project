@@ -1718,9 +1718,8 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, MetaobjectKind kind,
   setSeqKind(MOSK_None);
   setArgKind(REAK_Nothing);
   Argument.Nothing = nullptr;
+  setAccessibility(MOA_AllowPrivate);
   setRemoveSugar(false);
-  setHideProtected(false);
-  setHidePrivate(false);
   setDependence(computeDependence(this));
 }
 
@@ -1731,14 +1730,13 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, tok::TokenKind specTok,
       OperatorLoc(OperatorLoc),
       RParenLoc(RParenLoc) {
 
-  setDependence(computeDependence(this));
   setKind(MOK_Specifier);
   setSeqKind(MOSK_None);
   setArgKind(REAK_Specifier);
   Argument.SpecTok = specTok;
+  setAccessibility(MOA_AllowPrivate);
   setRemoveSugar(false);
-  setHideProtected(false);
-  setHidePrivate(false);
+  setDependence(computeDependence(this));
 }
 
 ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const NamedDecl *nDecl,
@@ -1865,9 +1863,8 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const NamedDecl *nDecl,
   setSeqKind(MOSK_None);
   setArgKind(REAK_NamedDecl);
   Argument.ReflDecl = nDecl;
+  setAccessibility(MOA_AllowPrivate);
   setRemoveSugar(false);
-  setHideProtected(false);
-  setHidePrivate(false);
   setDependence(computeDependence(this));
 }
 
@@ -1905,12 +1902,11 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const TypeSourceInfo *TInfo,
   } else {
     setKind(isAlias ? MOK_TypeAlias : MOK_Type);
   }
+  Argument.TypeInfo = TInfo;
   setSeqKind(MOSK_None);
   setArgKind(REAK_TypeInfo);
-  Argument.TypeInfo = TInfo;
+  setAccessibility(MOA_AllowPrivate);
   setRemoveSugar(removeSugar);
-  setHideProtected(false);
-  setHidePrivate(false);
   setDependence(computeDependence(this));
 }
 
@@ -1926,9 +1922,8 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType,
   setSeqKind(MOSK_None);
   setArgKind(REAK_BaseSpecifier);
   Argument.BaseSpec = baseSpec;
+  setAccessibility(MOA_AllowPrivate);
   setRemoveSugar(false);
-  setHideProtected(false);
-  setHidePrivate(false);
 }
 
 ReflexprIdExpr::ReflexprIdExpr(const ReflexprIdExpr &that)
@@ -1956,9 +1951,8 @@ ReflexprIdExpr::ReflexprIdExpr(const ReflexprIdExpr &that)
     Argument.BaseSpec = that.Argument.BaseSpec;
     break;
   }
+  setAccessibility(that.getAccessibility());
   setRemoveSugar(that.getRemoveSugar());
-  setHideProtected(that.getHideProtected());
-  setHidePrivate(that.getHidePrivate());
 }
 
 ReflexprIdExpr*
@@ -2054,8 +2048,7 @@ ReflexprIdExpr::getHideProtectedReflexprIdExpr(ASTContext &Ctx,
   assert(that != nullptr);
   // [reflection-ts] FIXME cache in ASTContext when possible
   ReflexprIdExpr *Res = new (Ctx) ReflexprIdExpr(*that);
-  Res->setHideProtected(true);
-  Res->setHidePrivate(true);
+  Res->setAccessibility(MOA_OnlyPublic);
   return Res;
 }
 
@@ -2065,7 +2058,7 @@ ReflexprIdExpr::getHidePrivateReflexprIdExpr(ASTContext &Ctx,
   assert(that != nullptr);
   // [reflection-ts] FIXME cache in ASTContext when possible
   ReflexprIdExpr *Res = new (Ctx) ReflexprIdExpr(*that);
-  Res->setHidePrivate(true);
+  Res->setAccessibility(MOA_AllowProtected);
   return Res;
 }
 
@@ -2635,6 +2628,8 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
     return conceptIsA(MoC, MOC_Record);
   case UMOO_GetEnumerators:
     return conceptIsA(MoC, MOC_Enum);
+  case UMOO_GetParameters:
+    return conceptIsA(MoC, MOC_Callable);
   case UMOO_GetClass:
     return conceptIsA(MoC, MOC_Base);
   case UMOO_GetAccessSpecifier:
@@ -3011,8 +3006,7 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetBaseClasses(
     ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
   REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_BaseClasses);
-  REE->setHideProtected(false);
-  REE->setHidePrivate(false);
+  REE->setAccessibility(MOA_AllowPrivate);
   return REE;
 }
 
@@ -3020,8 +3014,7 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetPublicBaseClasses(
     ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
   REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_BaseClasses);
-  REE->setHideProtected(true);
-  REE->setHidePrivate(true);
+  REE->setAccessibility(MOA_OnlyPublic);
   return REE;
 }
 
@@ -3029,8 +3022,7 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetMemberTypes(
     ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
   REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_MemberTypes);
-  REE->setHideProtected(false);
-  REE->setHidePrivate(false);
+  REE->setAccessibility(MOA_AllowPrivate);
   return REE;
 }
 
@@ -3038,8 +3030,7 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetPublicMemberTypes(
     ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
   REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_MemberTypes);
-  REE->setHideProtected(true);
-  REE->setHidePrivate(true);
+  REE->setAccessibility(MOA_OnlyPublic);
   return REE;
 }
 
@@ -3047,8 +3038,7 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetDataMembers(
     ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
   REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_DataMembers);
-  REE->setHideProtected(false);
-  REE->setHidePrivate(false);
+  REE->setAccessibility(MOA_AllowPrivate);
   return REE;
 }
 
@@ -3056,8 +3046,7 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetPublicDataMembers(
     ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
   REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_DataMembers);
-  REE->setHideProtected(true);
-  REE->setHidePrivate(true);
+  REE->setAccessibility(MOA_OnlyPublic);
   return REE;
 }
 
@@ -3065,8 +3054,7 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetMemberFunctions(
     ASTContext &Ctx, ReflexprIdExpr* REE) {
   assert(REE);
   REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_MemberFunctions);
-  REE->setHideProtected(false);
-  REE->setHidePrivate(false);
+  REE->setAccessibility(MOA_AllowPrivate);
   return REE;
 }
 
@@ -3074,8 +3062,7 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetPublicMemberFunctions(
     ASTContext &Ctx, ReflexprIdExpr* REE) {
   assert(REE);
   REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_MemberFunctions);
-  REE->setHideProtected(true);
-  REE->setHidePrivate(true);
+  REE->setAccessibility(MOA_OnlyPublic);
   return REE;
 }
 
@@ -3083,8 +3070,7 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetConstructors(
     ASTContext &Ctx, ReflexprIdExpr* REE) {
   assert(REE);
   REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_Constructors);
-  REE->setHideProtected(false);
-  REE->setHidePrivate(false);
+  REE->setAccessibility(MOA_AllowPrivate);
   return REE;
 }
 
@@ -3092,8 +3078,7 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetDestructors(
     ASTContext &Ctx, ReflexprIdExpr* REE) {
   assert(REE);
   REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_Destructors);
-  REE->setHideProtected(false);
-  REE->setHidePrivate(false);
+  REE->setAccessibility(MOA_AllowPrivate);
   return REE;
 }
 
@@ -3101,8 +3086,7 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetOperators(
     ASTContext &Ctx, ReflexprIdExpr* REE) {
   assert(REE);
   REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_Operators);
-  REE->setHideProtected(false);
-  REE->setHidePrivate(false);
+  REE->setAccessibility(MOA_AllowPrivate);
   return REE;
 }
 
@@ -3110,6 +3094,15 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetEnumerators(
     ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
   REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_Enumerators);
+  REE->setAccessibility(MOA_AllowPrivate);
+  return REE;
+}
+
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetParameters(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+  REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_Parameters);
+  REE->setAccessibility(MOA_AllowPrivate);
   return REE;
 }
 
@@ -3312,8 +3305,7 @@ static void applyOnMetaobjSeqElements(ASTContext &Ctx, Action &act,
                                       ReflexprIdExpr *REE) {
   assert(REE && REE->getKind() == MOK_ObjectSequence);
 
-  bool hidePriv = REE->getHidePrivate();
-  bool hideProt = REE->getHideProtected();
+  const MetaobjectAccessibility access = REE->getAccessibility();
 
   if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
     if (const auto *DC = dyn_cast<DeclContext>(ND)) {
@@ -3324,22 +3316,22 @@ static void applyOnMetaobjSeqElements(ASTContext &Ctx, Action &act,
           }
           return isa<TypeDecl>(d);
         };
-        act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
+        act(matches, DC->decls_begin(), DC->decls_end(), access);
       } else if (REE->getSeqKind() == MOSK_DataMembers) {
         auto matches = [](const Decl *d) -> bool {
           return isa<FieldDecl>(d) || isa<VarDecl>(d);
         };
-        act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
+        act(matches, DC->decls_begin(), DC->decls_end(), access);
       } else if (REE->getSeqKind() == MOSK_Constructors) {
         auto matches = [](const Decl *d) -> bool {
           return isa<CXXConstructorDecl>(d);
         };
-        act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
+        act(matches, DC->decls_begin(), DC->decls_end(), access);
       } else if (REE->getSeqKind() == MOSK_Destructors) {
         auto matches = [](const Decl *d) -> bool {
           return isa<CXXDestructorDecl>(d);
         };
-        act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
+        act(matches, DC->decls_begin(), DC->decls_end(), access);
       } else if (REE->getSeqKind() == MOSK_Operators) {
         auto matches = [](const Decl *d) -> bool {
           if (const auto *CMF = dyn_cast<CXXMethodDecl>(d)) {
@@ -3349,21 +3341,26 @@ static void applyOnMetaobjSeqElements(ASTContext &Ctx, Action &act,
           }
           return false;
         };
-        act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
+        act(matches, DC->decls_begin(), DC->decls_end(), access);
       } else if (REE->getSeqKind() == MOSK_MemberFunctions) {
         auto matches = [](const Decl *d) -> bool {
           return isa<CXXMethodDecl>(d);
         };
-        act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
+        act(matches, DC->decls_begin(), DC->decls_end(), access);
       } else if (REE->getSeqKind() == MOSK_Enumerators) {
         auto matches = [](const Decl *d) -> bool {
           return isa<EnumConstantDecl>(d);
         };
-        act(matches, DC->decls_begin(), DC->decls_end(), hidePriv, hideProt);
+        act(matches, DC->decls_begin(), DC->decls_end(), access);
       } else if (REE->getSeqKind() == MOSK_BaseClasses) {
         if (const auto *RD = dyn_cast<CXXRecordDecl>(ND)) {
           auto matches = [](const CXXBaseSpecifier &) -> bool { return true; };
-          act(matches, RD->bases_begin(), RD->bases_end(), hidePriv, hideProt);
+          act(matches, RD->bases_begin(), RD->bases_end(), access);
+        }
+      } else if (REE->getSeqKind() == MOSK_Parameters) {
+        if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
+          auto matches = [](const Decl *) -> bool { return true; };
+          act(matches, FD->param_begin(), FD->param_end(), access);
         }
       }
     }
@@ -3371,16 +3368,32 @@ static void applyOnMetaobjSeqElements(ASTContext &Ctx, Action &act,
 }
 
 struct matchingMetaobjSeqElementUtils {
-  static bool is_private(const Decl *x) { return x->getAccess() == AS_private; }
-  static bool is_private(const CXXBaseSpecifier &x) {
-    return x.getAccessSpecifier() == AS_private;
+  static bool isAccessible(const CXXBaseSpecifier &x, MetaobjectAccessibility access) {
+    switch (access) {
+      case MOA_AllowPrivate:
+        break;
+      case MOA_AllowProtected:
+        return x.getAccessSpecifier() != AS_private;
+      case MOA_OnlyPublic:
+      case MOA_ContextDependent: // [reflection-ts] FIXME
+        return x.getAccessSpecifier() != AS_private &&
+               x.getAccessSpecifier() != AS_protected;
+    }
+    return true;
   }
 
-  static bool is_protected(const Decl *x) {
-    return x->getAccess() == AS_protected;
-  }
-  static bool is_protected(const CXXBaseSpecifier &x) {
-    return x.getAccessSpecifier() == AS_protected;
+  static bool isAccessible(const Decl *x, MetaobjectAccessibility access) {
+    switch (access) {
+      case MOA_AllowPrivate:
+        break;
+      case MOA_AllowProtected:
+        return x->getAccess() != AS_private;
+      case MOA_OnlyPublic:
+      case MOA_ContextDependent: // [reflection-ts] FIXME
+        return x->getAccess() != AS_private &&
+               x->getAccess() != AS_protected;
+    }
+    return true;
   }
 };
 
@@ -3389,19 +3402,11 @@ struct countMatchingMetaobjSeqElements : matchingMetaobjSeqElementUtils {
 
   template <typename Predicate, typename Iter>
   void operator()(Predicate &matches, Iter i, Iter e,
-                  bool hideProtected, bool hidePrivate) {
+                  MetaobjectAccessibility access) {
 
     while (i != e) {
-      if (matches(*i)) {
-        if (is_private(*i)) {
-          if (!hidePrivate)
-            ++count;
-        } else if (is_protected(*i)) {
-          if (!hideProtected)
-            ++count;
-        } else {
+      if (isAccessible(*i, access) && matches(*i)) {
           ++count;
-        }
       }
       ++i;
     }
@@ -3432,16 +3437,10 @@ struct findMatchingMetaobjSeqElement : matchingMetaobjSeqElementUtils {
   }
 
   template <typename Predicate, typename Iter>
-  void operator()(Predicate &matches, Iter i, Iter e, bool hideProtected,
-                  bool hidePrivate) {
+  void operator()(Predicate &matches, Iter i, Iter e,
+                  MetaobjectAccessibility access) {
     while (i != e) {
-      bool does_match = false;
-      if (matches(*i)) {
-        does_match = (is_private(*i) && !hidePrivate) ||
-                     (is_protected(*i) && !hideProtected) ||
-                     (!is_private(*i) && !is_protected(*i));
-      }
-      if (does_match) {
+      if (isAccessible(*i, access) && matches(*i)) {
         if (index == 0)
           break;
         --index;
@@ -3462,20 +3461,12 @@ struct collectMatchingMetaobjSeqElements : matchingMetaobjSeqElementUtils {
   collectMatchingMetaobjSeqElements(void) { elements.reserve(8); }
 
   template <typename Predicate, typename Iter>
-  void operator()(Predicate matches, Iter i, Iter e, bool hideProtected,
-                  bool hidePrivate) {
+  void operator()(Predicate matches, Iter i, Iter e,
+                  MetaobjectAccessibility access) {
 
     while (i != e) {
-      if (matches(*i)) {
-        if (is_private(*i)) {
-          if (!hidePrivate)
-            pushElement(*i);
-        } else if (is_protected(*i)) {
-          if (!hideProtected)
-            pushElement(*i);
-        } else {
-          pushElement(*i);
-        }
+      if (isAccessible(*i, access) && matches(*i)) {
+        pushElement(*i);
       }
       ++i;
     }
@@ -3494,7 +3485,6 @@ void UnaryMetaobjectOpExpr::unpackSequence(ASTContext &Ctx, ReflexprIdExpr *REE,
   if (REE->getSeqKind() == MOSK_BaseClasses) {
     for (const void *E : action.elements) {
       const CXXBaseSpecifier *B = static_cast<const CXXBaseSpecifier *>(E);
-      assert(B != nullptr);
 
       ReflexprIdExpr *REE =
         ReflexprIdExpr::getBaseSpecifierReflexprIdExpr(Ctx, B);

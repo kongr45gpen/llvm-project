@@ -793,9 +793,8 @@ void ASTStmtReader::VisitReflexprIdExpr(ReflexprIdExpr *E) {
       E->setArgumentBaseSpecifier(BaseSpec);
       break;
   }
+  E->setAccessibility(MetaobjectAccessibility(Record.readInt()));
   E->setRemoveSugar(Record.readInt());
-  E->setHideProtected(Record.readInt());
-  E->setHidePrivate(Record.readInt());
   E->setOperatorLoc(readSourceLocation());
   E->setRParenLoc(readSourceLocation());
 }

@@ -737,6 +737,14 @@ struct _LIBCPP_TEMPLATE_VIS get_enumerators {
 template <Enum _Tp>
 using get_enumerators_t = typename get_enumerators<_Tp>::type;
 
+template <Callable _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_parameters {
+  using type = __metaobject<__metaobject_get_parameters(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Callable _Tp>
+using get_parameters_t = typename get_parameters<_Tp>::type;
+
 // get sequence element
 template <size_t _I, ObjectSequence _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_element {

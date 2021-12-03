@@ -5037,17 +5037,12 @@ public:
     ReflexprIdExprBits.RemoveSugar = value ? 1 : 0;
   }
 
-  bool getHideProtected() const {
-    return ReflexprIdExprBits.HideProtected != 0;
+  void setAccessibility(MetaobjectAccessibility moa) {
+    ReflexprIdExprBits.Accessibility = moa;
   }
-  void setHideProtected(bool value) {
-    ReflexprIdExprBits.HideProtected = value ? 1 : 0;
-  }
-  bool getHidePrivate() const {
-    return ReflexprIdExprBits.HidePrivate != 0;
-  }
-  void setHidePrivate(bool value) {
-    ReflexprIdExprBits.HidePrivate = value ? 1 : 0;
+
+  MetaobjectAccessibility getAccessibility() const {
+    return MetaobjectAccessibility(ReflexprIdExprBits.Accessibility);
   }
 
   MetaobjectConcept getCategory() const;
@@ -5269,6 +5264,7 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static ReflexprIdExpr *opGetDestructors(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetOperators(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetEnumerators(ASTContext &, ReflexprIdExpr*);
+  static ReflexprIdExpr *opGetParameters(ASTContext &, ReflexprIdExpr*);
 
   static ReflexprIdExpr *opGetClass(ASTContext &, ReflexprIdExpr*);
 

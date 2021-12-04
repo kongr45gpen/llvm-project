@@ -1926,6 +1926,7 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType,
   Argument.BaseSpec = baseSpec;
   setAccessibility(MOA_AllowPrivate);
   setRemoveSugar(false);
+  setDependence(computeDependence(this));
 }
 
 ReflexprIdExpr::ReflexprIdExpr(const ReflexprIdExpr &that)

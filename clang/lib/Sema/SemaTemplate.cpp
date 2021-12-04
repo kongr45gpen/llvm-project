@@ -7710,6 +7710,7 @@ Sema::BuildExpressionFromIntegralTemplateArgument(const TemplateArgument &Arg,
 ExprResult
 Sema::BuildExpressionFromMetaobjectIdTemplateArgument(const TemplateArgument &Arg,
                                                       SourceLocation Loc) {
+  assert(!Arg.isDependent());
   assert(Arg.getKind() == TemplateArgument::MetaobjectId &&
          "Operation is only valid for metaobject id template arguments");
   QualType T = Arg.getMetaobjectIdType();

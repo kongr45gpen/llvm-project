@@ -73,13 +73,17 @@ ExprDependence clang::computeDependence(UnaryOperator *E,
 }
 
 ExprDependence clang::computeDependence(ReflexprIdExpr *E) {
-  ExprDependence ArgDeps = ExprDependence::None;
+  ExprDependence Deps = ExprDependence::None;
 
-  if (E->isArgumentType())
-    ArgDeps = turnTypeToValueDependence(toExprDependence(
-        E->getArgumentTypeInfo()->getType()->getDependence()));
+  if (E->isArgumentType()) {
+    const ExprDependence ArgDeps = toExprDependence(
+        E->getArgumentType()->getDependence());
+    Deps = ArgDeps & ~ExprDependence::Type;
+    if (ArgDeps & ExprDependence::Type)
+      Deps |= ExprDependence::ValueInstantiation;
+  }
 
-  return ArgDeps;
+  return Deps;
 }
 
 ExprDependence clang::computeDependence(MetaobjectIdExpr *E) {
@@ -95,7 +99,7 @@ ExprDependence clang::computeDependence(UnaryMetaobjectOpExpr *E) {
     Deps |= ExprDependence::Value;
   
   if (E->getType()->isDependentType()) {
-    Deps |= ExprDependence::Type;
+    Deps |= ExprDependence::TypeValueInstantiation;
   }
   // [reflexpr-ts] FIXME: re-check if this is correct
   return Deps;
@@ -111,7 +115,7 @@ ExprDependence clang::computeDependence(NaryMetaobjectOpExpr *E) {
     Deps |= ExprDependence::Value;
 
   if (E->getType()->isDependentType()) {
-    Deps |= ExprDependence::Type;
+    Deps |= ExprDependence::TypeValueInstantiation;
   }
   // [reflexpr-ts] FIXME: re-check if this is correct
   return Deps;

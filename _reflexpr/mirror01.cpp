@@ -18,7 +18,7 @@ static std::string_view enum_to_string(E e) {
 
 int main() {
   using namespace std::experimental::mirror;
-  for_each(unpack(get_enumerators(mirror(weekdays))), [](auto mo){
+  for_each(get_enumerators(mirror(weekdays)), [](auto mo){
       std::cout << get_name(mo) << ": " << get_constant(mo) << std::endl;
     });
 

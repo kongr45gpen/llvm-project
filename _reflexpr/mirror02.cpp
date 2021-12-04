@@ -5,28 +5,28 @@ enum class weekdays : int {
   monday, tuesday, wednesday, thursday, friday, saturday, sunday
 };
 
-static std::string_view enum_to_string(weekdays e) {
-  return select(
-    unpack(get_enumerators(mirror(weekdays))),
+template <typename E>
+std::string_view enum_to_string(E e) {
+  return select(get_enumerators(mirror(E)),
     [](auto& result, auto mo, auto e) {
-      if (weekdays(get_constant(mo)) == e) {
+      if (E(get_constant(mo)) == e) {
         result = get_name(mo);
       }
     }, std::string_view{}, e);
 }
 
-static weekdays string_to_enum(std::string_view n) {
-  return select(
-    unpack(get_enumerators(mirror(weekdays))),
+template <typename E>
+E string_to_enum(std::string_view n) {
+  return select(get_enumerators(mirror(E)),
     [](auto& result, auto mo, auto n) {
       if (std::string_view{get_name(mo)} == n) {
-        result = weekdays(get_constant(mo));
+        result = E(get_constant(mo));
       }
-    }, weekdays{}, n);
+    }, E{}, n);
 }
 
 static void next_day(std::string_view n) {
-  auto d = string_to_enum(n);
+  auto d = string_to_enum<weekdays>(n);
   std::cout << n 
             << " -> "
             << enum_to_string(weekdays((int(d) + 1) % 7))

@@ -8,12 +8,7 @@ enum class weekdays {
 template <typename E>
 consteval auto enum_to_string(E e) -> std::string_view {
   using namespace std::experimental::mirror;
-  for(auto me : unpack<get_enumerators(mirror(E))>()) {
-    if(std::underlying_type_t<E>(e) == get_constant(me)) {
-      return get_name(me);
-    }
-  }
-  return {};
+  return get_name(mirror(E));
 }
 
 int main() {

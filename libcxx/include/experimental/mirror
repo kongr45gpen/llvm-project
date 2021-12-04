@@ -43,274 +43,348 @@
 _LIBCPP_BEGIN_NAMESPACE_EXPERIMENTAL
 namespace mirror {
 
-using metaobject = __metaobject_id;
+template <__metaobject_id _Tp>
+struct metaobject {};
 
-consteval bool is_meta_object(metaobject mo) {
-  return __metaobject_is_meta_object(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_object(metaobject<_Tp>) {
+  return __metaobject_is_meta_object(_Tp);
 }
 
-consteval bool is_meta_object_sequence(metaobject mo) {
-  return __metaobject_is_meta_object_sequence(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_object_sequence(metaobject<_Tp>) {
+  return __metaobject_is_meta_object_sequence(_Tp);
 }
 
-consteval bool is_meta_named(metaobject mo) {
-  return __metaobject_is_meta_named(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_named(metaobject<_Tp>) {
+  return __metaobject_is_meta_named(_Tp);
 }
 
-consteval bool is_meta_alias(metaobject mo) {
-  return __metaobject_is_meta_alias(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_alias(metaobject<_Tp>) {
+  return __metaobject_is_meta_alias(_Tp);
 }
 
-consteval bool is_meta_scope(metaobject mo) {
-  return __metaobject_is_meta_scope(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_scope(metaobject<_Tp>) {
+  return __metaobject_is_meta_scope(_Tp);
 }
 
-consteval bool is_meta_typed(metaobject mo) {
-  return __metaobject_is_meta_typed(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_typed(metaobject<_Tp>) {
+  return __metaobject_is_meta_typed(_Tp);
 }
 
-consteval bool is_meta_scope_member(metaobject mo) {
-  return __metaobject_is_meta_scope_member(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_scope_member(metaobject<_Tp>) {
+  return __metaobject_is_meta_scope_member(_Tp);
 }
 
-consteval bool is_meta_enum_member(metaobject mo) {
-  return __metaobject_is_meta_enum_member(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_enumerator(metaobject<_Tp>) {
+  return __metaobject_is_meta_enumerator(_Tp);
 }
 
-consteval bool is_meta_record_member(metaobject mo) {
-  return __metaobject_is_meta_record_member(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_record_member(metaobject<_Tp>) {
+  return __metaobject_is_meta_record_member(_Tp);
 }
 
-consteval bool is_meta_base(metaobject mo) {
-  return __metaobject_is_meta_base(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_base(metaobject<_Tp>) {
+  return __metaobject_is_meta_base(_Tp);
 }
 
-consteval bool is_meta_namespace(metaobject mo) {
-  return __metaobject_is_meta_namespace(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_namespace(metaobject<_Tp>) {
+  return __metaobject_is_meta_namespace(_Tp);
 }
 
-consteval bool is_meta_global_scope(metaobject mo) {
-  return __metaobject_is_meta_global_scope(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_global_scope(metaobject<_Tp>) {
+  return __metaobject_is_meta_global_scope(_Tp);
 }
 
-consteval bool is_meta_type(metaobject mo) {
-  return __metaobject_is_meta_type(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_type(metaobject<_Tp>) {
+  return __metaobject_is_meta_type(_Tp);
 }
 
-consteval bool is_meta_enum(metaobject mo) {
-  return __metaobject_is_meta_enum(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_enum(metaobject<_Tp>) {
+  return __metaobject_is_meta_enum(_Tp);
 }
 
-consteval bool is_meta_record(metaobject mo) {
-  return __metaobject_is_meta_record(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_record(metaobject<_Tp>) {
+  return __metaobject_is_meta_record(_Tp);
 }
 
-consteval bool is_meta_class(metaobject mo) {
-  return __metaobject_is_meta_class(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_class(metaobject<_Tp>) {
+  return __metaobject_is_meta_class(_Tp);
 }
 
-consteval bool is_meta_lambda(metaobject mo) {
-  return __metaobject_is_meta_lambda(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_lambda(metaobject<_Tp>) {
+  return __metaobject_is_meta_lambda(_Tp);
 }
 
-consteval bool is_meta_constant(metaobject mo) {
-  return __metaobject_is_meta_constant(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_constant(metaobject<_Tp>) {
+  return __metaobject_is_meta_constant(_Tp);
 }
 
-consteval bool is_meta_variable(metaobject mo) {
-  return __metaobject_is_meta_variable(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_variable(metaobject<_Tp>) {
+  return __metaobject_is_meta_variable(_Tp);
 }
 
-consteval bool is_meta_lambda_capture(metaobject mo) {
-  return __metaobject_is_meta_lambda_capture(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_lambda_capture(metaobject<_Tp>) {
+  return __metaobject_is_meta_lambda_capture(_Tp);
 }
 
-consteval bool is_meta_function_parameter(metaobject mo) {
-  return __metaobject_is_meta_function_parameter(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_function_parameter(metaobject<_Tp>) {
+  return __metaobject_is_meta_function_parameter(_Tp);
 }
 
-consteval bool is_meta_callable(metaobject mo) {
-  return __metaobject_is_meta_callable(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_callable(metaobject<_Tp>) {
+  return __metaobject_is_meta_callable(_Tp);
 }
 
-consteval bool is_meta_function(metaobject mo) {
-  return __metaobject_is_meta_function(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_function(metaobject<_Tp>) {
+  return __metaobject_is_meta_function(_Tp);
 }
 
-consteval bool is_meta_member_function(metaobject mo) {
-  return __metaobject_is_meta_member_function(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_member_function(metaobject<_Tp>) {
+  return __metaobject_is_meta_member_function(_Tp);
 }
 
-consteval bool is_meta_special_member_function(metaobject mo) {
-  return __metaobject_is_meta_special_member_function(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_special_member_function(metaobject<_Tp>) {
+  return __metaobject_is_meta_special_member_function(_Tp);
 }
 
-consteval bool is_meta_constructor(metaobject mo) {
-  return __metaobject_is_meta_constructor(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_constructor(metaobject<_Tp>) {
+  return __metaobject_is_meta_constructor(_Tp);
 }
 
-consteval bool is_meta_destructor(metaobject mo) {
-  return __metaobject_is_meta_destructor(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_destructor(metaobject<_Tp>) {
+  return __metaobject_is_meta_destructor(_Tp);
 }
 
-consteval bool is_meta_operator(metaobject mo) {
-  return __metaobject_is_meta_operator(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_operator(metaobject<_Tp>) {
+  return __metaobject_is_meta_operator(_Tp);
 }
 
-consteval bool is_meta_conversion_operator(metaobject mo) {
-  return __metaobject_is_meta_conversion_operator(mo);
+template <__metaobject_id _Tp>
+consteval bool is_meta_conversion_operator(metaobject<_Tp>) {
+  return __metaobject_is_meta_conversion_operator(_Tp);
+}
+
+template <__metaobject_id _Tp>
+consteval bool is_meta_expression(metaobject<_Tp>) {
+  return __metaobject_is_meta_expression(_Tp);
+}
+
+template <__metaobject_id _Tp>
+consteval bool is_meta_specifier(metaobject<_Tp>) {
+  return __metaobject_is_meta_specifier(_Tp);
 }
 
 // unary operations
 // boolean
-consteval bool is_constexpr(metaobject mo) {
-  return __metaobject_is_constexpr(mo);
+template <__metaobject_id _Tp>
+consteval bool is_constexpr(metaobject<_Tp>) {
+  return __metaobject_is_constexpr(_Tp);
 }
 
-consteval bool is_explicit(metaobject mo) {
-  return __metaobject_is_explicit(mo);
+template <__metaobject_id _Tp>
+consteval bool is_explicit(metaobject<_Tp>) {
+  return __metaobject_is_explicit(_Tp);
 }
 
-consteval bool is_inline(metaobject mo) {
-  return __metaobject_is_inline(mo);
+template <__metaobject_id _Tp>
+consteval bool is_inline(metaobject<_Tp>) {
+  return __metaobject_is_inline(_Tp);
 }
 
-consteval bool is_static(metaobject mo) {
-  return __metaobject_is_static(mo);
+template <__metaobject_id _Tp>
+consteval bool is_static(metaobject<_Tp>) {
+  return __metaobject_is_static(_Tp);
 }
 
-consteval bool is_virtual(metaobject mo) {
-  return __metaobject_is_virtual(mo);
+template <__metaobject_id _Tp>
+consteval bool is_virtual(metaobject<_Tp>) {
+  return __metaobject_is_virtual(_Tp);
 }
 
-consteval bool is_pure_virtual(metaobject mo) {
-  return __metaobject_is_pure_virtual(mo);
+template <__metaobject_id _Tp>
+consteval bool is_pure_virtual(metaobject<_Tp>) {
+  return __metaobject_is_pure_virtual(_Tp);
 }
 
-consteval bool is_final(metaobject mo) {
-  return __metaobject_is_final(mo);
+template <__metaobject_id _Tp>
+consteval bool is_final(metaobject<_Tp>) {
+  return __metaobject_is_final(_Tp);
 }
 
-consteval bool is_private(metaobject mo) {
-  return __metaobject_is_private(mo);
+template <__metaobject_id _Tp>
+consteval bool is_private(metaobject<_Tp>) {
+  return __metaobject_is_private(_Tp);
 }
 
-consteval bool is_protected(metaobject mo) {
-  return __metaobject_is_protected(mo);
+template <__metaobject_id _Tp>
+consteval bool is_protected(metaobject<_Tp>) {
+  return __metaobject_is_protected(_Tp);
 }
 
-consteval bool is_public(metaobject mo) {
-  return __metaobject_is_public(mo);
+template <__metaobject_id _Tp>
+consteval bool is_public(metaobject<_Tp>) {
+  return __metaobject_is_public(_Tp);
 }
 
-consteval bool is_unnamed(metaobject mo) {
-  return __metaobject_is_unnamed(mo);
+template <__metaobject_id _Tp>
+consteval bool is_unnamed(metaobject<_Tp>) {
+  return __metaobject_is_unnamed(_Tp);
 }
 
-consteval bool is_enum(metaobject mo) {
-  return __metaobject_is_enum(mo);
+template <__metaobject_id _Tp>
+consteval bool is_enum(metaobject<_Tp>) {
+  return __metaobject_is_enum(_Tp);
 }
 
-consteval bool is_union(metaobject mo) {
-  return __metaobject_is_union(mo);
+template <__metaobject_id _Tp>
+consteval bool is_union(metaobject<_Tp>) {
+  return __metaobject_is_union(_Tp);
 }
 
-consteval bool uses_class_key(metaobject mo) {
-  return __metaobject_uses_class_key(mo);
+template <__metaobject_id _Tp>
+consteval bool uses_class_key(metaobject<_Tp>) {
+  return __metaobject_uses_class_key(_Tp);
 }
 
-consteval bool uses_struct_key(metaobject mo) {
-  return __metaobject_uses_struct_key(mo);
+template <__metaobject_id _Tp>
+consteval bool uses_struct_key(metaobject<_Tp>) {
+  return __metaobject_uses_struct_key(_Tp);
 }
 
 // integer
-consteval size_t get_source_line(metaobject mo) {
-  return __metaobject_get_source_line(mo);
+template <__metaobject_id _Tp>
+consteval size_t get_source_line(metaobject<_Tp>) {
+  return __metaobject_get_source_line(_Tp);
 }
 
-consteval size_t get_source_column(metaobject mo) {
-  return __metaobject_get_source_column(mo);
+template <__metaobject_id _Tp>
+consteval size_t get_source_column(metaobject<_Tp>) {
+  return __metaobject_get_source_column(_Tp);
 }
 
-consteval size_t get_size(metaobject mo) {
-  return __metaobject_get_size(mo);
+template <__metaobject_id _Tp>
+consteval size_t get_size(metaobject<_Tp>) {
+  return __metaobject_get_size(_Tp);
 }
 
-consteval auto get_constant(metaobject mo) {
-  return __metaobject_get_constant(mo);
+/*
+template <__metaobject_id _Tp>
+consteval auto get_constant(metaobject<_Tp>) {
+  return __metaobject_get_constant(_Tp);
 }
+*/
 
 // string
-consteval string_view get_source_file_name(metaobject mo) {
-  return {__metaobject_get_source_file_name(mo),
-          __metaobject_source_file_name_len(mo)};
+template <__metaobject_id _Tp>
+consteval string_view get_source_file_name(metaobject<_Tp>) {
+  return {__metaobject_get_source_file_name(_Tp),
+          __metaobject_source_file_name_len(_Tp)};
 }
 
-consteval string_view get_name(metaobject mo) {
+consteval string_view get_name_view(__metaobject_id mo) {
   return {__metaobject_get_name(mo),
           __metaobject_name_len(mo)};
 }
 
-consteval string_view get_display_name(metaobject mo) {
-  return {__metaobject_get_display_name(mo),
-          __metaobject_display_name_len(mo)};
+template <__metaobject_id _Tp>
+consteval string_view get_name(metaobject<_Tp>) {
+  return get_name_view(_Tp);
+}
+
+template <__metaobject_id _Tp>
+consteval string_view get_display_name(metaobject<_Tp>) {
+  return {__metaobject_get_display_name(_Tp),
+          __metaobject_display_name_len(_Tp)};
 }
 
 // metaobject
-consteval metaobject get_scope(metaobject mo) {
-  return __metaobject_get_scope(mo);
+template <__metaobject_id _Tp>
+consteval auto get_scope(metaobject<_Tp>) {
+  return metaobject<__metaobject_get_scope(_Tp)>{};
 }
 
-consteval metaobject get_type(metaobject mo) {
-  return __metaobject_get_type(mo);
+template <__metaobject_id _Tp>
+consteval auto get_type(metaobject<_Tp>) {
+  return metaobject<__metaobject_get_type(_Tp)>{};
 }
 
-consteval metaobject get_aliased(metaobject mo) {
-  return __metaobject_get_aliased(mo);
+template <__metaobject_id _Tp>
+consteval auto get_aliased(metaobject<_Tp>) {
+  return metaobject<__metaobject_get_aliased(_Tp)>{};
 }
 
-consteval metaobject get_class(metaobject mo) {
-  return __metaobject_get_class(mo);
+template <__metaobject_id _Tp>
+consteval auto get_class(metaobject<_Tp>) {
+  return metaobject<__metaobject_get_class(_Tp)>{};
 }
 
-consteval metaobject get_base_classes(metaobject mo) {
-  return __metaobject_get_base_classes(mo);
+template <__metaobject_id _Tp>
+consteval auto get_base_classes(metaobject<_Tp>) {
+  return metaobject<__metaobject_get_base_classes(_Tp)>{};
 }
 
-consteval metaobject get_member_types(metaobject mo) {
-  return __metaobject_get_member_types(mo);
+template <__metaobject_id _Tp>
+consteval auto get_member_types(metaobject<_Tp>) {
+  return metaobject<__metaobject_get_member_types(_Tp)>{};
 }
 
-consteval metaobject get_data_members(metaobject mo) {
-  return __metaobject_get_data_members(mo);
+template <__metaobject_id _Tp>
+consteval auto get_data_members(metaobject<_Tp>) {
+  return metaobject<__metaobject_get_data_members(_Tp)>{};
 }
 
-consteval metaobject get_enumerators(metaobject mo) {
-  return __metaobject_get_enumerators(mo);
+template <__metaobject_id _Tp>
+consteval auto get_enumerators(metaobject<_Tp>) {
+  return metaobject<__metaobject_get_enumerators(_Tp)>{};
+}
+
+template <__metaobject_id _Tp>
+consteval auto get_parameters(metaobject<_Tp>) {
+  return metaobject<__metaobject_get_parameters(_Tp)>{};
 }
 
 // unpacking
 template <__metaobject_id ... MoIds>
-struct __unpack_helper {
-  static consteval std::array<__metaobject_id, sizeof...(MoIds)>
-  unpack() {
-    return {{MoIds...}};
-  }
-};
+struct unpacked_metaobject_sequence {};
 
-template <__metaobject_id mo>
-consteval auto unpack() {
-  return __unpack_metaobject_seq<__unpack_helper, mo>::unpack();
+template <__metaobject_id _Tp>
+consteval auto unpack(metaobject<_Tp>) {
+  return __unpack_metaobject_seq<unpacked_metaobject_sequence, _Tp>{};
 }
 
-// unreflecting
-template <__metaobject_id MoId>
-using unrefltype = __unrefltype(MoId);
+#define mirror(...) \
+  _VSTD_EXPERIMENTAL::mirror::metaobject<__reflexpr_id(__VA_ARGS__)>{}
 
 } // namespace mirror
 _LIBCPP_END_NAMESPACE_EXPERIMENTAL
 
-#define mirror(...) __reflexpr_id(__VA_ARGS__)
 
 #endif /* !_LIBCPP_HAS_NO_REFLECTION && !_LIBCPP_HAS_NO_REFLECTION_EXT */
 

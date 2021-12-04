@@ -29,11 +29,11 @@ namespace clang {
     MOC_Template                    = (1UL <<  6U) | MOC_Object,
     MOC_Expression                  = (1UL <<  7U) | MOC_Object,
     MOC_ScopeMember                 = (1UL <<  8U) | MOC_Named,
-    MOC_EnumMember                  = (1UL <<  9U) | MOC_ScopeMember,
-    MOC_RecordMember                = (1UL << 10U) | MOC_ScopeMember,
-    MOC_Alias                       = (1UL << 11U) | MOC_Named,
-    MOC_Constant                    = (1UL << 12U) | MOC_Typed,
-    MOC_Variable                    = (1UL << 13U) | MOC_Typed | MOC_ScopeMember,
+    MOC_Constant                    = (1UL <<  9U) | MOC_Typed,
+    MOC_Variable                    = (1UL << 10U) | MOC_Typed | MOC_ScopeMember,
+    MOC_Enumerator                  = (1UL << 11U) | MOC_ScopeMember | MOC_Constant,
+    MOC_RecordMember                = (1UL << 12U) | MOC_ScopeMember,
+    MOC_Alias                       = (1UL << 13U) | MOC_Named,
     MOC_FunctionParameter           = (1UL << 14U) | MOC_Typed | MOC_ScopeMember,
     MOC_Namespace                   = (1UL << 15U) | MOC_Scope | MOC_ScopeMember,
     MOC_GlobalScope                 = (1UL << 16U) | MOC_Namespace,
@@ -77,8 +77,7 @@ namespace clang {
     MOC_MemberClassAlias            = MOC_RecordMember | MOC_ClassAlias,
     MOC_MemberEnum                  = MOC_RecordMember | MOC_Enum,
     MOC_MemberEnumAlias             = MOC_RecordMember | MOC_EnumAlias,
-    MOC_MemberOperator              = MOC_MemberFunction | MOC_Operator,
-    MOC_Enumerator                  = MOC_Constant | MOC_Named | MOC_EnumMember
+    MOC_MemberOperator              = MOC_MemberFunction | MOC_Operator
   };
 
   // When updating this also update ReflexprIdExprBitfields
@@ -161,7 +160,7 @@ namespace clang {
     UMOO_IsMetaScopeMember,
     UMOO_IsMetaBase,
     UMOO_IsMetaTemplate,
-    UMOO_IsMetaEnumMember,
+    UMOO_IsMetaEnumerator,
     UMOO_IsMetaRecordMember,
     UMOO_IsMetaAlias,
     UMOO_IsMetaConstant,

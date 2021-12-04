@@ -149,13 +149,13 @@ struct __is_ScopeMember
 template <class _Tp>
 concept bool ScopeMember = __is_a_concept_v<_Tp, __is_ScopeMember>;
 
-// EnumMember
+// Enumerator
 template <__metaobject_id _Tp>
-struct __is_EnumMember
-  : integral_constant<bool, __metaobject_is_meta_enum_member(_Tp)> {};
+struct __is_Enumerator
+  : integral_constant<bool, __metaobject_is_meta_enumerator(_Tp)> {};
 
 template <class _Tp>
-concept bool EnumMember = __is_a_concept_v<_Tp, __is_EnumMember>;
+concept bool Enumerator = __is_a_concept_v<_Tp, __is_Enumerator>;
 
 // RecordMember
 template <__metaobject_id _Tp>

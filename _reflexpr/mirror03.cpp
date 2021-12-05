@@ -10,7 +10,7 @@ void print_struct(const S& x) {
     [&](auto mo) {
       if (first) first = false;
       else std::cout << ", ";
-      std::cout << get_name(mo) << ": " << x.*get_pointer(mo);
+      std::cout << get_name(mo) << ": " << get_value(mo, x);
     });
   std::cout << ')' << std::endl;
 }

@@ -21,9 +21,6 @@ int main() {
       std::cout << get_name(mo)
                 << ": "
                 << int(get_constant(mo))
-                << '('
-                << get_id(mo)
-                << ')'
                 << std::endl;
     });
 

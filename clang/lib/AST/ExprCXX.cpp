@@ -2763,9 +2763,19 @@ bool UnaryMetaobjectOpExpr::opIsUnnamed(ASTContext &Ctx, ReflexprIdExpr *REE) {
   return true;
 }
 
-uint64_t UnaryMetaobjectOpExpr::opNameLen(ASTContext &Ctx,
-                                          ReflexprIdExpr *REE) {
-  return opGetName(Ctx, REE).size();
+std::string UnaryMetaobjectOpExpr::getOperatorSpelling(
+    ASTContext &, OverloadedOperatorKind OOK) {
+  switch(OOK) {
+#define OVERLOADED_OPERATOR(Name, Spelling, Token, Unary, Binary, MemberOnly)  \
+    case OO_##Name: \
+      return Spelling;
+#include "clang/Basic/OperatorKinds.def"
+#undef OVERLOADED_OPERATOR
+    case OO_None:
+    case NUM_OVERLOADED_OPERATORS:
+      break;
+  }
+  return {};
 }
 
 std::string UnaryMetaobjectOpExpr::opGetName(ASTContext &Ctx,
@@ -2780,7 +2790,18 @@ std::string UnaryMetaobjectOpExpr::opGetName(ASTContext &Ctx,
     return tok::getKeywordSpelling(
         REE->getArgumentSpecifierKind());
   } else if (REE->isArgumentNamedDecl()) {
-    return REE->getArgumentNamedDecl()->getName().str();
+    const auto *ND = REE->getArgumentNamedDecl();
+    if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
+      const std::string spelling =
+        getOperatorSpelling(Ctx, FD->getOverloadedOperator());
+      if (!spelling.empty()) {
+        if (std::ispunct(spelling.front())) {
+          return "operator" + spelling;
+        }
+        return "operator " + spelling;
+      }
+    }
+    return ND->getName().str();
   } else if (REE->isArgumentType()) {
     QualType RT = REE->getBaseArgumentType(Ctx);
 
@@ -2798,11 +2819,9 @@ std::string UnaryMetaobjectOpExpr::opGetName(ASTContext &Ctx,
   llvm_unreachable("Unable to get metaobject name!");
 }
 
-uint64_t UnaryMetaobjectOpExpr::opDisplayNameLen(ASTContext &Ctx,
-                                                 ReflexprIdExpr *REE) {
-  assert(REE);
-
-  return opGetDisplayName(Ctx, REE).size();
+uint64_t UnaryMetaobjectOpExpr::opNameLen(ASTContext &Ctx,
+                                          ReflexprIdExpr *REE) {
+  return opGetName(Ctx, REE).size();
 }
 
 std::string UnaryMetaobjectOpExpr::opGetDisplayName(ASTContext &Ctx,
@@ -2823,6 +2842,11 @@ std::string UnaryMetaobjectOpExpr::opGetDisplayName(ASTContext &Ctx,
     // otherwise we'd need to copy its functionality here
   }
   return opGetName(Ctx, REE);
+}
+
+uint64_t UnaryMetaobjectOpExpr::opDisplayNameLen(ASTContext &Ctx,
+                                                 ReflexprIdExpr *REE) {
+  return opGetDisplayName(Ctx, REE).size();
 }
 
 

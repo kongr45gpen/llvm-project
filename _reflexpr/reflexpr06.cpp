@@ -4,7 +4,8 @@
 struct mystruct {
   static void foo() {}
   constexpr bool bar() { return false; }
-  int baz(int a, int b) const noexcept { return a + b; }
+  int baz(int a, int b) const noexcept { return a % b; }
+  int operator+(int i) const noexcept { return 1+i; }
 };
 
 int main() {
@@ -12,6 +13,7 @@ int main() {
   using mm = reflexpr(mystruct);
   using mf = get_member_functions_t<mm>;
   using mz = get_element_t<2, mf>;
+  using mo = get_element_t<3, mf>;
 
   static_assert(FunctionParameter<get_element_t<0, get_parameters_t<mz>>>);
 
@@ -19,6 +21,7 @@ int main() {
   std::cout << get_name_v<get_element_t<0, mf>> << std::endl;
   std::cout << get_name_v<get_element_t<1, mf>> << std::endl;
   std::cout << get_name_v<mz> << std::endl;
+  std::cout << get_name_v<mo> << std::endl;
   std::cout << get_size_v<get_parameters_t<mz>> << std::endl;
   std::cout << get_name_v<get_element_t<0, get_parameters_t<mz>>> << std::endl;
   std::cout << get_name_v<get_element_t<1, get_parameters_t<mz>>> << std::endl;

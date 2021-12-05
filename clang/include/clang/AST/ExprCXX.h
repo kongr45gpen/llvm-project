@@ -5233,6 +5233,7 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
 
   static bool opIsUnnamed(ASTContext &, ReflexprIdExpr*);
   static uint64_t opNameLen(ASTContext &, ReflexprIdExpr*);
+  static std::string getOperatorSpelling(ASTContext &, OverloadedOperatorKind);
   static std::string opGetName(ASTContext &, ReflexprIdExpr*);
   static uint64_t opDisplayNameLen(ASTContext &, ReflexprIdExpr*);
   static std::string opGetDisplayName(ASTContext &, ReflexprIdExpr*);

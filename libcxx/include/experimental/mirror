@@ -357,7 +357,8 @@ struct _get_pointer
     __metaobject_get_pointer(_Mp)> {};
 
 template <__metaobject_id _Mp, typename = enable_if_t<
-  __metaobject_is_meta_variable(_Mp)>>
+  __metaobject_is_meta_variable(_Mp) ||
+  __metaobject_is_meta_function(_Mp)>>
 consteval auto get_pointer(metaobject<_Mp>) {
   return _get_pointer<_Mp>::value;
 }
@@ -372,6 +373,19 @@ template <__metaobject_id _Mp, class _Cp, typename = enable_if_t<
   __metaobject_is_meta_record_member(_Mp) &&
   __metaobject_is_meta_variable(_Mp)>>
 constexpr const auto& get_value(metaobject<_Mp>, const _Cp& obj) {
+  return obj.*_get_pointer<_Mp>::value;
+}
+
+template <__metaobject_id _Mp, typename = enable_if_t<
+  __metaobject_is_meta_variable(_Mp)>>
+constexpr auto& get_reference(metaobject<_Mp>) {
+  return *_get_pointer<_Mp>::value;
+}
+
+template <__metaobject_id _Mp, class _Cp, typename = enable_if_t<
+  __metaobject_is_meta_record_member(_Mp) &&
+  __metaobject_is_meta_variable(_Mp)>>
+constexpr auto& get_reference(metaobject<_Mp>, _Cp& obj) {
   return obj.*_get_pointer<_Mp>::value;
 }
 

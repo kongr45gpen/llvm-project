@@ -541,13 +541,14 @@ struct _LIBCPP_TEMPLATE_VIS get_source_column
 template <Object _Tp>
 inline constexpr auto get_source_column_v = get_source_column<_Tp>::value;
 
-template <Variable _Tp>
+template <Object _Tp>
+requires (Variable<_Tp> || Function<_Tp>)
 struct _LIBCPP_TEMPLATE_VIS get_pointer
   : integral_constant<
     __unrefltype(__metaobject_get_pointer(__unwrap_metaobject_id_v<_Tp>)),
     __metaobject_get_pointer(__unwrap_metaobject_id_v<_Tp>)> {};
 
-template <Variable _Tp>
+template <Object _Tp>
 inline constexpr auto get_pointer_v = get_pointer<_Tp>::value;
 
 template <Constant _Tp>

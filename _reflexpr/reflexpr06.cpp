@@ -4,7 +4,7 @@
 struct mystruct {
   static void foo() {}
   constexpr bool bar() { return false; }
-  int baz(int a, int b) const noexcept { return a % b; }
+  int baz(int a, int b) const noexcept { return a + b; }
   int operator+(int i) const noexcept { return 1+i; }
 };
 
@@ -25,6 +25,10 @@ int main() {
   std::cout << get_size_v<get_parameters_t<mz>> << std::endl;
   std::cout << get_name_v<get_element_t<0, get_parameters_t<mz>>> << std::endl;
   std::cout << get_name_v<get_element_t<1, get_parameters_t<mz>>> << std::endl;
+
+  mystruct x;
+
+  std::cout << (x.*get_pointer_v<mz>)(21, 21) << std::endl;
 
   return 0;
 }

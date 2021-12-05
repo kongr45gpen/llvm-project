@@ -2672,7 +2672,8 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_IsDefaulted:
     return conceptIsA(MoC, MOC_SpecialMemberFunction);
   case UMOO_GetPointer:
-    return conceptIsA(MoC, MOC_Variable);
+    return conceptIsA(MoC, MOC_Variable) ||
+           conceptIsA(MoC, MOC_Function);
   case UMOO_GetConstant:
     return conceptIsA(MoC, MOC_Constant);
   case UMOO_HideProtected:
@@ -3687,6 +3688,10 @@ QualType UnaryMetaobjectOpExpr::getValueDeclType(ASTContext &Ctx,
       const RecordDecl *RD = fldDecl->getParent();
       QualType RecTy = Ctx.getRecordType(RD);
       result = Ctx.getMemberPointerType(fldDecl->getType(), RecTy.getTypePtr());
+    } else if (const CXXMethodDecl *mthdDecl = dyn_cast<CXXMethodDecl>(valDecl)) {
+      const RecordDecl *RD = mthdDecl->getParent();
+      QualType RecTy = Ctx.getRecordType(RD);
+      result = Ctx.getMemberPointerType(mthdDecl->getType(), RecTy.getTypePtr());
     }
   } else if (MoOp == UMOO_GetConstant) {
     result = valDecl->getType();

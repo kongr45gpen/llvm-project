@@ -9,7 +9,7 @@ template <typename E>
 std::string_view enum_to_string(E e) {
   return select(get_enumerators(mirror(E)),
     [](auto& result, auto mo, auto e) {
-      if (E(get_constant(mo)) == e) {
+      if (get_constant(mo) == e) {
         result = get_name(mo);
       }
     }, std::string_view{}, e);
@@ -35,7 +35,7 @@ static void next_day(std::string_view n) {
 
 int main() {
   using namespace std::experimental::mirror;
-  for_each(unpack(get_enumerators(mirror(weekdays))), [](auto mo){
+  for_each(get_enumerators(mirror(weekdays)), [](auto mo){
       next_day(get_name(mo));
     });
 

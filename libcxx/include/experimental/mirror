@@ -319,22 +319,28 @@ consteval size_t get_source_column(metaobject<_Mp>) {
   return __metaobject_get_source_column(_Mp);
 }
 
-/*
+template <__metaobject_id _Mp>
+struct _get_pointer
+  : integral_constant<
+    __unrefltype(__metaobject_get_pointer(_Mp)),
+    __metaobject_get_pointer(_Mp)> {};
+
 template <__metaobject_id _Mp>
 consteval auto get_pointer(metaobject<_Mp>) {
-  return __metaobject_get_pointer(_Mp);
+  return _get_pointer<_Mp>::value;
 }
-*/
 
-consteval auto get_constant_value(__metaobject_id mo) {
-  return __metaobject_get_constant(mo);
-}
+template <__metaobject_id _Mp>
+struct _get_constant
+  : integral_constant<
+    __unrefltype(__metaobject_get_constant(_Mp)),
+    __metaobject_get_constant(_Mp)> {};
 
 template <
   __metaobject_id _Mp,
   typename = enable_if_t<__metaobject_is_meta_constant(_Mp)>>
-consteval auto get_constant(metaobject<_Mp>) {
-  return get_constant_value(_Mp);
+constexpr auto get_constant(metaobject<_Mp>) {
+  return _get_constant<_Mp>::value;
 }
 
 template <

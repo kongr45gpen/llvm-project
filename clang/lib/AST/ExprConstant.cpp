@@ -15666,6 +15666,10 @@ Optional<llvm::APInt> Expr::getMetaobjectIdExpr(void *InfoPtr,
     return None;
   }
 
+  if (isValueDependent()) {
+    return None;
+  }
+
   APValue Result;
   if (InfoPtr) {
     FoldConstant FldConst(*static_cast<EvalInfo *>(InfoPtr), true);
@@ -15673,9 +15677,6 @@ Optional<llvm::APInt> Expr::getMetaobjectIdExpr(void *InfoPtr,
       return None;
     }
   } else {
-    assert(!isValueDependent() &&
-           "Expression evaluator can't be called on a dependent expression.");
-
     assert(Ctx.getLangOpts().ReflectionTS);
 
     // Build evaluation settings.

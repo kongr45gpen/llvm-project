@@ -2792,7 +2792,11 @@ std::string UnaryMetaobjectOpExpr::opGetName(ASTContext &Ctx,
         REE->getArgumentSpecifierKind());
   } else if (REE->isArgumentNamedDecl()) {
     const auto *ND = REE->getArgumentNamedDecl();
-    if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
+    if (const auto *CD = dyn_cast<CXXConstructorDecl>(ND)) {
+      return CD->getParent()->getName().str();
+    } else if (const auto *DD = dyn_cast<CXXDestructorDecl>(ND)) {
+      return "~" + DD->getParent()->getName().str();
+    } else if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
       const std::string spelling =
         getOperatorSpelling(Ctx, FD->getOverloadedOperator());
       if (!spelling.empty()) {
@@ -3467,16 +3471,18 @@ struct findMatchingMetaobjSeqElement : matchingMetaobjSeqElementUtils {
   template <typename Predicate, typename Iter>
   void operator()(Predicate &matches, Iter i, Iter e,
                   MetaobjectAccessibility access) {
-    while (i != e) {
-      if (isAccessible(*i, access) && matches(*i)) {
-        if (index == 0)
-          break;
-        --index;
+    if (i != e) {
+      while (i != e) {
+        if (isAccessible(*i, access) && matches(*i)) {
+          if (index == 0)
+            break;
+          --index;
+        }
+        ++i;
       }
-      ++i;
+      assert((index == 0) && "Metaobject sequence index out of range");
+      storeResult(*i);
     }
-    assert((index == 0) && "Metaobject sequence index out of range");
-    storeResult(*i);
   }
 };
 

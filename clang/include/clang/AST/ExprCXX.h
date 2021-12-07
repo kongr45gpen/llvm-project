@@ -5097,6 +5097,7 @@ public:
   }
 
   static const NamedDecl *findTypeDecl(QualType Ty);
+
   const NamedDecl *findArgumentNamedDecl(ASTContext &, bool removeSugar) const;
   const NamedDecl *findArgumentNamedDecl(ASTContext &Ctx) const {
     return findArgumentNamedDecl(Ctx, getRemoveSugar());
@@ -5213,6 +5214,9 @@ public:
   static ReflexprIdExpr *getReflexprIdExpr(ASTContext &Ctx, Expr *E,
                                            void *EvlInfo = nullptr);
 
+  static DeclRefExpr *buildDeclRefExpr(ASTContext &Ctx, const ValueDecl *VD,
+                                       ExprValueKind VK, SourceLocation Loc);
+
   static bool queryExprUIntValue(ASTContext &Ctx, uint64_t &val, Expr *);
 };
 
@@ -5293,7 +5297,6 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static QualType getResultKindType(ASTContext &Ctx,
                                     UnaryMetaobjectOp Oper,
                                     MetaobjectOpResult OpRes,
-                                    bool isDependent,
                                     Expr *argExpr);
 public:
   /// \brief Construct an empty metaobject operation expression.
@@ -5302,13 +5305,12 @@ public:
 
   UnaryMetaobjectOpExpr(ASTContext &, UnaryMetaobjectOp Oper,
                         MetaobjectOpResult OpRes, QualType resultType,
-                        Expr *argExpr, SourceLocation opLoc,
-                        SourceLocation endLoc);
+                        Expr *argExpr, ExprValueKind VK,
+                        SourceLocation opLoc, SourceLocation endLoc);
 
   static UnaryMetaobjectOpExpr *
   Create(ASTContext &Ctx, UnaryMetaobjectOp Oper, MetaobjectOpResult OpRes,
-         bool inUnrefltype, Expr *argExpr,
-         SourceLocation opLoc, SourceLocation endLoc);
+         Expr *argExpr, SourceLocation opLoc, SourceLocation endLoc);
 
   UnaryMetaobjectOp getKind() const {
     return UnaryMetaobjectOp(UnaryMetaobjectOpExprBits.Kind);
@@ -5368,13 +5370,18 @@ public:
 
   bool hasPtrResult() const;
 
-  static const ValueDecl *getValueDeclResult(ASTContext &, UnaryMetaobjectOp,
+  static const ValueDecl *getResultValueDecl(ASTContext &, UnaryMetaobjectOp,
                                              ReflexprIdExpr*);
-  const ValueDecl *getValueDeclResult(ASTContext &Ctx, void *EvlInfo) const;
+  const ValueDecl *getResultValueDecl(ASTContext &Ctx, void *EvlInfo) const;
+
+  DeclRefExpr *buildResultDeclRefExpr(ASTContext &Ctx, void* EvlInfo,
+                                      ExprValueKind VK) const {
+    return buildDeclRefExpr(Ctx, getResultValueDecl(Ctx, EvlInfo),
+                            VK, getOperatorLoc());
+  }
 
   static QualType getValueDeclType(ASTContext &, UnaryMetaobjectOp,
-                                   const ValueDecl *valDecl,
-                                   bool isDependent);
+                                   const ValueDecl *valDecl);
 
   bool hasOpResultType() const;
 
@@ -5403,7 +5410,6 @@ class NaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static QualType getResultKindType(ASTContext &Ctx,
                                     NaryMetaobjectOp Oper,
                                     MetaobjectOpResult OpRes,
-                                    bool isDependent,
                                     unsigned arity, Expr **argExpr);
 public:
   /// \brief Construct an empty metaobject operation expression.
@@ -5417,7 +5423,6 @@ public:
 
   static NaryMetaobjectOpExpr *
   Create(ASTContext &Ctx, NaryMetaobjectOp Oper, MetaobjectOpResult OpRes,
-         bool inUnrefltype,
          unsigned arity, Expr **argExpr,
          SourceLocation opLoc, SourceLocation endLoc);
 

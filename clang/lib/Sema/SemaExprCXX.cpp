@@ -9008,10 +9008,7 @@ ExprResult Sema::CreateUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
     }
   }
 
-  bool inUnrefltype = ExprEvalContexts.back().ExprContext ==
-                      ExpressionEvaluationContextRecord::EK_Unrefltype;
-
-  return UnaryMetaobjectOpExpr::Create(Context, Oper, OpRes, inUnrefltype,
+  return UnaryMetaobjectOpExpr::Create(Context, Oper, OpRes,
                                        ArgExpr, opLoc, endLoc);
 }
 
@@ -9047,10 +9044,7 @@ ExprResult Sema::CreateNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
     }
   }
 
-  bool inUnrefltype = ExprEvalContexts.back().ExprContext ==
-                      ExpressionEvaluationContextRecord::EK_Unrefltype;
-
-  return NaryMetaobjectOpExpr::Create(Context, Oper, OpRes, inUnrefltype,
+  return NaryMetaobjectOpExpr::Create(Context, Oper, OpRes,
                                       Arity, ArgExpr, opLoc, endLoc);
 }
 

@@ -2296,7 +2296,6 @@ const NamedDecl *ReflexprIdExpr::findTypeDecl(QualType Ty) {
   return nullptr;
 }
 
-
 QualType ReflexprIdExpr::getBaseArgumentType(ASTContext &,
                                              bool removeSugar) const {
 
@@ -2327,7 +2326,7 @@ QualType ReflexprIdExpr::getBaseArgumentType(ASTContext &,
 
 
 const NamedDecl *ReflexprIdExpr::findArgumentNamedDecl(ASTContext &Ctx,
-                                                     bool removeSugar) const {
+                                                       bool removeSugar) const {
   if (isArgumentNamedDecl())
     return getArgumentNamedDecl();
   if (isArgumentType())
@@ -2419,6 +2418,17 @@ AccessSpecifier MetaobjectOpExprBase::getArgumentAccess(ASTContext &Ctx,
   return REE->getArgumentAccess(Ctx);
 }
 
+DeclRefExpr *MetaobjectOpExprBase::buildDeclRefExpr(ASTContext &Ctx,
+                                                    const ValueDecl* VD,
+                                                    ExprValueKind VK,
+                                                    SourceLocation Loc) {
+
+  return DeclRefExpr::Create(
+      Ctx, NestedNameSpecifierLoc(), Loc, const_cast<ValueDecl *>(VD),
+      false /*EnclVarOrCapture?*/, Loc, VD->getType(),
+      VK, const_cast<NamedDecl *>(dyn_cast<NamedDecl>(VD)));
+}
+
 bool MetaobjectOpExprBase::queryExprUIntValue(ASTContext &Ctx, uint64_t &value,
                                               Expr *E) {
   if (const auto apsi = E->getIntegerConstantExpr(Ctx)) {
@@ -2493,9 +2503,8 @@ llvm::APSInt MetaobjectOpExprBase::opGetConstant(ASTContext &Ctx,
 QualType UnaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
                                                   UnaryMetaobjectOp Oper,
                                                   MetaobjectOpResult OpRes,
-                                                  bool inUnrefltype,
                                                   Expr *argExpr) {
-  bool isDependent = inUnrefltype |
+  bool isDependent =
     (argExpr->getDependence() & ExprDependence::TypeValueInstantiation);
 
   switch (OpRes) {
@@ -2512,8 +2521,7 @@ QualType UnaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
       if (ReflexprIdExpr *REE = ReflexprIdExpr::fromExpr(Ctx, argExpr)) {
         if (const auto *ND = REE->getArgumentNamedDecl()) {
           if (const auto *VD = dyn_cast<ValueDecl>(ND)) {
-            return UnaryMetaobjectOpExpr::getValueDeclType(Ctx, Oper, VD,
-                                                           isDependent);
+            return UnaryMetaobjectOpExpr::getValueDeclType(Ctx, Oper, VD);
           }
         }
         llvm_unreachable("Unable to find the type of constant-returning operation");
@@ -2549,9 +2557,10 @@ UnaryMetaobjectOpExpr::UnaryMetaobjectOpExpr(ASTContext &Ctx,
                                              UnaryMetaobjectOp Oper,
                                              MetaobjectOpResult OpRes,
                                              QualType resultType, Expr *argExpr,
+                                             ExprValueKind VK,
                                              SourceLocation opLoc,
                                              SourceLocation endLoc)
-    : Expr(UnaryMetaobjectOpExprClass, resultType, VK_PRValue, OK_Ordinary),
+    : Expr(UnaryMetaobjectOpExprClass, resultType, VK, OK_Ordinary),
       ArgExpr(argExpr), OpLoc(opLoc), EndLoc(endLoc) {
 
   setKind(Oper);
@@ -2561,14 +2570,12 @@ UnaryMetaobjectOpExpr::UnaryMetaobjectOpExpr(ASTContext &Ctx,
 
 UnaryMetaobjectOpExpr *
 UnaryMetaobjectOpExpr::Create(ASTContext &Ctx, UnaryMetaobjectOp Oper,
-                              MetaobjectOpResult OpRes, bool inUnrefltype,
-                              Expr *argExpr,
+                              MetaobjectOpResult OpRes, Expr *argExpr,
                               SourceLocation opLoc, SourceLocation endLoc) {
-  QualType resType =
-      getResultKindType(Ctx, Oper, OpRes, inUnrefltype, argExpr);
+  QualType resType = getResultKindType(Ctx, Oper, OpRes, argExpr);
 
-  return new (Ctx) UnaryMetaobjectOpExpr(Ctx, Oper, OpRes, resType,
-                                         argExpr, opLoc, endLoc);
+  return new (Ctx) UnaryMetaobjectOpExpr(Ctx, Oper, OpRes, resType, argExpr,
+                                         VK_PRValue, opLoc, endLoc);
 }
 
 StringRef UnaryMetaobjectOpExpr::getOperationSpelling(UnaryMetaobjectOp MoOp) {
@@ -3640,7 +3647,7 @@ bool UnaryMetaobjectOpExpr::hasPtrResult() const {
   return getResultKind() == MOOR_Pointer;
 }
 
-const ValueDecl *UnaryMetaobjectOpExpr::getValueDeclResult(
+const ValueDecl *UnaryMetaobjectOpExpr::getResultValueDecl(
   ASTContext &Ctx, UnaryMetaobjectOp MoOp, ReflexprIdExpr *REE) {
   assert(REE);
 
@@ -3655,10 +3662,10 @@ const ValueDecl *UnaryMetaobjectOpExpr::getValueDeclResult(
   llvm_unreachable("Failed to get value declaration from metaobject!");
 }
 
-const ValueDecl *UnaryMetaobjectOpExpr::getValueDeclResult(
+const ValueDecl *UnaryMetaobjectOpExpr::getResultValueDecl(
     ASTContext &Ctx, void *EvlInfo) const {
   if (ReflexprIdExpr *REE = getArgumentReflexprIdExpr(Ctx, EvlInfo)) {
-    return getValueDeclResult(Ctx, getKind(), REE);
+    return getResultValueDecl(Ctx, getKind(), REE);
   }
   llvm_unreachable("Failed to query Metaobject information!");
 }
@@ -3678,26 +3685,26 @@ bool UnaryMetaobjectOpExpr::hasOpResultType() const {
 
 QualType UnaryMetaobjectOpExpr::getValueDeclType(ASTContext &Ctx,
                                                  UnaryMetaobjectOp MoOp,
-                                                 const ValueDecl *valDecl,
-                                                 bool isDependent) {
+                                                 const ValueDecl *valDecl) {
   assert(valDecl != nullptr);
 
   QualType result;
 
   if (MoOp == UMOO_GetPointer) {
     if (const VarDecl *varDecl = dyn_cast<VarDecl>(valDecl)) {
-      if (isDependent)
-        result = Ctx.DependentTy;
-      else
-        result = Ctx.getPointerType(varDecl->getType());
+      result = Ctx.getPointerType(varDecl->getType());
     } else if (const FieldDecl *fldDecl = dyn_cast<FieldDecl>(valDecl)) {
       const RecordDecl *RD = fldDecl->getParent();
       QualType RecTy = Ctx.getRecordType(RD);
       result = Ctx.getMemberPointerType(fldDecl->getType(), RecTy.getTypePtr());
     } else if (const CXXMethodDecl *mthdDecl = dyn_cast<CXXMethodDecl>(valDecl)) {
-      const RecordDecl *RD = mthdDecl->getParent();
-      QualType RecTy = Ctx.getRecordType(RD);
-      result = Ctx.getMemberPointerType(mthdDecl->getType(), RecTy.getTypePtr());
+      if (mthdDecl->isStatic()) {
+        result = Ctx.getPointerType(mthdDecl->getType());
+      } else {
+        const RecordDecl *RD = mthdDecl->getParent();
+        QualType RecTy = Ctx.getRecordType(RD);
+        result = Ctx.getMemberPointerType(mthdDecl->getType(), RecTy.getTypePtr());
+      }
     }
   } else if (MoOp == UMOO_GetConstant) {
     result = valDecl->getType();
@@ -3713,7 +3720,6 @@ Stmt::child_range UnaryMetaobjectOpExpr::children() {
 QualType NaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
                                                  NaryMetaobjectOp Oper,
                                                  MetaobjectOpResult OpRes,
-                                                 bool inUnrefltype,
                                                  unsigned arity, Expr **argExpr) {
   switch (OpRes) {
   case MOOR_Metaobject:
@@ -3756,11 +3762,10 @@ NaryMetaobjectOpExpr::NaryMetaobjectOpExpr(ASTContext &Ctx,
 
 NaryMetaobjectOpExpr *
 NaryMetaobjectOpExpr::Create(ASTContext &Ctx, NaryMetaobjectOp Oper,
-                             MetaobjectOpResult OpRes, bool inUnrefltype,
+                             MetaobjectOpResult OpRes,
                              unsigned arity, Expr **argExpr,
                              SourceLocation opLoc, SourceLocation endLoc) {
-  QualType resType =
-      getResultKindType(Ctx, Oper, OpRes, inUnrefltype, arity, argExpr);
+  QualType resType = getResultKindType(Ctx, Oper, OpRes, arity, argExpr);
 
   return new (Ctx) NaryMetaobjectOpExpr(Ctx, Oper, OpRes, resType,
                                         arity, argExpr, opLoc, endLoc);

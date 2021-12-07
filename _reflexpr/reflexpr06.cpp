@@ -5,8 +5,8 @@ struct mystruct {
   constexpr mystruct() noexcept = default;
   ~mystruct() noexcept = default;
   static void foo() {}
-  constexpr bool bar() { return false; }
-  int baz(int a, int b) const noexcept { return a + b; }
+  constexpr bool bar() const { return false; }
+  static int baz(int a, int b) noexcept { return a + b; }
   int operator+(int i) const noexcept { return 1+i; }
 };
 
@@ -34,7 +34,8 @@ int main() {
 
   mystruct x;
 
-  std::cout << (x.*get_pointer_v<mz>)(21, 21) << std::endl;
+  std::cout << (*get_pointer_v<mz>)(21, 21) << std::endl;
+  std::cout << (x.*get_pointer_v<mo>)(41) << std::endl;
 
   return 0;
 }

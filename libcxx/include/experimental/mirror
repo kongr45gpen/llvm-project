@@ -502,6 +502,12 @@ constexpr auto get_parameters(metaobject<_Mp>) {
   return metaobject<__metaobject_get_parameters(_Mp)>{};
 }
 
+template <__metaobject_id _Mp, typename = enable_if_t<
+  __metaobject_is_meta_lambda(_Mp)>>
+constexpr auto get_captures(metaobject<_Mp>) {
+  return metaobject<__metaobject_get_captures(_Mp)>{};
+}
+
 template <size_t _I, __metaobject_id _Mp, typename = enable_if_t<
   __metaobject_is_meta_object_sequence(_Mp)>>
 constexpr auto get_element(metaobject<_Mp>) {
@@ -544,9 +550,30 @@ select(metaobject<_Mp> mo, _Fp function, _Tp fallback, _Pp&&... param) {
                 std::forward<_Pp>(param)...);
 }
 
-
+// reflection "operator"
 #define mirror(...) \
   _VSTD_EXPERIMENTAL::mirror::metaobject<__reflexpr_id(__VA_ARGS__)>{}
+
+// higher-level utilities
+template <typename E>
+string_view enum_to_string(E e) {
+  return select(get_enumerators(mirror(E)),
+    [](auto& result, auto mo, auto e) {
+      if (get_constant(mo) == e) {
+        result = get_name(mo);
+      }
+    }, string_view{}, e);
+}
+
+template <typename E>
+E string_to_enum(string_view s) {
+  return select(get_enumerators(mirror(E)),
+    [](auto& result, auto mo, auto s) {
+      if (get_name(mo) == s) {
+        result = get_constant(mo);
+      }
+    }, E{}, s);
+}
 
 } // namespace mirror
 _LIBCPP_END_NAMESPACE_EXPERIMENTAL

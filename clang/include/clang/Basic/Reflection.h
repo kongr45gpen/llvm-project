@@ -138,6 +138,7 @@ namespace clang {
     MOSK_Operators,
     MOSK_BaseClasses,
     MOSK_Parameters,
+    MOSK_Captures,
     MOSK_All
   };
 
@@ -221,6 +222,7 @@ namespace clang {
     UMOO_GetOperators,
     UMOO_GetBaseClasses,
     UMOO_GetParameters,
+    UMOO_GetCaptures,
     UMOO_GetClass,
     UMOO_GetAccessSpecifier,
     UMOO_IsConstexpr,

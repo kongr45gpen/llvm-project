@@ -4911,6 +4911,7 @@ class ReflexprIdExpr : public Expr {
     const NamedDecl *ReflDecl;
     const TypeSourceInfo *TypeInfo;
     const CXXBaseSpecifier *BaseSpec;
+    const LambdaCapture *Capture;
   } Argument;
   SourceLocation OperatorLoc, RParenLoc;
 public:
@@ -4919,7 +4920,8 @@ public:
     REAK_Specifier,
     REAK_NamedDecl,
     REAK_TypeInfo,
-    REAK_BaseSpecifier
+    REAK_BaseSpecifier,
+    REAK_Capture
   };
 
   /// Construct an empty reflexpr expression.
@@ -4941,6 +4943,9 @@ public:
                  SourceLocation opLoc, SourceLocation endLoc);
 
   ReflexprIdExpr(QualType resultType, const CXXBaseSpecifier *baseSpec,
+                 SourceLocation opLoc, SourceLocation endLoc);
+
+  ReflexprIdExpr(QualType resultType, const LambdaCapture *capture,
                  SourceLocation opLoc, SourceLocation endLoc);
 
   ReflexprIdExpr(const ReflexprIdExpr &that);
@@ -4978,6 +4983,11 @@ public:
 
   static ReflexprIdExpr*
   getBaseSpecifierReflexprIdExpr(ASTContext &Ctx, const CXXBaseSpecifier *bSpec,
+                                 SourceLocation opLoc = SourceLocation(),
+                                 SourceLocation endLoc = SourceLocation());
+
+  static ReflexprIdExpr*
+  getLambdaCaptureReflexprIdExpr(ASTContext &Ctx, const LambdaCapture *capture,
                                  SourceLocation opLoc = SourceLocation(),
                                  SourceLocation endLoc = SourceLocation());
 
@@ -5142,6 +5152,20 @@ public:
     Argument.BaseSpec = bSpec;
   }
 
+  bool isArgumentLambdaCapture() const {
+    return getArgKind() == REAK_Capture;
+  }
+
+  const LambdaCapture *getArgumentLambdaCapture() const {
+    assert(isArgumentLambdaCapture());
+    return Argument.Capture;
+  };
+
+  void setArgumentLambdaCapture(const LambdaCapture *capture) {
+    assert(isArgumentLambdaCapture());
+    Argument.Capture = capture;
+  }
+
   bool isArgumentDependent() const;
 
   AccessSpecifier getArgumentAccess(ASTContext &Ctx) const;
@@ -5270,6 +5294,7 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static ReflexprIdExpr *opGetOperators(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetEnumerators(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetParameters(ASTContext &, ReflexprIdExpr*);
+  static ReflexprIdExpr *opGetCaptures(ASTContext &, ReflexprIdExpr*);
 
   static ReflexprIdExpr *opGetClass(ASTContext &, ReflexprIdExpr*);
 

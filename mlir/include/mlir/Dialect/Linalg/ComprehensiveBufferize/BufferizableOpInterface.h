@@ -30,6 +30,7 @@ namespace comprehensive_bufferize {
 static constexpr int64_t kBufferAlignments = 128;
 
 class BufferizationAliasInfo;
+class BufferizableOpInterface;
 struct BufferizationOptions;
 class BufferizationState;
 struct PostAnalysisStep;
@@ -70,7 +71,7 @@ struct PostAnalysisStep {
   /// Run the post analysis step. This function may modify the IR, but must keep
   /// `aliasInfo` (inside `state`) consistent. Newly created operations and
   /// operations that should be re-analyzed must be stored in `newOps`.
-  virtual LogicalResult run(FuncOp funcOp, BufferizationState &state,
+  virtual LogicalResult run(Operation *op, BufferizationState &state,
                             BufferizationAliasInfo &aliasInfo,
                             SmallVector<Operation *> &newOps) = 0;
 };
@@ -91,6 +92,33 @@ struct BufferizationOptions {
     postAnalysisSteps.emplace_back(
         std::make_unique<Step>(std::forward<Args>(args)...));
   }
+
+  /// Return `true` if the op is allowed to be bufferized.
+  bool isOpAllowed(Operation *op) const {
+    if (!dialectFilter.hasValue())
+      return true;
+    return dialectFilter->contains(op->getDialect()->getNamespace());
+  }
+
+  /// Allow-list the given dialects in the dialect filter. Only ops from
+  /// allow-listed dialects will be bufferized.
+  template <typename... DialectTs>
+  void addToDialectFilter() {
+    // The following expands a call to addToDialectFilterImpl for each dialect
+    // in 'DialectTs'. This magic is necessary due to a limitation in the places
+    // that a parameter pack can be expanded in c++11.
+    // FIXME: In c++17 this can be simplified by using 'fold expressions'.
+    (void)std::initializer_list<int>{
+        0, (addToDialectFilterImpl<DialectTs>(), 0)...};
+  }
+
+  /// Try to cast the given op to BufferizableOpInterface if the op is allow
+  /// listed.
+  BufferizableOpInterface dynCastBufferizableOp(Operation *op) const;
+
+  /// Try to cast the given value to BufferizableOpInterface if the op is allow
+  /// listed.
+  BufferizableOpInterface dynCastBufferizableOp(Value value) const;
 
   /// Helper functions for allocation, deallocation, memory copying.
   std::unique_ptr<AllocationCallbacks> allocationFns;
@@ -114,6 +142,25 @@ struct BufferizationOptions {
 
   /// Registered post analysis steps.
   PostAnalysisStepList postAnalysisSteps;
+
+  /// Only bufferize ops from dialects that are allowed-listed by the filter.
+  /// All other ops are ignored. This option controls the scope of partial
+  /// bufferization.
+  ///
+  /// Note: If no filter is specified, all ops are bufferized (as long as they
+  /// implement BufferizableOpInterface). If a filter is specified,
+  /// `allowUnknownOps` should be enabled. Otherwise, bufferization would fail
+  /// when encountering an op that is forbidden by the filter.
+  Optional<DenseSet<StringRef>> dialectFilter;
+
+private:
+  /// Allow-list a dialect in the dialect filter.
+  template <typename DialectT>
+  void addToDialectFilterImpl() {
+    if (!dialectFilter.hasValue())
+      dialectFilter.emplace();
+    dialectFilter->insert(DialectT::getDialectNamespace());
+  }
 };
 
 /// Specify fine-grain relationship between buffers to enable more analysis.
@@ -128,7 +175,8 @@ enum class BufferRelation {
 /// equivalence classes to support bufferization.
 class BufferizationAliasInfo {
 public:
-  explicit BufferizationAliasInfo(Operation *rootOp);
+  explicit BufferizationAliasInfo(Operation *rootOp,
+                                  const BufferizationOptions &options);
 
   // BufferizationAliasInfo should be passed as a reference.
   BufferizationAliasInfo(const BufferizationAliasInfo &) = delete;
@@ -265,7 +313,7 @@ bool isValueRead(Value value);
 /// starting the traversal from Value 1, the resulting SetVector is:
 /// { 2, 7, 8, 5 }
 llvm::SetVector<Value>
-findValueInReverseUseDefChain(Value value,
+findValueInReverseUseDefChain(Value value, const BufferizationOptions &options,
                               std::function<bool(Value)> condition);
 
 /// Find the Value of the last preceding write of a given Value.
@@ -276,7 +324,7 @@ findValueInReverseUseDefChain(Value value,
 ///
 /// Note: When reaching an end of the reverse SSA use-def chain, that value
 /// is returned regardless of whether it is a memory write or not.
-Value findLastPrecedingWrite(Value value);
+Value findLastPrecedingWrite(Value value, const BufferizationOptions &options);
 
 /// Dialect-specific bufferization state. Analysis/bufferization information
 /// that is specific to ops from a certain dialect can be stored in derived
@@ -299,9 +347,8 @@ struct DialectBufferizationState {
 ///   directly return a mapped buffer or allocate a new brand new buffer.
 class BufferizationState {
 public:
-  BufferizationState(ModuleOp moduleOp, const BufferizationOptions &options)
-      : aliasInfo(moduleOp), options(options),
-        builder(moduleOp->getContext()) {}
+  BufferizationState(Operation *op, const BufferizationOptions &options)
+      : aliasInfo(op, options), options(options), builder(op->getContext()) {}
 
   // BufferizationState should be passed as a reference.
   BufferizationState(const BufferizationState &) = delete;
@@ -365,7 +412,7 @@ public:
 
 private:
   friend LogicalResult
-  runComprehensiveBufferize(FuncOp funcOp, const BufferizationOptions &options,
+  runComprehensiveBufferize(Operation *op, const BufferizationOptions &options,
                             BufferizationState &state,
                             const PostAnalysisStepList &extraSteps);
 

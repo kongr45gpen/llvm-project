@@ -1842,7 +1842,7 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const NamedDecl *nDecl,
         setKind(MOK_Function);
     }
   } else if (isa<TypeDecl>(nDecl)) {
-    setKind(MOK_Type);
+    setKind(MOK_ScopedType);
   } else if (isa<FieldDecl>(nDecl)) {
     setKind(MOK_DataMember);
   } else if (const auto *VD = dyn_cast<VarDecl>(nDecl)) {
@@ -1902,7 +1902,7 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const TypeSourceInfo *TInfo,
   } else if (isa<EnumType>(RT)) {
     setKind(isAlias ? MOK_EnumAlias : MOK_Enum);
   } else {
-    setKind(isAlias ? MOK_TypeAlias : MOK_Type);
+    setKind(isAlias ? MOK_TypeAlias : MOK_ScopedType);
   }
   Argument.TypeInfo = TInfo;
   setSeqKind(MOSK_None);
@@ -2139,6 +2139,7 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
   case MOK_TemplateParameterScope:
     return "a template parameter scope";
   case MOK_Type:
+  case MOK_ScopedType:
     return "a type";
   case MOK_Enum:
     return "an enum";
@@ -2273,6 +2274,8 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_FunctionParameter;
   case MOK_NamedFunction:
     return MOC_NamedFunction;
+  case MOK_ScopedType:
+    return MOC_ScopedType;
   case MOK_DataMember:
     return MOC_DataMember;
   case MOK_MemberType:
@@ -2939,10 +2942,18 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetType(ASTContext &Ctx,
   assert(REE);
 
   if (const NamedDecl *ND = REE->findArgumentNamedDecl(Ctx)) {
+    if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
+      return ReflexprIdExpr::getTypeReflexprIdExpr(Ctx, FD->getReturnType(), true);
+    }
+    if (const auto *VD = dyn_cast<ValueDecl>(ND)) {
+      return ReflexprIdExpr::getTypeReflexprIdExpr(Ctx, VD->getType(), true);
+    }
     if (const auto *DD = dyn_cast<DeclaratorDecl>(ND)) {
-      TypeSourceInfo *TInfo = DD->getTypeSourceInfo();
-      return ReflexprIdExpr::getTypeReflexprIdExpr(Ctx, TInfo, true);
-    } else if (const DeclContext *scopeDC = ND->getDeclContext()) {
+      if (TypeSourceInfo *TInfo = DD->getTypeSourceInfo()) {
+        return ReflexprIdExpr::getTypeReflexprIdExpr(Ctx, TInfo, true);
+      }
+    }
+    if (const DeclContext *scopeDC = ND->getDeclContext()) {
       if (const auto *ED = dyn_cast<EnumDecl>(scopeDC)) {
         return ReflexprIdExpr::getNamedDeclReflexprIdExpr(Ctx, ED);
       }
@@ -3447,7 +3458,14 @@ static void applyOnMetaobjSeqElements(ASTContext &Ctx, Action &act,
         act(matches, DC->decls_begin(), DC->decls_end(), access);
       } else if (REE->getSeqKind() == MOSK_MemberFunctions) {
         auto matches = [](const Decl *d) -> bool {
-          return isa<CXXMethodDecl>(d);
+          if (const auto *CMF = dyn_cast<CXXMethodDecl>(d)) {
+            return !isa<CXXConstructorDecl>(CMF) &&
+                   !isa<CXXDestructorDecl>(CMF) &&
+                   !CMF->isMoveAssignmentOperator() &&
+                   !CMF->isCopyAssignmentOperator() &&
+                   !CMF->isOverloadedOperator();
+          }
+          return false;
         };
         act(matches, DC->decls_begin(), DC->decls_end(), access);
       } else if (REE->getSeqKind() == MOSK_Enumerators) {
@@ -3905,8 +3923,8 @@ bool NaryMetaobjectOpExpr::opReflectsSame(ASTContext &Ctx,
       if (ND1->getDeclContext()->getRedeclContext()->Equals(
               ND2->getDeclContext()->getRedeclContext())) {
         if (ND1->getKind() == ND2->getKind()) {
-          // [reflection-ts] FIXME
-          return true;
+          // [reflection-ts] FIXME: fully qualified name or something else?
+          return ND1->getName() == ND2->getName();
         }
       }
     }

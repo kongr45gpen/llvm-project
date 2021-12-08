@@ -14,16 +14,16 @@ int main() {
   using namespace std::experimental::reflect;
   using mm = reflexpr(mystruct);
   using mf = get_member_functions_t<mm>;
-  using mc = get_element_t<0, mf>;
-  using md = get_element_t<1, mf>;
-  using mz = get_element_t<4, mf>;
-  using mo = get_element_t<5, mf>;
+  using mc = get_element_t<0, get_constructors_t<mm>>;
+  using md = get_element_t<0, get_destructors_t<mm>>;
+  using mz = get_element_t<2, mf>;
+  using mo = get_element_t<0, get_operators_t<mm>>;
 
   static_assert(FunctionParameter<get_element_t<0, get_parameters_t<mz>>>);
 
   std::cout << get_size_v<mf> << std::endl;
-  std::cout << get_name_v<get_element_t<2, mf>> << std::endl;
-  std::cout << get_name_v<get_element_t<3, mf>> << std::endl;
+  std::cout << get_name_v<get_element_t<0, mf>> << std::endl;
+  std::cout << get_name_v<get_element_t<1, mf>> << std::endl;
   std::cout << get_name_v<mc> << std::endl;
   std::cout << get_name_v<md> << std::endl;
   std::cout << get_name_v<mz> << std::endl;

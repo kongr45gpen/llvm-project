@@ -334,6 +334,11 @@ consteval bool has_rvalueref_qualifier(metaobject<_Mp>) {
   return __metaobject_has_rvalueref_qualifier(_Mp);
 }
 
+template <__metaobject_id _Ml, __metaobject_id _Mr>
+consteval bool reflects_same(metaobject<_Ml>, metaobject<_Mr>) {
+  return __metaobject_reflects_same(_Ml, _Mr);
+}
+
 // integer
 template <__metaobject_id _Mp>
 consteval size_t get_id(metaobject<_Mp>) {
@@ -491,6 +496,24 @@ constexpr auto get_data_members(metaobject<_Mp>) {
 }
 
 template <__metaobject_id _Mp, typename = enable_if_t<
+  __metaobject_is_meta_record(_Mp)>>
+constexpr auto get_member_functions(metaobject<_Mp>) {
+  return metaobject<__metaobject_get_member_functions(_Mp)>{};
+}
+
+template <__metaobject_id _Mp, typename = enable_if_t<
+  __metaobject_is_meta_record(_Mp)>>
+constexpr auto get_constructors(metaobject<_Mp>) {
+  return metaobject<__metaobject_get_constructors(_Mp)>{};
+}
+
+template <__metaobject_id _Mp, typename = enable_if_t<
+  __metaobject_is_meta_record(_Mp)>>
+constexpr auto get_destructors(metaobject<_Mp>) {
+  return metaobject<__metaobject_get_destructors(_Mp)>{};
+}
+
+template <__metaobject_id _Mp, typename = enable_if_t<
   __metaobject_is_meta_enum(_Mp)>>
 constexpr auto get_enumerators(metaobject<_Mp>) {
   return metaobject<__metaobject_get_enumerators(_Mp)>{};
@@ -548,6 +571,15 @@ enable_if_t<__metaobject_is_meta_object_sequence(_Mp), _Tp>
 select(metaobject<_Mp> mo, _Fp function, _Tp fallback, _Pp&&... param) {
   return select(unpack(mo), std::move(function), std::move(fallback),
                 std::forward<_Pp>(param)...);
+}
+
+// type unreflection
+template <__metaobject_id _Mp>
+struct get_reflected_type : type_identity<__unrefltype(_Mp)> {};
+
+template <__metaobject_id _Mp>
+consteval auto get_reflected_type_id(metaobject<_Mp>) {
+  return get_reflected_type<_Mp>{};
 }
 
 // reflection "operator"

@@ -2171,6 +2171,8 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
     return "a lambda alias";
   case MOK_ClassAlias:
     return "a class alias";
+  case MOK_TemplateClass:
+    return "a template class";
   case MOK_TemplateTypeParameter:
   case MOK_TemplateEnumTypeParameter:
     return "a template type parameter";
@@ -2262,6 +2264,8 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_LambdaAlias;
   case MOK_ClassAlias:
     return MOC_ClassAlias;
+  case MOK_TemplateClass:
+    return MOC_TemplateClass;
   case MOK_TemplateTypeParameter:
     return MOC_TemplateTypeParameter;
   case MOK_TemplateEnumTypeParameter:
@@ -2685,6 +2689,9 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_GetParameters:
     return conceptIsA(MoC, MOC_Callable);
   case UMOO_GetCaptures:
+  case UMOO_UsesDefaultCopyCapture:
+  case UMOO_UsesDefaultReferenceCapture:
+  case UMOO_IsCallOperatorConst:
     return conceptIsA(MoC, MOC_Lambda);
   case UMOO_GetClass:
     return conceptIsA(MoC, MOC_Base);
@@ -3061,7 +3068,8 @@ bool UnaryMetaobjectOpExpr::opIsUnion(ASTContext &Ctx, ReflexprIdExpr *REE) {
   return false;
 }
 
-bool UnaryMetaobjectOpExpr::opUsesClassKey(ASTContext &Ctx, ReflexprIdExpr *REE) {
+bool UnaryMetaobjectOpExpr::opUsesClassKey(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
 
   if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
@@ -3071,12 +3079,50 @@ bool UnaryMetaobjectOpExpr::opUsesClassKey(ASTContext &Ctx, ReflexprIdExpr *REE)
   return false;
 }
 
-bool UnaryMetaobjectOpExpr::opUsesStructKey(ASTContext &Ctx, ReflexprIdExpr *REE) {
+bool UnaryMetaobjectOpExpr::opUsesStructKey(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
 
   if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
     if (const auto *TD = dyn_cast<TagDecl>(ND))
       return TD->getTagKind() == TTK_Struct;
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opUsesDefaultCopyCapture(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *RD = dyn_cast<CXXRecordDecl>(ND))
+      return RD->getLambdaCaptureDefault() == LCD_ByCopy;
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opUsesDefaultReferenceCapture(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *RD = dyn_cast<CXXRecordDecl>(ND))
+      return RD->getLambdaCaptureDefault() == LCD_ByRef;
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsCallOperatorConst(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *RD = dyn_cast<CXXRecordDecl>(ND))
+      if (RD->isLambda()) {
+        if (const auto *CMD = RD->getLambdaCallOperator()) {
+          return CMD->isConst();
+        }
+      }
   }
   return false;
 }

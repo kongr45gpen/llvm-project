@@ -85,7 +85,7 @@ std::string_view get_related_type_name(MT mt, MS ms) {
 
 template <typename MT>
 void print_type_rel_puml(std::ostream& out, MT mt) {
-  if constexpr(is_meta_record(mt)) {
+  if constexpr(reflects_record(mt)) {
     for_each(get_member_functions(mt), [&](auto mf){
         auto rel_name = get_related_type_name(get_type(mf), get_scope(mt));
         if (!rel_name.empty()) {
@@ -99,7 +99,7 @@ void print_type_rel_puml(std::ostream& out, MT mt) {
           });
       });
   }
-  if constexpr(is_meta_class(mt)) {
+  if constexpr(reflects_class(mt)) {
     for_each(get_base_classes(mt), [&](auto mb){
         out << get_name(get_class(mb)) << " <|- " << get_name(mt) << "\n";
       });

@@ -5276,6 +5276,9 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static bool opIsUnion(ASTContext &, ReflexprIdExpr*);
   static bool opUsesClassKey(ASTContext &, ReflexprIdExpr*);
   static bool opUsesStructKey(ASTContext &, ReflexprIdExpr*);
+  static bool opUsesDefaultCopyCapture(ASTContext &, ReflexprIdExpr*);
+  static bool opUsesDefaultReferenceCapture(ASTContext &, ReflexprIdExpr*);
+  static bool opIsCallOperatorConst(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetAccessSpecifier(ASTContext &, ReflexprIdExpr*);
   static bool opIsPublic(ASTContext &, ReflexprIdExpr*);
   static bool opIsProtected(ASTContext &, ReflexprIdExpr*);

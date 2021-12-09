@@ -392,30 +392,6 @@ constexpr const auto& get_value(metaobject<_Mp>) {
   return *_get_pointer<_Mp>::value;
 }
 
-template <__metaobject_id _Mp, typename ... _Ap, typename = enable_if_t<
-  __metaobject_is_meta_function(_Mp) ||
-  (__metaobject_is_meta_member_function(_Mp) && __metaobject_is_static(_Mp))>>
-constexpr auto invoke(metaobject<_Mp>, _Ap&&... args) {
-  return (*_get_pointer<_Mp>::value)(std::forward<_Ap>(args)...);
-}
-
-template <__metaobject_id _Mp, typename _Cp, typename ... _Ap,
-  typename = enable_if_t<
-    __metaobject_is_meta_member_function(_Mp) && !__metaobject_is_static(_Mp)>>
-constexpr auto invoke(metaobject<_Mp>, _Cp& obj, _Ap&&... args) {
-  return (obj.*_get_pointer<_Mp>::value)(std::forward<_Ap>(args)...);
-}
-
-template <__metaobject_id _Mp, typename _Cp, typename ... _Ap,
-  typename = enable_if_t<__metaobject_is_meta_member_function(_Mp)>>
-constexpr auto invoke_on(metaobject<_Mp> mo, _Cp& obj, _Ap&&... args) {
-  if constexpr(is_static(mo)) {
-    return (*_get_pointer<_Mp>::value)(std::forward<_Ap>(args)...);
-  } else {
-    return (obj.*_get_pointer<_Mp>::value)(std::forward<_Ap>(args)...);
-  }
-}
-
 template <__metaobject_id _Mp, class _Cp, typename = enable_if_t<
   __metaobject_is_meta_record_member(_Mp) &&
   __metaobject_is_meta_variable(_Mp)>>
@@ -446,6 +422,38 @@ template <__metaobject_id _Mp, typename = enable_if_t<
   __metaobject_is_meta_constant(_Mp)>>
 constexpr auto get_constant(metaobject<_Mp>) {
   return _get_constant<_Mp>::value;
+}
+
+template <__metaobject_id _Mp, typename _Cp, typename ... _Ap,
+  typename = enable_if_t<__metaobject_is_meta_member_function(_Mp)>>
+constexpr auto invoke_on(metaobject<_Mp> mo, _Cp& obj, _Ap&&... args) {
+  if constexpr(is_static(mo)) {
+    return (*_get_pointer<_Mp>::value)(std::forward<_Ap>(args)...);
+  } else {
+    return (obj.*_get_pointer<_Mp>::value)(std::forward<_Ap>(args)...);
+  }
+}
+
+template <__metaobject_id _Mp, typename ... _Ap, typename = enable_if_t<
+  __metaobject_is_meta_function(_Mp) ||
+  (__metaobject_is_meta_member_function(_Mp) && __metaobject_is_static(_Mp))>>
+constexpr auto invoke(metaobject<_Mp>, _Ap&&... args) {
+  return (*_get_pointer<_Mp>::value)(std::forward<_Ap>(args)...);
+}
+
+template <__metaobject_id _Mp, typename _Cp, typename ... _Ap,
+  typename = enable_if_t<
+    __metaobject_is_meta_member_function(_Mp) && !__metaobject_is_static(_Mp)>>
+constexpr auto invoke(metaobject<_Mp>, _Cp& obj, _Ap&&... args) {
+  return (obj.*_get_pointer<_Mp>::value)(std::forward<_Ap>(args)...);
+}
+
+template <__metaobject_id _Mp, typename ... _Ap>
+constexpr std::enable_if_t<
+  __metaobject_is_meta_constructor(_Mp),
+  __unrefltype(__metaobject_get_scope(_Mp))>
+invoke(metaobject<_Mp>, _Ap&&... args) {
+  return __unrefltype(__metaobject_get_scope(_Mp))(std::forward<_Ap>(args)...);
 }
 
 template <__metaobject_id _Mp, typename = enable_if_t<
@@ -635,6 +643,8 @@ consteval auto get_reflected_type_id(metaobject<_Mp>) {
   _VSTD_EXPERIMENTAL::mirror::metaobject<__reflexpr_id(__VA_ARGS__)>{}
 
 // higher-level utilities
+// enum-to-string / string-to-enum
+
 template <typename E>
 string_view enum_to_string(E e) {
   return select(get_enumerators(mirror(E)),

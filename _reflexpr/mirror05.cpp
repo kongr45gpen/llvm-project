@@ -1,28 +1,36 @@
 #include <experimental/mirror>
 #include <iostream>
 //------------------------------------------------------------------------------
-struct mystruct {
-  constexpr mystruct() noexcept = default;
-  ~mystruct() noexcept = default;
+class myclass {
+public:
+  constexpr myclass() noexcept = default;
+  myclass(int j) noexcept : _j{j} {}
+  ~myclass() noexcept = default;
+
   static void foo() {}
   constexpr bool bar() const { return false; }
   static int baz(int a, int b) noexcept { return a + b; }
-  int operator+(int i) const noexcept { return 1+i; }
+  int operator+(int i) const noexcept { return _j + i; }
+private:
+  int _j{0};
 };
 //------------------------------------------------------------------------------
 int main() {
-  const mystruct x;
-  const auto mms = mirror(mystruct);
-  std::cout << get_name(mms) << std::endl;
+  const myclass x;
+  const auto mmc = mirror(myclass);
+  std::cout << get_name(mmc) << std::endl;
 
-  invoke_on(get_element<0>(get_member_functions(mms)), x);
-  std::cout << invoke_on(get_element<1>(get_member_functions(mms)), x) << std::endl;
-  std::cout << invoke_on(get_element<2>(get_member_functions(mms)), x, 5, 5) << std::endl;
+  invoke_on(get_element<0>(get_member_functions(mmc)), x);
+  std::cout << invoke_on(get_element<1>(get_member_functions(mmc)), x) << std::endl;
+  std::cout << invoke_on(get_element<2>(get_member_functions(mmc)), x, 5, 5) << std::endl;
 
-  invoke(get_element<0>(get_member_functions(mms)));
-  std::cout << invoke(get_element<1>(get_member_functions(mms)), x) << std::endl;
-  std::cout << invoke(get_element<2>(get_member_functions(mms)), 21, 21) << std::endl;
-  std::cout << invoke(get_element<0>(get_operators(mms)), x, 6) << std::endl;
+  invoke(get_element<0>(get_member_functions(mmc)));
+  std::cout << invoke(get_element<1>(get_member_functions(mmc)), x) << std::endl;
+  std::cout << invoke(get_element<2>(get_member_functions(mmc)), 21, 21) << std::endl;
+
+  const auto y = invoke(get_element<1>(get_constructors(mmc)), 4);
+
+  std::cout << invoke(get_element<0>(get_operators(mmc)), y, 3) << std::endl;
 
   return 0;
 }

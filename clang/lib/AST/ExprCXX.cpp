@@ -2693,6 +2693,7 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_GetPublicMemberFunctions:
   case UMOO_GetConstructors:
   case UMOO_GetDestructors:
+  case UMOO_GetDestructor:
   case UMOO_GetOperators:
     return conceptIsA(MoC, MOC_Record);
   case UMOO_GetEnumerators:
@@ -2940,7 +2941,7 @@ uint64_t UnaryMetaobjectOpExpr::opDisplayNameLen(ASTContext &Ctx,
 
 
 ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetScope(ASTContext &Ctx,
-                                                ReflexprIdExpr *REE) {
+                                                  ReflexprIdExpr *REE) {
   assert(REE);
 
   if (const NamedDecl *ND = REE->findArgumentNamedDecl(Ctx)) {
@@ -3274,6 +3275,20 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetCaptures(
   assert(REE);
   REE = ReflexprIdExpr::getSeqReflexprIdExpr(Ctx, REE, MOSK_Captures);
   REE->setAccessibility(MOA_AllowPrivate);
+  return REE;
+}
+
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetDestructor(ASTContext &Ctx,
+                                                       ReflexprIdExpr *REE) {
+  assert(REE);
+
+  if (const NamedDecl *ND = REE->findArgumentNamedDecl(Ctx)) {
+    if (const auto *RD = dyn_cast<CXXRecordDecl>(ND)) {
+      return ReflexprIdExpr::getNamedDeclReflexprIdExpr(
+          Ctx, RD->getDestructor());
+    }
+  }
+
   return REE;
 }
 

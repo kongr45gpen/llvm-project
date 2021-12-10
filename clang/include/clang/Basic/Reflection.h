@@ -228,6 +228,7 @@ namespace clang {
     UMOO_GetPublicMemberFunctions,
     UMOO_GetConstructors,
     UMOO_GetDestructors,
+    UMOO_GetDestructor,
     UMOO_GetOperators,
     UMOO_GetBaseClasses,
     UMOO_GetParameters,

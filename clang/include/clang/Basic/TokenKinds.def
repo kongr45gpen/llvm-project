@@ -503,6 +503,7 @@ METAOBJECT_OBJ_OP_1(get_member_functions            , Metaobject , GetMemberFunc
 METAOBJECT_OBJ_OP_1(get_public_member_functions     , Metaobject , GetPublicMemberFunctions)
 METAOBJECT_OBJ_OP_1(get_constructors                , Metaobject , GetConstructors)
 METAOBJECT_OBJ_OP_1(get_destructors                 , Metaobject , GetDestructors)
+METAOBJECT_OBJ_OP_1(get_destructor                  , Metaobject , GetDestructor)
 METAOBJECT_OBJ_OP_1(get_operators                   , Metaobject , GetOperators)
 METAOBJECT_OBJ_OP_1(get_enumerators                 , Metaobject , GetEnumerators)
 METAOBJECT_OBJ_OP_1(get_parameters                  , Metaobject , GetParameters)

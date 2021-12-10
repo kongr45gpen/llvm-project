@@ -1902,7 +1902,18 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const TypeSourceInfo *TInfo,
   } else if (isa<EnumType>(RT)) {
     setKind(isAlias ? MOK_EnumAlias : MOK_Enum);
   } else {
-    setKind(isAlias ? MOK_TypeAlias : MOK_ScopedType);
+    if (isAlias) {
+      setKind(MOK_TypeAlias);
+    } else {
+      const bool isNotScoped =
+        RT->isPointerType() ||
+        RT->isReferenceType() ||
+        RT->isFunctionType();
+      if (isNotScoped)
+        setKind(MOK_Type);
+      else
+        setKind(MOK_ScopedType);
+    }
   }
   Argument.TypeInfo = TInfo;
   setSeqKind(MOSK_None);

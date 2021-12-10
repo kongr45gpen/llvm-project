@@ -82,6 +82,15 @@ consteval bool reflects_scope_member(metaobject<_Mp>) {
 }
 
 template <__metaobject_id _Mp>
+consteval bool reflects_global_scope_member(metaobject<_Mp>) {
+  if constexpr (__metaobject_is_meta_scope_member(_Mp)) {
+    return __metaobject_is_meta_global_scope(__metaobject_get_scope(_Mp));
+  } else {
+    return false;
+  }
+}
+
+template <__metaobject_id _Mp>
 consteval bool reflects_enumerator(metaobject<_Mp>) {
   return __metaobject_is_meta_enumerator(_Mp);
 }
@@ -99,6 +108,15 @@ consteval bool reflects_base(metaobject<_Mp>) {
 template <__metaobject_id _Mp>
 consteval bool reflects_namespace(metaobject<_Mp>) {
   return __metaobject_is_meta_namespace(_Mp);
+}
+
+template <__metaobject_id _Mp>
+consteval bool reflects_inline_namespace(metaobject<_Mp>) {
+  if constexpr (__metaobject_is_meta_namespace(_Mp)) {
+    return __metaobject_is_inline(_Mp);
+  } else {
+    return false;
+  }
 }
 
 template <__metaobject_id _Mp>
@@ -519,6 +537,15 @@ template <__metaobject_id _Mp, typename = enable_if_t<
   __metaobject_is_meta_alias(_Mp)>>
 constexpr auto get_aliased(metaobject<_Mp>) {
   return metaobject<__metaobject_get_aliased(_Mp)>{};
+}
+
+template <__metaobject_id _Mp>
+constexpr auto remove_all_aliases(metaobject<_Mp> mo) {
+  if constexpr (__metaobject_is_meta_alias(_Mp)) {
+    return remove_all_aliases(metaobject<__metaobject_get_aliased(_Mp)>{});
+  } else {
+    return mo;
+  }
 }
 
 template <__metaobject_id _Mp, typename = enable_if_t<

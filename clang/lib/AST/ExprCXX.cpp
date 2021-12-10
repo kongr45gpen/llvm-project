@@ -1749,7 +1749,7 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const NamedDecl *nDecl,
   if (isa<NamespaceAliasDecl>(nDecl)) {
     setKind(MOK_NamespaceAlias);
   } else if (isa<NamespaceDecl>(nDecl)) {
-    setKind(MOK_Namespace);
+    setKind(MOK_NamespaceScope);
   } else if (isa<EnumDecl>(nDecl)) {
     if (nDecl->isCXXClassMember()) {
       setKind(MOK_MemberEnum);
@@ -2143,7 +2143,7 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
     return "a base specifier";
   case MOK_GlobalScope:
     return "the global scope";
-  case MOK_Namespace:
+  case MOK_NamespaceScope:
     return "a namespace";
   case MOK_NamespaceAlias:
     return "a namespace alias";
@@ -2237,8 +2237,8 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_Base;
   case MOK_GlobalScope:
     return MOC_GlobalScope;
-  case MOK_Namespace:
-    return MOC_Namespace;
+  case MOK_NamespaceScope:
+    return MOC_NamespaceScope;
   case MOK_NamespaceAlias:
     return MOC_NamespaceAlias;
   case MOK_TemplateParameterScope:
@@ -3327,6 +3327,8 @@ bool UnaryMetaobjectOpExpr::opIsInline(ASTContext &Ctx, ReflexprIdExpr *REE) {
       return VD->isInline() || VD->isInlineSpecified();
     if (const auto *FD = dyn_cast<FunctionDecl>(ND))
       return FD->isInlineSpecified();
+    if (const auto *NSD = dyn_cast<NamespaceDecl>(ND))
+      return NSD->isInline();
   }
   return false;
 }

@@ -750,6 +750,14 @@ template <Record _Tp>
 using get_destructors_t = typename get_destructors<_Tp>::type;
 
 template <Record _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_destructor {
+  using type = __metaobject<__metaobject_get_destructor(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <Record _Tp>
+using get_destructor_t = typename get_destructor<_Tp>::type;
+
+template <Record _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_operators {
   using type = __metaobject<__metaobject_get_operators(__unwrap_metaobject_id_v<_Tp>)>;
 };

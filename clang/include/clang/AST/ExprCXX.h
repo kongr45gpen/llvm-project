@@ -5294,6 +5294,7 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static ReflexprIdExpr *opGetPublicMemberFunctions(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetConstructors(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetDestructors(ASTContext &, ReflexprIdExpr*);
+  static ReflexprIdExpr *opGetDestructor(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetOperators(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetEnumerators(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetParameters(ASTContext &, ReflexprIdExpr*);

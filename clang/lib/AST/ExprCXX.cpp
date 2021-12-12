@@ -2750,6 +2750,7 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
     return conceptIsA(MoC, MOC_Constant);
   case UMOO_HideProtected:
   case UMOO_HidePrivate:
+  case UMOO_IsEmpty:
   case UMOO_GetSize:
     return conceptIsA(MoC, MOC_ObjectSequence);
   }
@@ -3600,6 +3601,31 @@ struct matchingMetaobjSeqElementUtils {
     return true;
   }
 };
+
+struct hasMatchingMetaobjSeqElements : matchingMetaobjSeqElementUtils {
+  bool isEmpty{true};
+
+  template <typename Predicate, typename Iter>
+  void operator()(Predicate &matches, Iter i, Iter e,
+                  MetaobjectAccessibility access) {
+
+    while (i != e) {
+      if (isAccessible(*i, access) && matches(*i)) {
+          isEmpty = false;
+          break;
+      }
+      ++i;
+    }
+  }
+};
+
+bool UnaryMetaobjectOpExpr::opIsEmpty(ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  hasMatchingMetaobjSeqElements action;
+  applyOnMetaobjSeqElements(Ctx, action, REE);
+  return action.isEmpty;
+}
 
 struct countMatchingMetaobjSeqElements : matchingMetaobjSeqElementUtils {
   uint64_t count{0ULL};

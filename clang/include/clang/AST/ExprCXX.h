@@ -5321,6 +5321,7 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static ReflexprIdExpr *opHideProtected(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opHidePrivate(ASTContext &, ReflexprIdExpr*);
 
+  static bool opIsEmpty(ASTContext &, ReflexprIdExpr*);
   static uint64_t opGetSize(ASTContext &, ReflexprIdExpr*);
 
   static QualType getResultKindType(ASTContext &Ctx,

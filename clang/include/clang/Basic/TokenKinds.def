@@ -530,6 +530,7 @@ METAOBJECT_PTR_OP_1(get_pointer                     , Pointer    , GetPointer)
 METAOBJECT_INT_OP_1(get_constant                    , Constant   , GetConstant)
 METAOBJECT_OBJ_OP_1(hide_protected                  , Metaobject , HideProtected)
 METAOBJECT_OBJ_OP_1(hide_private                    , Metaobject , HidePrivate)
+METAOBJECT_INT_OP_1(is_empty                        , Bool       , IsEmpty)
 METAOBJECT_INT_OP_1(get_size                        , SizeT      , GetSize)
 
 METAOBJECT_OP_2(get_element          , Metaobject   , GetElement)

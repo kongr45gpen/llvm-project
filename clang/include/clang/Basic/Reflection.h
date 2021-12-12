@@ -256,6 +256,7 @@ namespace clang {
     UMOO_HidePrivate,
     UMOO_GetPointer,
     UMOO_GetConstant,
+    UMOO_IsEmpty,
     UMOO_GetSize
   };
 

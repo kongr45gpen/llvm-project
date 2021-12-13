@@ -4926,7 +4926,11 @@ public:
 
   /// Construct an empty reflexpr expression.
   explicit ReflexprIdExpr(EmptyShell Empty)
-    : Expr(ReflexprIdExprClass, Empty) {}
+      : Expr(MetaobjectIdExprClass, Empty) {}
+
+  ReflexprIdExpr(QualType resultType,
+                 SourceLocation opLoc,
+                 SourceLocation endLoc);
 
   ReflexprIdExpr(QualType resultType, MetaobjectKind kind,
                  SourceLocation opLoc,
@@ -4949,6 +4953,11 @@ public:
                  SourceLocation opLoc, SourceLocation endLoc);
 
   ReflexprIdExpr(const ReflexprIdExpr &that);
+
+  static ReflexprIdExpr*
+  getEmptyReflexprIdExpr(ASTContext &Ctx,
+                         SourceLocation opLoc = SourceLocation(),
+                         SourceLocation endLoc = SourceLocation());
 
   static ReflexprIdExpr*
   getGlobalScopeReflexprIdExpr(ASTContext &Ctx,
@@ -5058,6 +5067,14 @@ public:
   MetaobjectConcept getCategory() const;
   bool isConcept(MetaobjectConcept Cat) const {
     return (getCategory() & Cat) == Cat;
+  }
+
+  bool isArgumentEmpty() const {
+    if (getKind() == MOK_Nothing) {
+      assert(getArgKind() == REAK_Nothing);
+      return true;
+    }
+    return false;
   }
 
   bool isArgumentGlobalScope() const {

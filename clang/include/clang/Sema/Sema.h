@@ -5352,6 +5352,7 @@ public:
   // [reflection-ts]
   ExprResult OptionallyWrapReflexprExpr(bool idOnly, ExprResult E);
 
+  ExprResult GetReflexprNoExpr(SourceLocation opLoc, SourceLocation endLoc);
   ExprResult GetReflexprGlobalScopeExpr(SourceLocation opLoc, SourceLocation endLoc);
   ExprResult GetReflexprSpecExpr(tok::TokenKind SpecTok, SourceLocation opLoc,
                                  SourceLocation endLoc);
@@ -5363,6 +5364,8 @@ public:
   ExprResult GetReflexprTypeExpr(QualType Ty, bool removeSugar,
                                  SourceLocation opLoc, SourceLocation endLoc);
 
+  ExprResult ActOnReflexprNoExpr(bool idOnly, SourceLocation opLoc,
+                                 SourceRange argRange);
   ExprResult ActOnReflexprGlobalScopeExpr(bool idOnly, SourceLocation opLoc,
                                           SourceRange argRange);
   ExprResult ActOnReflexprSpecExpr(bool idOnly, tok::TokenKind SpecTok,

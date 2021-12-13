@@ -1707,6 +1707,21 @@ TypeTraitExpr *TypeTraitExpr::CreateDeserialized(const ASTContext &C,
 }
 
 // [reflection-ts]
+ReflexprIdExpr::ReflexprIdExpr(QualType resultType,
+                               SourceLocation OperatorLoc,
+                               SourceLocation RParenLoc)
+    : Expr(ReflexprIdExprClass, resultType, VK_PRValue, OK_Ordinary),
+      OperatorLoc(OperatorLoc),
+      RParenLoc(RParenLoc) {
+
+  setKind(MOK_Nothing);
+  setSeqKind(MOSK_None);
+  setArgKind(REAK_Nothing);
+  Argument.Nothing = nullptr;
+  setAccessibility(MOA_AllowPrivate);
+  setRemoveSugar(false);
+}
+
 ReflexprIdExpr::ReflexprIdExpr(QualType resultType, MetaobjectKind kind,
                                SourceLocation OperatorLoc,
                                SourceLocation RParenLoc)
@@ -1990,6 +2005,16 @@ ReflexprIdExpr::ReflexprIdExpr(const ReflexprIdExpr &that)
 }
 
 ReflexprIdExpr*
+ReflexprIdExpr::getEmptyReflexprIdExpr(ASTContext &Ctx,
+                                       SourceLocation opLoc,
+                                       SourceLocation endLoc) {
+  if (ReflexprIdExpr *E = Ctx.findEmptyReflexpr())
+    return E;
+  return Ctx.cacheEmptyReflexpr(new (Ctx) ReflexprIdExpr(
+        Ctx.MetaobjectIdTy, opLoc, endLoc));
+}
+
+ReflexprIdExpr*
 ReflexprIdExpr::getGlobalScopeReflexprIdExpr(ASTContext &Ctx,
                                              SourceLocation opLoc,
                                              SourceLocation endLoc) {
@@ -2222,6 +2247,7 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
   case MOK_ObjectSequence:
     return "a metaobject sequence";
   case MOK_Object:
+  case MOK_Nothing:
     break;
   }
   return StringRef();
@@ -2320,7 +2346,9 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
   case MOK_ObjectSequence:
     return MOC_ObjectSequence;
   case MOK_Object:
-    llvm_unreachable("Metaobject kind must be known at this point!");
+    return MOC_Object;
+  case MOK_Nothing:
+    return MOC_Nothing;
   }
   llvm_unreachable("Metaobject kind not implemented!");
 }
@@ -4001,6 +4029,9 @@ bool NaryMetaobjectOpExpr::opReflectsSame(ASTContext &Ctx,
                                           ReflexprIdExpr* REE1,
                                           ReflexprIdExpr* REE2) {
   if (REE1 == REE2)
+    return true;
+
+  if (REE1->isArgumentEmpty() && REE2->isArgumentEmpty())
     return true;
 
   if (REE1->isArgumentGlobalScope() && REE2->isArgumentGlobalScope())

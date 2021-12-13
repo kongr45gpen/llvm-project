@@ -20,6 +20,7 @@ namespace clang {
   // [reflection-ts] FIXME This needs to be fixed to match the TS wording
   // When updating this also update METAOBJECT_TRAIT in TokenKinds.def
   enum MetaobjectConcept  {
+    MOC_Nothing                     = 0,
     MOC_Object                      = (1UL <<  0U),
     MOC_ObjectSequence              = (1UL <<  1U) | MOC_Object,
     MOC_Named                       = (1UL <<  2U) | MOC_Object,
@@ -87,7 +88,8 @@ namespace clang {
 
   // When updating this also update ReflexprIdExprBitfields
   enum MetaobjectKind {
-    MOK_Object = 0,
+    MOK_Nothing = 0,
+    MOK_Object,
     MOK_ObjectSequence,
     MOK_Base,
     MOK_Specifier,

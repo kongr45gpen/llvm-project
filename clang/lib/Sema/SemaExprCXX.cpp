@@ -8906,12 +8906,25 @@ ExprResult Sema::OptionallyWrapReflexprExpr(bool idOnly, ExprResult E) {
   return E;
 }
 
+ExprResult Sema::GetReflexprNoExpr(SourceLocation opLoc,
+                                   SourceLocation endLoc) {
+  return ReflexprIdExpr::getEmptyReflexprIdExpr(Context, opLoc, endLoc);
+}
+
 ExprResult Sema::GetReflexprGlobalScopeExpr(SourceLocation opLoc,
                                             SourceLocation endLoc) {
   return ReflexprIdExpr::getGlobalScopeReflexprIdExpr(Context, opLoc, endLoc);
 }
 
-/// ActOnUnaryExprOrTypeTraitExpr - Handle reflexpr([::]) expression
+/// ActOnUnaryExprOrTypeTraitExpr - Handle reflexpr() expression
+ExprResult Sema::ActOnReflexprNoExpr(bool idOnly,
+                                     SourceLocation opLoc,
+                                     SourceRange argRange) {
+  return OptionallyWrapReflexprExpr(
+      idOnly, GetReflexprNoExpr(opLoc, argRange.getEnd()));
+}
+
+/// ActOnUnaryExprOrTypeTraitExpr - Handle reflexpr(::) expression
 ExprResult Sema::ActOnReflexprGlobalScopeExpr(bool idOnly,
                                               SourceLocation opLoc,
                                               SourceRange argRange) {

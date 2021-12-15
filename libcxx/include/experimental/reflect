@@ -368,6 +368,13 @@ struct _LIBCPP_TEMPLATE_VIS is_constexpr
 template <Object _Tp>
 inline constexpr auto is_constexpr_v = is_constexpr<_Tp>::value;
 
+template <Callable _Tp>
+struct _LIBCPP_TEMPLATE_VIS is_noexcept
+  : integral_constant<bool, __metaobject_is_noexcept(__unwrap_metaobject_id_v<_Tp>)> {};
+
+template <Object _Tp>
+inline constexpr auto is_noexcept_v = is_noexcept<_Tp>::value;
+
 template <Object _Tp>
 requires (Constructor<_Tp> || ConversionOperator<_Tp>)
 struct _LIBCPP_TEMPLATE_VIS is_explicit

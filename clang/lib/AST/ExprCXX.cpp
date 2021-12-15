@@ -1837,8 +1837,12 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const NamedDecl *nDecl,
       setKind(MOK_TemplateTypeParameter);
     }
   } else if (const auto *FD = dyn_cast<FunctionDecl>(nDecl)) {
-    if (isa<CXXConstructorDecl>(FD)) {
-      setKind(MOK_Constructor);
+    if (const auto *CCD = dyn_cast<CXXConstructorDecl>(FD)) {
+      if (CCD->isDefaultConstructor() ||
+          CCD->isCopyOrMoveConstructor()) 
+        setKind(MOK_SpecialConstructor);
+      else
+        setKind(MOK_Constructor);
     } else if (isa<CXXDestructorDecl>(FD)) {
       setKind(MOK_Destructor);
     } else if (isa<CXXConversionDecl>(FD)) {
@@ -2189,6 +2193,7 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
   case MOK_NamedFunction:
     return "a function";
   case MOK_Constructor:
+  case MOK_SpecialConstructor:
     return "a constructor";
   case MOK_Destructor:
     return "a destructor";
@@ -2283,6 +2288,8 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_Function;
   case MOK_Constructor:
     return MOC_Constructor;
+  case MOK_SpecialConstructor:
+    return MOC_SpecialConstructor;
   case MOK_Destructor:
     return MOC_Destructor;
   case MOK_Operator:
@@ -2744,6 +2751,8 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_IsConstexpr:
     return conceptIsA(MoC, MOC_Variable) ||
            conceptIsA(MoC, MOC_Callable);
+  case UMOO_IsNoexcept:
+    return conceptIsA(MoC, MOC_Callable);
   case UMOO_IsExplicit:
     return conceptIsA(MoC, MOC_Constructor) ||
            conceptIsA(MoC, MOC_ConversionOperator);
@@ -2771,6 +2780,12 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_IsImplicitlyDeclared:
   case UMOO_IsDefaulted:
     return conceptIsA(MoC, MOC_SpecialMemberFunction);
+  case UMOO_IsCopyConstructor:
+  case UMOO_IsMoveConstructor:
+    return conceptIsA(MoC, MOC_Constructor);
+  case UMOO_IsCopyAssignmentOperator:
+  case UMOO_IsMoveAssignmentOperator:
+    return conceptIsA(MoC, MOC_Operator);
   case UMOO_GetPointer:
     return conceptIsA(MoC, MOC_Variable) ||
            conceptIsA(MoC, MOC_Function);
@@ -3351,6 +3366,18 @@ bool UnaryMetaobjectOpExpr::opIsConstexpr(ASTContext &Ctx, ReflexprIdExpr *REE) 
   return false;
 }
 
+bool UnaryMetaobjectOpExpr::opIsNoexcept(ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
+      const auto EST = FD->getExceptionSpecType();
+      return EST == EST_BasicNoexcept || EST == EST_NoexceptTrue;
+    }
+  }
+  return false;
+}
+
 bool UnaryMetaobjectOpExpr::opIsExplicit(ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
 
@@ -3497,7 +3524,55 @@ bool UnaryMetaobjectOpExpr::opIsDefaulted(
 
   if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
     if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
-      return !FD->isDefaulted();
+      return FD->isDefaulted();
+    }
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsCopyConstructor(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *CCD = dyn_cast<CXXConstructorDecl>(ND)) {
+      return CCD->isCopyConstructor();
+    }
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsMoveConstructor(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *CCD = dyn_cast<CXXConstructorDecl>(ND)) {
+      return CCD->isMoveConstructor();
+    }
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsCopyAssignmentOperator(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *CMD = dyn_cast<CXXMethodDecl>(ND)) {
+      return CMD->isCopyAssignmentOperator();
+    }
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsMoveAssignmentOperator(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *CMD = dyn_cast<CXXMethodDecl>(ND)) {
+      return CMD->isMoveAssignmentOperator();
     }
   }
   return false;

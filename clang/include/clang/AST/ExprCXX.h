@@ -5322,6 +5322,7 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static bool opIsScopedEnum(ASTContext &, ReflexprIdExpr*);
 
   static bool opIsConstexpr(ASTContext &, ReflexprIdExpr*);
+  static bool opIsNoexcept(ASTContext &, ReflexprIdExpr*);
   static bool opIsExplicit(ASTContext &, ReflexprIdExpr*);
   static bool opIsInline(ASTContext &, ReflexprIdExpr*);
   static bool opIsStatic(ASTContext &, ReflexprIdExpr*);
@@ -5334,6 +5335,10 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static bool opHasRValueRefQualifier(ASTContext &, ReflexprIdExpr*);
   static bool opIsImplicitlyDeclared(ASTContext &, ReflexprIdExpr*);
   static bool opIsDefaulted(ASTContext &, ReflexprIdExpr*);
+  static bool opIsCopyConstructor(ASTContext &, ReflexprIdExpr*);
+  static bool opIsMoveConstructor(ASTContext &, ReflexprIdExpr*);
+  static bool opIsCopyAssignmentOperator(ASTContext &, ReflexprIdExpr*);
+  static bool opIsMoveAssignmentOperator(ASTContext &, ReflexprIdExpr*);
 
   static ReflexprIdExpr *opHideProtected(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opHidePrivate(ASTContext &, ReflexprIdExpr*);

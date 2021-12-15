@@ -2423,6 +2423,12 @@ const ValueDecl *ReflexprIdExpr::findArgumentValueDecl(ASTContext &Ctx) const {
   return dyn_cast<ValueDecl>(findArgumentNamedDecl(Ctx, false));
 }
 
+const LambdaCapture *ReflexprIdExpr::findArgumentLambdaCapture(ASTContext &) const {
+  if (isArgumentLambdaCapture())
+    return getArgumentLambdaCapture();
+  return nullptr;
+}
+
 bool ReflexprIdExpr::reflectsType() const {
   if (isArgumentType())
     return true;
@@ -2740,6 +2746,8 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_UsesDefaultReferenceCapture:
   case UMOO_IsCallOperatorConst:
     return conceptIsA(MoC, MOC_Lambda);
+  case UMOO_IsExplicitlyCaptured:
+    return conceptIsA(MoC, MOC_LambdaCapture);
   case UMOO_GetClass:
     return conceptIsA(MoC, MOC_Base);
   case UMOO_GetAccessSpecifier:
@@ -2752,6 +2760,7 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
     return conceptIsA(MoC, MOC_Variable) ||
            conceptIsA(MoC, MOC_Callable);
   case UMOO_IsNoexcept:
+  case UMOO_IsDeleted:
     return conceptIsA(MoC, MOC_Callable);
   case UMOO_IsExplicit:
     return conceptIsA(MoC, MOC_Constructor) ||
@@ -2759,6 +2768,8 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_IsInline:
     return conceptIsA(MoC, MOC_Namespace) ||
            conceptIsA(MoC, MOC_Callable);
+  case UMOO_IsThreadLocal:
+    return conceptIsA(MoC, MOC_Variable);
   case UMOO_IsStatic:
     return conceptIsA(MoC, MOC_Variable) ||
            conceptIsA(MoC, MOC_MemberFunction);
@@ -3183,6 +3194,16 @@ bool UnaryMetaobjectOpExpr::opIsCallOperatorConst(
   return false;
 }
 
+bool UnaryMetaobjectOpExpr::opIsExplicitlyCaptured(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  if (const auto *LC = REE->findArgumentLambdaCapture(Ctx)) {
+    return LC->isExplicit();
+  }
+  return false;
+}
+
 ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetAccessSpecifier(ASTContext &Ctx,
                                                             ReflexprIdExpr *REE) {
   assert(REE);
@@ -3404,6 +3425,16 @@ bool UnaryMetaobjectOpExpr::opIsInline(ASTContext &Ctx, ReflexprIdExpr *REE) {
   return false;
 }
 
+bool UnaryMetaobjectOpExpr::opIsThreadLocal(ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *VD = dyn_cast<VarDecl>(ND))
+      return VD->getTLSKind() != VarDecl::TLS_None;
+  }
+  return false;
+}
+
 bool UnaryMetaobjectOpExpr::opIsStatic(ASTContext &Ctx, ReflexprIdExpr *REE) {
   assert(REE);
 
@@ -3525,6 +3556,18 @@ bool UnaryMetaobjectOpExpr::opIsDefaulted(
   if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
     if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
       return FD->isDefaulted();
+    }
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opIsDeleted(
+    ASTContext &Ctx, ReflexprIdExpr* REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
+      return FD->isDeleted();
     }
   }
   return false;

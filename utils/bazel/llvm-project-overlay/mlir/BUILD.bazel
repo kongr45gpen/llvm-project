@@ -6393,6 +6393,7 @@ cc_library(
     includes = ["include"],
     deps = [
         ":BufferizableOpInterface",
+        ":BufferizationDialect",
         ":IR",
         ":LinalgOps",
         ":LinalgStructuredOpsIncGen",
@@ -6413,6 +6414,7 @@ cc_library(
     includes = ["include"],
     deps = [
         ":BufferizableOpInterface",
+        ":BufferizationDialect",
         ":IR",
         ":SCFDialect",
         ":Support",

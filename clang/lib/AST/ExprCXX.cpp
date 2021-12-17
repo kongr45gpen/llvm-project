@@ -2748,6 +2748,8 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
     return conceptIsA(MoC, MOC_Lambda);
   case UMOO_IsExplicitlyCaptured:
     return conceptIsA(MoC, MOC_LambdaCapture);
+  case UMOO_HasDefaultArgument:
+    return conceptIsA(MoC, MOC_FunctionParameter);
   case UMOO_GetClass:
     return conceptIsA(MoC, MOC_Base);
   case UMOO_GetAccessSpecifier:
@@ -3200,6 +3202,17 @@ bool UnaryMetaobjectOpExpr::opIsExplicitlyCaptured(
 
   if (const auto *LC = REE->findArgumentLambdaCapture(Ctx)) {
     return LC->isExplicit();
+  }
+  return false;
+}
+
+bool UnaryMetaobjectOpExpr::opHasDefaultArgument(
+    ASTContext &Ctx, ReflexprIdExpr *REE) {
+  assert(REE);
+
+  if (const auto *ND = REE->findArgumentNamedDecl(Ctx, true)) {
+    if (const auto *PVD = dyn_cast<ParmVarDecl>(ND))
+      return PVD->hasDefaultArg();
   }
   return false;
 }

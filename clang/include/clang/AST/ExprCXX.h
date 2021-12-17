@@ -5298,6 +5298,7 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static bool opUsesDefaultReferenceCapture(ASTContext &, ReflexprIdExpr*);
   static bool opIsCallOperatorConst(ASTContext &, ReflexprIdExpr*);
   static bool opIsExplicitlyCaptured(ASTContext &, ReflexprIdExpr*);
+  static bool opHasDefaultArgument(ASTContext &, ReflexprIdExpr*);
   static bool opIsPublic(ASTContext &, ReflexprIdExpr*);
   static bool opIsProtected(ASTContext &, ReflexprIdExpr*);
   static bool opIsPrivate(ASTContext &, ReflexprIdExpr*);

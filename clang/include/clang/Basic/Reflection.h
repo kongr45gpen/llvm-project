@@ -224,6 +224,7 @@ namespace clang {
     UMOO_UsesDefaultReferenceCapture,
     UMOO_IsCallOperatorConst,
     UMOO_IsExplicitlyCaptured,
+    UMOO_HasDefaultArgument,
     UMOO_GetEnumerators,
     UMOO_GetPublicBaseClasses,
     UMOO_GetMemberTypes,

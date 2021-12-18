@@ -4185,11 +4185,7 @@ bool NaryMetaobjectOpExpr::opReflectsSame(ASTContext &Ctx,
       if (declaresSameEntity(
         cast<Decl>(ND1->getDeclContext()->getRedeclContext()),
         cast<Decl>(ND2->getDeclContext()->getRedeclContext()))) {
-        if (ND1->getKind() == ND2->getKind()) {
-          // [reflection-ts] FIXME: this will not work
-          // for overloaded functions, etc.
-          return ND1->getName() == ND2->getName();
-        }
+          return declaresSameEntity(ND1, ND2);
       }
     }
   }

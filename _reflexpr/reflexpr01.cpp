@@ -44,6 +44,7 @@ auto main() -> int {
   using mm = reflexpr(mystruct);
   using my = reflexpr(y);
   using mz = reflexpr(z);
+  using mp = reflexpr((bar(1)));
 
   static_assert(!Object<me>);
   static_assert(Object<mi>);
@@ -56,6 +57,7 @@ auto main() -> int {
   static_assert(Record<mm>);
   static_assert(Namespace<ms>);
   static_assert(GlobalScope<mg>);
+  static_assert(ParenthesizedExpression<mp>);
   static_assert(GlobalScope<get_scope_t<ms>>);
   static_assert(ObjectSequence<get_enumerators_t<mw>>);
   static_assert(ObjectSequence<get_data_members_t<mm>>);

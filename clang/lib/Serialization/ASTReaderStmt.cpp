@@ -796,6 +796,9 @@ void ASTStmtReader::VisitReflexprIdExpr(ReflexprIdExpr *E) {
     case ReflexprIdExpr::REAK_Capture:
       // [reflection-ts] FIXME
       break;
+    case ReflexprIdExpr::REAK_Expression:
+      E->setArgumentExpression(Record.readExpr());
+      break;
   }
   E->setAccessibility(MetaobjectAccessibility(Record.readInt()));
   E->setRemoveSugar(Record.readInt());

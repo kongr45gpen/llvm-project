@@ -5359,6 +5359,8 @@ public:
   ExprResult GetReflexprNamedDeclExpr(const NamedDecl *nDecl,
                                       SourceLocation opLoc,
                                       SourceLocation endLoc);
+  ExprResult GetReflexprExprExpr(Expr *expr, bool removeSugar,
+                                 SourceLocation opLoc, SourceLocation endLoc);
   ExprResult GetReflexprTypeExpr(const TypeSourceInfo *TInfo, bool removeSugar,
                                  SourceLocation opLoc, SourceLocation endLoc);
   ExprResult GetReflexprTypeExpr(QualType Ty, bool removeSugar,
@@ -5370,6 +5372,8 @@ public:
                                           SourceRange argRange);
   ExprResult ActOnReflexprSpecExpr(bool idOnly, tok::TokenKind SpecTok,
                                    SourceLocation opLoc, SourceRange argRange);
+  ExprResult ActOnReflexprExprExpr(bool idOnly, Expr *expr,
+                                   SourceLocation opLoc, SourceLocation endLoc);
   ExprResult ActOnReflexprScopedExpr(bool idOnly, Scope *S, CXXScopeSpec &SS,
                                      const IdentifierInfo &Ident,
                                      SourceLocation opLoc,

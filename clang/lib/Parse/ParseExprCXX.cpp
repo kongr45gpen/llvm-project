@@ -3869,6 +3869,31 @@ ExprResult Parser::ParseReflexprExpression(bool idOnly) {
     }
     // [reflection-ts] FIXME
   }
+  if (Tok.is(tok::l_paren)) {
+    EnterExpressionEvaluationContext Unevaluated(
+        Actions, Sema::ExpressionEvaluationContext::Unevaluated,
+        Sema::ReuseLambdaContextDecl);
+
+    TentativeParsingAction tpa(*this);
+
+    ParenParseOption ExprType = CastExpr;
+    ParsedType CastTy;
+    SourceLocation RParenLoc;
+    ExprResult Res = ParseParenExpression(ExprType, false/*stopIfCastExr*/,
+                                          false, CastTy, RParenLoc);
+    if (!Res.isInvalid()) {
+      if (Tok.is(tok::r_paren)) {
+        Parens.consumeClose();
+        Res = Actions.ActOnReflexprExprExpr(
+            idOnly, Res.get(), OpTok.getLocation(), RParenLoc);
+        if (!Res.isInvalid()) {
+          tpa.Commit();
+          return Res;
+        }
+      }
+    }    
+    tpa.Revert();
+  }
   Diag(Tok.getLocation(), diag::err_invalid_argument_for_reflexpr)
       << Tok.getName();
 

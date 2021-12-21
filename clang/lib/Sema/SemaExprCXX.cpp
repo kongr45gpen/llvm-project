@@ -8975,11 +8975,25 @@ ExprResult Sema::ActOnReflexprScopedExpr(bool idOnly, Scope *S,
   return ExprError();
 }
 
+ExprResult Sema::ActOnReflexprExprExpr(bool idOnly, Expr *expr,
+                                       SourceLocation opLoc,
+                                       SourceLocation endLoc) {
+  return ReflexprIdExpr::getExpressionReflexprIdExpr(Context, expr,
+                                                     opLoc, endLoc);
+}
+
 ExprResult Sema::GetReflexprTypeExpr(const TypeSourceInfo *TInfo,
                                      bool removeSugar, SourceLocation opLoc,
                                      SourceLocation endLoc) {
   return ReflexprIdExpr::getTypeReflexprIdExpr(Context, TInfo, removeSugar,
                                                opLoc, endLoc);
+}
+
+ExprResult Sema::GetReflexprExprExpr(Expr *expression,
+                                     bool removeSugar, SourceLocation opLoc,
+                                     SourceLocation endLoc) {
+  return ReflexprIdExpr::getExpressionReflexprIdExpr(Context, expression,
+                                                     opLoc, endLoc);
 }
 
 ExprResult Sema::GetReflexprTypeExpr(QualType Ty, bool removeSugar,

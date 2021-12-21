@@ -4912,6 +4912,7 @@ class ReflexprIdExpr : public Expr {
     const TypeSourceInfo *TypeInfo;
     const CXXBaseSpecifier *BaseSpec;
     const LambdaCapture *Capture;
+    Stmt* Expression;
   } Argument;
   SourceLocation OperatorLoc, RParenLoc;
 public:
@@ -4921,7 +4922,8 @@ public:
     REAK_NamedDecl,
     REAK_TypeInfo,
     REAK_BaseSpecifier,
-    REAK_Capture
+    REAK_Capture,
+    REAK_Expression
   };
 
   /// Construct an empty reflexpr expression.
@@ -4950,6 +4952,9 @@ public:
                  SourceLocation opLoc, SourceLocation endLoc);
 
   ReflexprIdExpr(QualType resultType, const LambdaCapture *capture,
+                 SourceLocation opLoc, SourceLocation endLoc);
+
+  ReflexprIdExpr(QualType resultType, Expr *expression,
                  SourceLocation opLoc, SourceLocation endLoc);
 
   ReflexprIdExpr(const ReflexprIdExpr &that);
@@ -4999,6 +5004,11 @@ public:
   getLambdaCaptureReflexprIdExpr(ASTContext &Ctx, const LambdaCapture *capture,
                                  SourceLocation opLoc = SourceLocation(),
                                  SourceLocation endLoc = SourceLocation());
+
+  static ReflexprIdExpr*
+  getExpressionReflexprIdExpr(ASTContext &Ctx, Expr *expression,
+                              SourceLocation opLoc = SourceLocation(),
+                              SourceLocation endLoc = SourceLocation());
 
   static ReflexprIdExpr*
   getSeqReflexprIdExpr(ASTContext &Ctx, ReflexprIdExpr *that,
@@ -5182,6 +5192,20 @@ public:
   void setArgumentLambdaCapture(const LambdaCapture *capture) {
     assert(isArgumentLambdaCapture());
     Argument.Capture = capture;
+  }
+
+  bool isArgumentExpression() const {
+    return getArgKind() == REAK_Expression;
+  }
+
+  Expr *getArgumentExpression() const {
+    assert(isArgumentExpression());
+    return static_cast<Expr *>(Argument.Expression);
+  };
+
+  void setArgumentExpression(Expr *expression) {
+    assert(isArgumentExpression());
+    Argument.Expression = expression;
   }
 
   bool isArgumentDependent() const;

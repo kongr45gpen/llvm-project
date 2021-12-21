@@ -1748,7 +1748,7 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, tok::TokenKind specTok,
   setKind(MOK_Specifier);
   setSeqKind(MOSK_None);
   setArgKind(REAK_Specifier);
-  Argument.SpecTok = specTok;
+  setArgumentSpecifierKind(specTok);
   setAccessibility(MOA_AllowPrivate);
   setRemoveSugar(false);
   setDependence(computeDependence(this));
@@ -1883,7 +1883,7 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const NamedDecl *nDecl,
   }
   setSeqKind(MOSK_None);
   setArgKind(REAK_NamedDecl);
-  Argument.ReflDecl = nDecl;
+  setArgumentNamedDecl(nDecl);
   setAccessibility(MOA_AllowPrivate);
   setRemoveSugar(false);
   setDependence(computeDependence(this));
@@ -1934,9 +1934,9 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const TypeSourceInfo *TInfo,
         setKind(MOK_ScopedType);
     }
   }
-  Argument.TypeInfo = TInfo;
   setSeqKind(MOSK_None);
   setArgKind(REAK_TypeInfo);
+  setArgumentTypeInfo(TInfo);
   setAccessibility(MOA_AllowPrivate);
   setRemoveSugar(removeSugar);
   setDependence(computeDependence(this));
@@ -1953,7 +1953,7 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType,
   setKind(MOK_Base);
   setSeqKind(MOSK_None);
   setArgKind(REAK_BaseSpecifier);
-  Argument.BaseSpec = baseSpec;
+  setArgumentBaseSpecifier(baseSpec);
   setAccessibility(MOA_AllowPrivate);
   setRemoveSugar(false);
   setDependence(computeDependence(this));
@@ -1970,7 +1970,29 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType,
   setKind(MOK_LambdaCapture);
   setSeqKind(MOSK_None);
   setArgKind(REAK_Capture);
-  Argument.Capture = capture;
+  setArgumentLambdaCapture(capture);
+  setAccessibility(MOA_AllowPrivate);
+  setRemoveSugar(false);
+  setDependence(computeDependence(this));
+}
+
+ReflexprIdExpr::ReflexprIdExpr(QualType resultType,
+                               Expr *expression,
+                               SourceLocation OperatorLoc,
+                               SourceLocation RParenLoc)
+    : Expr(ReflexprIdExprClass, resultType, VK_PRValue, OK_Ordinary),
+      OperatorLoc(OperatorLoc),
+      RParenLoc(RParenLoc) {
+  if (isa<ParenExpr>(expression)) {
+    setKind(MOK_ParenthesizedExpression);
+  } else if (isa<CallExpr>(expression)) {
+    setKind(MOK_FunctionCallExpression);
+  } else {
+    setKind(MOK_Expression);
+  }
+  setSeqKind(MOSK_None);
+  setArgKind(REAK_Expression);
+  setArgumentExpression(expression);
   setAccessibility(MOA_AllowPrivate);
   setRemoveSugar(false);
   setDependence(computeDependence(this));
@@ -2002,6 +2024,9 @@ ReflexprIdExpr::ReflexprIdExpr(const ReflexprIdExpr &that)
     break;
   case REAK_Capture:
     Argument.Capture = that.Argument.Capture;
+    break;
+  case REAK_Expression:
+    Argument.Expression = that.Argument.Expression;
     break;
   }
   setAccessibility(that.getAccessibility());
@@ -2102,6 +2127,17 @@ ReflexprIdExpr::getLambdaCaptureReflexprIdExpr(ASTContext &Ctx,
   // [reflection-ts] FIXME cache?
   return new (Ctx)
       ReflexprIdExpr(Ctx.MetaobjectIdTy, capture, opLoc, endLoc);
+}
+
+
+ReflexprIdExpr*
+ReflexprIdExpr::getExpressionReflexprIdExpr(ASTContext &Ctx,
+                                            Expr *expression,
+                                            SourceLocation opLoc,
+                                            SourceLocation endLoc) {
+  // [reflection-ts] FIXME cache?
+  return new (Ctx)
+      ReflexprIdExpr(Ctx.MetaobjectIdTy, expression, opLoc, endLoc);
 }
 
 ReflexprIdExpr *ReflexprIdExpr::getSeqReflexprIdExpr(ASTContext &Ctx,
@@ -2249,6 +2285,14 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
     return "a member function";
   case MOK_Enumerator:
     return "a enumerator";
+  case MOK_ParenthesizedExpression:
+    return "a parenthesized expression";
+  case MOK_FunctionCallExpression:
+    return "a function call expression";
+  case MOK_FunctionalTypeConversion:
+    return "a functional type conversion";
+  case MOK_Expression:
+    return "an expression";
   case MOK_ObjectSequence:
     return "a metaobject sequence";
   case MOK_Object:
@@ -2350,6 +2394,14 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_MemberFunction;
   case MOK_Enumerator:
     return MOC_Enumerator;
+  case MOK_ParenthesizedExpression:
+    return MOC_ParenthesizedExpression;
+  case MOK_FunctionCallExpression:
+    return MOC_FunctionCallExpression;
+  case MOK_FunctionalTypeConversion:
+    return MOC_FunctionalTypeConversion;
+  case MOK_Expression:
+    return MOC_Expression;
   case MOK_ObjectSequence:
     return MOC_ObjectSequence;
   case MOK_Object:
@@ -2475,6 +2527,10 @@ AccessSpecifier ReflexprIdExpr::getArgumentAccess(ASTContext &Ctx) const {
 }
 
 Stmt::child_range ReflexprIdExpr::children() {
+  if (isArgumentExpression()) {
+    return child_range(child_iterator(&Argument.Expression + 0),
+                       child_iterator(&Argument.Expression + 1));
+  }
   // [reflection-ts] FIXME
   return child_range(child_iterator(), child_iterator());
 }
@@ -2499,8 +2555,7 @@ ReflexprIdExpr *MetaobjectIdExpr::asReflexprIdExpr(ASTContext &Context) const {
 
 Stmt::child_range MetaobjectIdExpr::children() {
   // [reflection-ts] FIXME
-  return child_range(child_iterator(),
-                     child_iterator());
+  return child_range(child_iterator(), child_iterator());
 }
 
 // MetaobjectOpExprBase

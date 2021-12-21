@@ -802,6 +802,9 @@ void ASTStmtWriter::VisitReflexprIdExpr(ReflexprIdExpr *E) {
     case ReflexprIdExpr::REAK_Capture:
       // [reflection-ts] FIXME
       break;
+    case ReflexprIdExpr::REAK_Expression:
+      Record.AddStmt(E->getArgumentExpression());
+      break;
   }
   Record.push_back(E->getAccessibility());
   Record.push_back(E->getRemoveSugar());

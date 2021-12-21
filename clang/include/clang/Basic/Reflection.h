@@ -135,7 +135,11 @@ namespace clang {
     MOK_MemberFunction,
     MOK_SpecialConstructor,
     MOK_MemberOperator,
-    MOK_Enumerator
+    MOK_Enumerator,
+    MOK_ParenthesizedExpression,
+    MOK_FunctionCallExpression,
+    MOK_FunctionalTypeConversion,
+    MOK_Expression
   };
 
   enum MetaobjectSequenceKind {

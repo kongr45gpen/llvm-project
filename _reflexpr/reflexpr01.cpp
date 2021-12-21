@@ -58,6 +58,8 @@ auto main() -> int {
   static_assert(Namespace<ms>);
   static_assert(GlobalScope<mg>);
   static_assert(ParenthesizedExpression<mp>);
+  static_assert(FunctionCallExpression<get_subexpression_t<mp>>);
+  static_assert(Callable<get_callable_t<get_subexpression_t<mp>>>);
   static_assert(GlobalScope<get_scope_t<ms>>);
   static_assert(ObjectSequence<get_enumerators_t<mw>>);
   static_assert(ObjectSequence<get_data_members_t<mm>>);

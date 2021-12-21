@@ -535,6 +535,8 @@ METAOBJECT_OBJ_OP_1(get_enumerators                 , Metaobject , GetEnumerator
 METAOBJECT_OBJ_OP_1(get_parameters                  , Metaobject , GetParameters)
 METAOBJECT_OBJ_OP_1(get_captures                    , Metaobject , GetCaptures)
 METAOBJECT_OBJ_OP_1(get_class                       , Metaobject , GetClass)
+METAOBJECT_OBJ_OP_1(get_subexpression               , Metaobject , GetSubExpression)
+METAOBJECT_OBJ_OP_1(get_callable                    , Metaobject , GetCallable)
 METAOBJECT_OBJ_OP_1(get_access_specifier            , Metaobject , GetAccessSpecifier)
 METAOBJECT_OBJ_OP_1(hide_protected                  , Metaobject , HideProtected)
 METAOBJECT_OBJ_OP_1(hide_private                    , Metaobject , HidePrivate)

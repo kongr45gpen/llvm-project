@@ -2859,6 +2859,10 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
            conceptIsA(MoC, MOC_Function);
   case UMOO_GetConstant:
     return conceptIsA(MoC, MOC_Constant);
+  case UMOO_GetSubExpression:
+    return conceptIsA(MoC, MOC_ParenthesizedExpression);
+  case UMOO_GetCallable:
+    return conceptIsA(MoC, MOC_FunctionCallExpression);
   case UMOO_HideProtected:
   case UMOO_HidePrivate:
   case UMOO_IsEmpty:
@@ -3431,6 +3435,31 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetClass(ASTContext &Ctx,
 
   const CXXBaseSpecifier *BS = REE->getArgumentBaseSpecifier();
   return ReflexprIdExpr::getTypeReflexprIdExpr(Ctx, BS->getTypeSourceInfo(), true);
+}
+
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetSubExpression(ASTContext &Ctx,
+                                                          ReflexprIdExpr *REE) {
+  assert(REE && REE->isArgumentExpression());
+
+  if (auto *PE = dyn_cast<ParenExpr>(REE->getArgumentExpression())) {
+    return ReflexprIdExpr::getExpressionReflexprIdExpr(Ctx, PE->getSubExpr());
+  }
+  return nullptr;
+}
+
+ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetCallable(ASTContext &Ctx,
+                                                        ReflexprIdExpr *REE) {
+  assert(REE && REE->isArgumentExpression());
+
+  if (auto *CE = dyn_cast<CallExpr>(REE->getArgumentExpression())) {
+    if (const auto *FD = CE->getDirectCallee()) {
+      return ReflexprIdExpr::getNamedDeclReflexprIdExpr(Ctx, FD);
+    }
+    if (const auto *ND = dyn_cast<NamedDecl>(CE->getCalleeDecl())) {
+      return ReflexprIdExpr::getNamedDeclReflexprIdExpr(Ctx, ND);
+    }
+  }
+  return nullptr;
 }
 
 bool UnaryMetaobjectOpExpr::opIsScopedEnum(ASTContext &Ctx, ReflexprIdExpr *REE) {

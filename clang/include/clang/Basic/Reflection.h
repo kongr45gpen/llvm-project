@@ -245,6 +245,8 @@ namespace clang {
     UMOO_GetParameters,
     UMOO_GetCaptures,
     UMOO_GetClass,
+    UMOO_GetSubExpression,
+    UMOO_GetCallable,
     UMOO_GetAccessSpecifier,
     UMOO_IsConstexpr,
     UMOO_IsNoexcept,

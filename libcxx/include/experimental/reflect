@@ -833,6 +833,22 @@ struct _LIBCPP_TEMPLATE_VIS get_captures {
 template <Lambda _Tp>
 using get_captures_t = typename get_captures<_Tp>::type;
 
+template <ParenthesizedExpression _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_subexpression {
+  using type = __metaobject<__metaobject_get_subexpression(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <ParenthesizedExpression _Tp>
+using get_subexpression_t = typename get_subexpression<_Tp>::type;
+
+template <FunctionCallExpression _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_callable {
+  using type = __metaobject<__metaobject_get_callable(__unwrap_metaobject_id_v<_Tp>)>;
+};
+
+template <FunctionCallExpression _Tp>
+using get_callable_t = typename get_callable<_Tp>::type;
+
 // get sequence element
 template <size_t _I, ObjectSequence _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_element {

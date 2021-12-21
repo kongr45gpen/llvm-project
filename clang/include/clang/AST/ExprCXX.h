@@ -5365,6 +5365,8 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static ReflexprIdExpr *opGetParameters(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetCaptures(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opGetClass(ASTContext &, ReflexprIdExpr*);
+  static ReflexprIdExpr *opGetSubExpression(ASTContext &, ReflexprIdExpr*);
+  static ReflexprIdExpr *opGetCallable(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opHideProtected(ASTContext &, ReflexprIdExpr*);
   static ReflexprIdExpr *opHidePrivate(ASTContext &, ReflexprIdExpr*);
 

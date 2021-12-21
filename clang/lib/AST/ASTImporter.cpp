@@ -354,6 +354,7 @@ namespace clang {
     ExpectedType VisitTypeOfExprType(const TypeOfExprType *T);
     // FIXME: DependentTypeOfExprType
     ExpectedType VisitTypeOfType(const TypeOfType *T);
+    ExpectedType VisitUsingType(const UsingType *T);
     ExpectedType VisitDecltypeType(const DecltypeType *T);
     ExpectedType VisitUnrefltypeType(const UnrefltypeType *T);
     ExpectedType VisitUnaryTransformType(const UnaryTransformType *T);
@@ -1346,6 +1347,17 @@ ExpectedType ASTNodeImporter::VisitTypeOfType(const TypeOfType *T) {
     return ToUnderlyingTypeOrErr.takeError();
 
   return Importer.getToContext().getTypeOfType(*ToUnderlyingTypeOrErr);
+}
+
+ExpectedType ASTNodeImporter::VisitUsingType(const UsingType *T) {
+  Expected<UsingShadowDecl *> FoundOrErr = import(T->getFoundDecl());
+  if (!FoundOrErr)
+    return FoundOrErr.takeError();
+  Expected<QualType> UnderlyingOrErr = import(T->getUnderlyingType());
+  if (!UnderlyingOrErr)
+    return UnderlyingOrErr.takeError();
+
+  return Importer.getToContext().getUsingType(*FoundOrErr, *UnderlyingOrErr);
 }
 
 ExpectedType ASTNodeImporter::VisitDecltypeType(const DecltypeType *T) {

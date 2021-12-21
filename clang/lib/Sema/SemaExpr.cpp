@@ -4446,6 +4446,9 @@ static void captureVariablyModifiedType(ASTContext &Context, QualType T,
     case Type::Unrefltype:
       T = cast<UnrefltypeType>(Ty)->desugar();
       break;
+    case Type::Using:
+      T = cast<UsingType>(Ty)->desugar();
+      break;
     case Type::Auto:
     case Type::DeducedTemplateSpecialization:
       T = cast<DeducedType>(Ty)->getDeducedType();

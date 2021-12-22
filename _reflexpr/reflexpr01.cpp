@@ -44,7 +44,7 @@ auto main() -> int {
   using mm = reflexpr(mystruct);
   using my = reflexpr(y);
   using mz = reflexpr(z);
-  using mp = reflexpr((bar(1)));
+  using mp = reflexpr((bar(weekdays::monday)));
 
   static_assert(!Object<me>);
   static_assert(Object<mi>);
@@ -77,6 +77,7 @@ auto main() -> int {
   static_assert(get_size_v<get_data_members_t<mm>> == 2);
   static_assert(Variable<my>);
   static_assert(get_pointer_v<my>);
+  static_assert(get_pointer_v<get_callable_t<get_subexpression_t<mp>>>);
   static_assert(Variable<get_element_t<1, get_data_members_t<mm>>>);
   static_assert(Variable<mz>);
   static_assert(get_pointer_v<get_element_t<1, get_data_members_t<mm>>>);

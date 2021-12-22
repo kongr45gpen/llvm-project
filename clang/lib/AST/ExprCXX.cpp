@@ -4151,6 +4151,8 @@ QualType UnaryMetaobjectOpExpr::getValueDeclType(ASTContext &Ctx,
         QualType RecTy = Ctx.getRecordType(RD);
         result = Ctx.getMemberPointerType(mthdDecl->getType(), RecTy.getTypePtr());
       }
+    } else if (const FunctionDecl *funcDecl = dyn_cast<FunctionDecl>(valDecl)) {
+      result = Ctx.getPointerType(funcDecl->getType());
     }
   } else if (MoOp == UMOO_GetConstant) {
     result = valDecl->getType();

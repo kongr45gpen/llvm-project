@@ -2539,10 +2539,19 @@ public:
   /// By default, performs semantic analysis to build the new expression.
   /// Subclasses may override this routine to provide different behavior.
   ExprResult RebuildReflexprId(TypeSourceInfo *TInfo,
-                               bool removeSugar,
                                SourceLocation OpLoc,
                                SourceLocation RParenLoc) {
-    return getSema().GetReflexprTypeExpr(TInfo, removeSugar, OpLoc, RParenLoc);
+    return getSema().GetReflexprTypeExpr(TInfo, false, OpLoc, RParenLoc);
+  }
+
+  /// Build a new reflexpr expression with an expression argument.
+  ///
+  /// By default, performs semantic analysis to build the new expression.
+  /// Subclasses may override this routine to provide different behavior.
+  ExprResult RebuildReflexprId(Expr *E,
+                               SourceLocation OpLoc,
+                               SourceLocation RParenLoc) {
+    return getSema().GetReflexprExprExpr(E, false, OpLoc, RParenLoc);
   }
 
   ExprResult RebuildUnaryMetaobjectOp(UnaryMetaobjectOp Oper,
@@ -10749,7 +10758,18 @@ TreeTransform<Derived>::TransformReflexprIdExpr(ReflexprIdExpr *E) {
     if (!getDerived().AlwaysRebuild() && OldT == NewT)
       return E;
 
-    return getDerived().RebuildReflexprId(NewT, false,
+    return getDerived().RebuildReflexprId(NewT,
+                                          E->getOperatorLoc(),
+                                          E->getRParenLoc());
+  } else if(E->isArgumentExpression()) {
+    Expr* ArgExpr = E->getArgumentExpression();
+    ExprResult NewExpr = getDerived().TransformExpr(ArgExpr);
+    bool doRebuild = getDerived().AlwaysRebuild() || (ArgExpr != NewExpr.get());
+
+    if(!doRebuild)
+      return E;
+
+    return getDerived().RebuildReflexprId(NewExpr.get(),
                                           E->getOperatorLoc(),
                                           E->getRParenLoc());
   }

@@ -81,6 +81,12 @@ ExprDependence clang::computeDependence(ReflexprIdExpr *E) {
     Deps = ArgDeps & ~ExprDependence::Type;
     if (ArgDeps & ExprDependence::Type)
       Deps |= ExprDependence::ValueInstantiation;
+  } else if (E->isArgumentExpression()) {
+    const ExprDependence ArgDeps =
+        E->getArgumentExpression()->getDependence();
+    Deps = ArgDeps & ~ExprDependence::Type;
+    if (ArgDeps & ExprDependence::Type)
+      Deps |= ExprDependence::ValueInstantiation;
   }
 
   return Deps;

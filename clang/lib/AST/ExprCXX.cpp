@@ -2829,6 +2829,7 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
     return conceptIsA(MoC, MOC_Variable);
   case UMOO_IsStatic:
     return conceptIsA(MoC, MOC_Variable) ||
+           conceptIsA(MoC, MOC_Function) ||
            conceptIsA(MoC, MOC_MemberFunction);
   case UMOO_IsVirtual:
     return conceptIsA(MoC, MOC_Base) ||

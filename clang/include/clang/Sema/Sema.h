@@ -5391,23 +5391,27 @@ public:
   ExprResult CreateUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
                                          MetaobjectOpResult OpRes,
                                          ExprResult argExpr,
+                                         bool applicabilityOnly,
                                          SourceLocation opLoc,
                                          SourceLocation endLoc);
   ExprResult CreateNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
                                         MetaobjectOpResult OpRes,
                                         unsigned arity, ExprResult *argExpr,
+                                        bool applicabilityOnly,
                                         SourceLocation opLoc,
                                         SourceLocation endLoc);
 
   ExprResult ActOnUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
                                         MetaobjectOpResult OpRes,
                                         ExprResult argExpr,
+                                        bool applicabilityOnly,
                                         SourceLocation opLoc,
                                         SourceLocation endLoc);
 
   ExprResult ActOnNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
                                        MetaobjectOpResult OpRes, unsigned arity,
                                        ExprResult *argExpr,
+                                       bool applicabilityOnly,
                                        SourceLocation opLoc,
                                        SourceLocation endLoc);
 

@@ -452,6 +452,7 @@ protected:
     unsigned : NumExprBits;
     unsigned Kind : 7;
     unsigned ResKind : 3;
+    unsigned ApplicabilityOnly : 1;
   };
 
   class NaryMetaobjectOpExprBitfields {
@@ -459,6 +460,7 @@ protected:
     unsigned : NumExprBits;
     unsigned Kind : 1;
     unsigned ResKind : 3;
+    unsigned ApplicabilityOnly : 1;
   };
 
   class UnaryExprOrTypeTraitExprBitfields {

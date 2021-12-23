@@ -4928,7 +4928,7 @@ public:
 
   /// Construct an empty reflexpr expression.
   explicit ReflexprIdExpr(EmptyShell Empty)
-      : Expr(MetaobjectIdExprClass, Empty) {}
+      : Expr(ReflexprIdExprClass, Empty) {}
 
   ReflexprIdExpr(QualType resultType,
                  SourceLocation opLoc,
@@ -5376,7 +5376,8 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static QualType getResultKindType(ASTContext &Ctx,
                                     UnaryMetaobjectOp Oper,
                                     MetaobjectOpResult OpRes,
-                                    Expr *argExpr);
+                                    Expr *argExpr,
+                                    bool applicabilityOnly);
 public:
   /// \brief Construct an empty metaobject operation expression.
   explicit UnaryMetaobjectOpExpr(EmptyShell Empty)
@@ -5384,12 +5385,20 @@ public:
 
   UnaryMetaobjectOpExpr(ASTContext &, UnaryMetaobjectOp Oper,
                         MetaobjectOpResult OpRes, QualType resultType,
-                        Expr *argExpr, ExprValueKind VK,
+                        Expr *argExpr, ExprValueKind VK, bool ApplicabilityOnly,
                         SourceLocation opLoc, SourceLocation endLoc);
 
   static UnaryMetaobjectOpExpr *
   Create(ASTContext &Ctx, UnaryMetaobjectOp Oper, MetaobjectOpResult OpRes,
-         Expr *argExpr, SourceLocation opLoc, SourceLocation endLoc);
+         Expr *argExpr, bool ApplicabilityOnly,
+         SourceLocation opLoc, SourceLocation endLoc);
+
+  bool isApplicabilityOnly() const {
+    return bool(UnaryMetaobjectOpExprBits.ApplicabilityOnly);
+  }
+  void setApplicabilityOnly(bool applicabilityOnly) {
+    UnaryMetaobjectOpExprBits.ApplicabilityOnly = applicabilityOnly ? 1U : 0U;
+  }
 
   UnaryMetaobjectOp getKind() const {
     return UnaryMetaobjectOp(UnaryMetaobjectOpExprBits.Kind);
@@ -5426,9 +5435,8 @@ public:
 
   static bool isOperationApplicable(MetaobjectKind MoK, UnaryMetaobjectOp MoOp);
   static bool isOperationApplicable(ASTContext &Ctx, ReflexprIdExpr* REE,
-                                    UnaryMetaobjectOp MoOp) {
-    return isOperationApplicable(REE->getKind(), MoOp);
-  }
+                                    UnaryMetaobjectOp MoOp);
+  bool isOperationApplicable(ASTContext &Ctx, void *EvlInfo) const;
 
   static void unpackSequence(ASTContext &, ReflexprIdExpr*,
                              std::vector<llvm::APInt> &dest);
@@ -5489,7 +5497,8 @@ class NaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static QualType getResultKindType(ASTContext &Ctx,
                                     NaryMetaobjectOp Oper,
                                     MetaobjectOpResult OpRes,
-                                    unsigned arity, Expr **argExpr);
+                                    unsigned arity, Expr **argExpr,
+                                    bool applicabilityOnly);
 public:
   /// \brief Construct an empty metaobject operation expression.
   explicit NaryMetaobjectOpExpr(EmptyShell Empty)
@@ -5497,13 +5506,20 @@ public:
 
   NaryMetaobjectOpExpr(ASTContext &, NaryMetaobjectOp Oper,
                        MetaobjectOpResult OpRes, QualType resultType,
-                       unsigned arity, Expr **argExpr, SourceLocation opLoc,
-                       SourceLocation endLoc);
+                       unsigned arity, Expr **argExpr, bool ApplicabilityOnly,
+                       SourceLocation opLoc, SourceLocation endLoc);
 
   static NaryMetaobjectOpExpr *
   Create(ASTContext &Ctx, NaryMetaobjectOp Oper, MetaobjectOpResult OpRes,
-         unsigned arity, Expr **argExpr,
+         unsigned arity, Expr **argExpr, bool ApplicabilityOnly,
          SourceLocation opLoc, SourceLocation endLoc);
+
+  bool isApplicabilityOnly() const {
+    return bool(NaryMetaobjectOpExprBits.ApplicabilityOnly);
+  }
+  void setApplicabilityOnly(bool applicabilityOnly) {
+    NaryMetaobjectOpExprBits.ApplicabilityOnly = applicabilityOnly ? 1U : 0U;
+  }
 
   static constexpr unsigned MinArity = 2;
   static constexpr unsigned MaxArity = 2;

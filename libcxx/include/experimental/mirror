@@ -668,29 +668,6 @@ consteval auto get_reflected_type_id(metaobject<_Mp>) {
 #define mirror(...) \
   _VSTD_EXPERIMENTAL::mirror::metaobject<__reflexpr_id(__VA_ARGS__)>{}
 
-// higher-level utilities
-// enum-to-string / string-to-enum
-
-template <typename E>
-string_view enum_to_string(E e) {
-  return select(get_enumerators(mirror(E)),
-    [](auto& result, auto mo, auto e) {
-      if (get_constant(mo) == e) {
-        result = get_name(mo);
-      }
-    }, string_view{}, e);
-}
-
-template <typename E>
-E string_to_enum(string_view s) {
-  return select(get_enumerators(mirror(E)),
-    [](auto& result, auto mo, auto s) {
-      if (get_name(mo) == s) {
-        result = get_constant(mo);
-      }
-    }, E{}, s);
-}
-
 } // namespace mirror
 _LIBCPP_END_NAMESPACE_EXPERIMENTAL
 

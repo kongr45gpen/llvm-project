@@ -3506,6 +3506,7 @@ private:
   // ReflectionTS: reflexpr or __reflexpr_id expression
   ExprResult ParseReflexprExpression(bool IdOnly);
   ExprResult ParseMetaobjectOpExpression();
+  void ParseMetaobjectOpApplicability(bool& applicabilityOnly);
   ExprResult ParseUnaryMetaobjectOpExpression(Token OpTok,
                                               SourceLocation OpLoc);
   ExprResult ParseNaryMetaobjectOpExpression(Token OpTok,

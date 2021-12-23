@@ -1317,6 +1317,7 @@ void StmtPrinter::VisitUnaryMetaobjectOpExpr(UnaryMetaobjectOpExpr *Node){
   PrintExpr(Node->getArgumentExpr());
   OS << ')';
 }
+
 void StmtPrinter::VisitNaryMetaobjectOpExpr(NaryMetaobjectOpExpr *Node){
   // [reflection-ts] FIXME
   OS << "__metaobj_";

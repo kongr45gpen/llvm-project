@@ -9017,11 +9017,13 @@ ExprResult Sema::ActOnReflexprTypeExpr(bool idOnly, Scope *S, Declarator &D,
 ExprResult Sema::CreateUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
                                              MetaobjectOpResult OpRes,
                                              ExprResult argExpr,
+                                             bool applicabilityOnly,
                                              SourceLocation opLoc,
                                              SourceLocation endLoc) {
   Expr *ArgExpr = argExpr.get();
 
-  bool doChecks = !ArgExpr->isInstantiationDependent();
+  bool doChecks =
+    !ArgExpr->isInstantiationDependent() && !applicabilityOnly;
 
   if (doChecks) {
     if (auto *REE = UnaryMetaobjectOpExpr::getReflexprIdExpr(Context, ArgExpr)) {
@@ -9035,13 +9037,14 @@ ExprResult Sema::CreateUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
     }
   }
 
-  return UnaryMetaobjectOpExpr::Create(Context, Oper, OpRes,
-                                       ArgExpr, opLoc, endLoc);
+  return UnaryMetaobjectOpExpr::Create(Context, Oper, OpRes, ArgExpr,
+                                       applicabilityOnly, opLoc, endLoc);
 }
 
 ExprResult Sema::CreateNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
                                             MetaobjectOpResult OpRes,
                                             unsigned Arity, ExprResult *argExpr,
+                                            bool applicabilityOnly,
                                             SourceLocation opLoc,
                                             SourceLocation endLoc) {
 
@@ -9052,7 +9055,8 @@ ExprResult Sema::CreateNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
     assert(argExpr[i].isUsable());
     ArgExpr[i] = argExpr[i].get();
 
-    bool doChecks = !ArgExpr[i]->isInstantiationDependent();
+    bool doChecks =
+      !ArgExpr[i]->isInstantiationDependent() && !applicabilityOnly;
 
     if (doChecks) {
       if (ReflexprIdExpr *REE =
@@ -9071,26 +9075,30 @@ ExprResult Sema::CreateNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
     }
   }
 
-  return NaryMetaobjectOpExpr::Create(Context, Oper, OpRes,
-                                      Arity, ArgExpr, opLoc, endLoc);
+  return NaryMetaobjectOpExpr::Create(Context, Oper, OpRes, Arity, ArgExpr,
+                                      applicabilityOnly, opLoc, endLoc);
 }
 
 ExprResult Sema::ActOnUnaryMetaobjectOpExpr(UnaryMetaobjectOp Oper,
                                             MetaobjectOpResult OpRes,
                                             ExprResult argExpr,
+                                            bool applicabilityOnly,
                                             SourceLocation opLoc,
                                             SourceLocation endLoc) {
 
-  return CreateUnaryMetaobjectOpExpr(Oper, OpRes, argExpr, opLoc, endLoc);
+  return CreateUnaryMetaobjectOpExpr(
+      Oper, OpRes, argExpr, applicabilityOnly, opLoc, endLoc);
 }
 
 ExprResult Sema::ActOnNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
                                            MetaobjectOpResult OpRes,
                                            unsigned Arity, ExprResult *argExpr,
+                                           bool applicabilityOnly,
                                            SourceLocation opLoc,
                                            SourceLocation endLoc) {
 
-  return CreateNaryMetaobjectOpExpr(Oper, OpRes, Arity, argExpr, opLoc, endLoc);
+  return CreateNaryMetaobjectOpExpr(
+      Oper, OpRes, Arity, argExpr, applicabilityOnly, opLoc, endLoc);
 }
 
 ExprResult Sema::ActOnUnrefltypeExpression(Expr *E, SourceLocation opLoc) {

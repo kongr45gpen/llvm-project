@@ -2557,9 +2557,11 @@ public:
   ExprResult RebuildUnaryMetaobjectOp(UnaryMetaobjectOp Oper,
                                       MetaobjectOpResult OpRes,
                                       ExprResult argExpr,
+                                      bool applicabilityOnly,
                                       SourceLocation opLoc,
                                       SourceLocation rpLoc) {
     return getSema().CreateUnaryMetaobjectOpExpr(Oper, OpRes, argExpr,
+                                                 applicabilityOnly,
                                                  opLoc, rpLoc);
   }
 
@@ -2570,10 +2572,12 @@ public:
   ExprResult RebuildNaryMetaobjectOpExpr(NaryMetaobjectOp Oper,
                                          MetaobjectOpResult OpRes,
                                          unsigned arity, ExprResult* argExpr,
+                                         bool applicabilityOnly,
                                          SourceLocation opLoc,
                                          SourceLocation rpLoc) {
     return getSema().CreateNaryMetaobjectOpExpr(Oper, OpRes,
                                                 arity, argExpr,
+                                                applicabilityOnly,
                                                 opLoc, rpLoc);
   }
 
@@ -10797,6 +10801,7 @@ TreeTransform<Derived>::TransformUnaryMetaobjectOpExpr(UnaryMetaobjectOpExpr *E)
   return getDerived().RebuildUnaryMetaobjectOp(E->getKind(),
                                                E->getResultKind(),
                                                NewExpr,
+                                               E->isApplicabilityOnly(),
                                                E->getOperatorLoc(),
                                                E->getRParenLoc());
 }
@@ -10827,6 +10832,7 @@ TreeTransform<Derived>::TransformNaryMetaobjectOpExpr(NaryMetaobjectOpExpr *E) {
   return getDerived().RebuildNaryMetaobjectOpExpr(E->getKind(),
                                                   E->getResultKind(),
                                                   Arity, ArgExpr,
+                                                  E->isApplicabilityOnly(),
                                                   E->getOperatorLoc(),
                                                   E->getRParenLoc());
 }

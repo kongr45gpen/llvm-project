@@ -1928,10 +1928,11 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType, const TypeSourceInfo *TInfo,
         RT->isPointerType() ||
         RT->isReferenceType() ||
         RT->isFunctionType();
-      if (isNotScoped)
+      if (isNotScoped) {
         setKind(MOK_Type);
-      else
+      } else {
         setKind(MOK_ScopedType);
+      }
     }
   }
   setSeqKind(MOSK_None);
@@ -2649,7 +2650,11 @@ llvm::APSInt MetaobjectOpExprBase::opGetConstant(ASTContext &Ctx,
 QualType UnaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
                                                   UnaryMetaobjectOp Oper,
                                                   MetaobjectOpResult OpRes,
-                                                  Expr *argExpr) {
+                                                  Expr *argExpr,
+                                                  bool applicabilityOnly) {
+  if (applicabilityOnly)
+      return Ctx.BoolTy;
+
   bool isDependent =
     (argExpr->getDependence() & ExprDependence::TypeValueInstantiation);
 
@@ -2713,6 +2718,7 @@ UnaryMetaobjectOpExpr::UnaryMetaobjectOpExpr(ASTContext &Ctx,
                                              MetaobjectOpResult OpRes,
                                              QualType resultType, Expr *argExpr,
                                              ExprValueKind VK,
+                                             bool applicabilityOnly,
                                              SourceLocation opLoc,
                                              SourceLocation endLoc)
     : Expr(UnaryMetaobjectOpExprClass, resultType, VK, OK_Ordinary),
@@ -2720,17 +2726,21 @@ UnaryMetaobjectOpExpr::UnaryMetaobjectOpExpr(ASTContext &Ctx,
 
   setKind(Oper);
   setResultKind(OpRes);
+  setApplicabilityOnly(applicabilityOnly);
   setDependence(computeDependence(this));
 }
 
 UnaryMetaobjectOpExpr *
 UnaryMetaobjectOpExpr::Create(ASTContext &Ctx, UnaryMetaobjectOp Oper,
                               MetaobjectOpResult OpRes, Expr *argExpr,
+                              bool applicabilityOnly,
                               SourceLocation opLoc, SourceLocation endLoc) {
-  QualType resType = getResultKindType(Ctx, Oper, OpRes, argExpr);
+  QualType resultType = getResultKindType(
+      Ctx, Oper, OpRes, argExpr, applicabilityOnly);
 
-  return new (Ctx) UnaryMetaobjectOpExpr(Ctx, Oper, OpRes, resType, argExpr,
-                                         VK_PRValue, opLoc, endLoc);
+  return new (Ctx) UnaryMetaobjectOpExpr(Ctx, Oper, OpRes, resultType, argExpr,
+                                         VK_PRValue, applicabilityOnly,
+                                         opLoc, endLoc);
 }
 
 StringRef UnaryMetaobjectOpExpr::getOperationSpelling(UnaryMetaobjectOp MoOp) {
@@ -2873,6 +2883,18 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   return false;
 }
 
+bool UnaryMetaobjectOpExpr::isOperationApplicable(ASTContext &Ctx,
+                                                  ReflexprIdExpr* REE,
+                                                  UnaryMetaobjectOp MoOp) {
+  return isOperationApplicable(REE->getKind(), MoOp);
+}
+
+bool UnaryMetaobjectOpExpr::isOperationApplicable(ASTContext &Ctx,
+                                                  void *EvlInfo) const {
+  return isOperationApplicable(Ctx, getArgumentReflexprIdExpr(Ctx, EvlInfo),
+                               getKind());
+}
+
 bool UnaryMetaobjectOpExpr::getTraitValue(UnaryMetaobjectOp MoOp,
                                           MetaobjectConcept Cat) {
   switch (MoOp) {
@@ -2885,7 +2907,8 @@ bool UnaryMetaobjectOpExpr::getTraitValue(UnaryMetaobjectOp MoOp,
   }
 }
 
-uintptr_t UnaryMetaobjectOpExpr::opGetIdValue(ASTContext &Ctx, ReflexprIdExpr *REE) {
+uintptr_t UnaryMetaobjectOpExpr::opGetIdValue(ASTContext &Ctx,
+                                              ReflexprIdExpr *REE) {
   assert(REE);
 
   return REE->getIdValue(Ctx).getZExtValue();
@@ -3991,6 +4014,9 @@ void UnaryMetaobjectOpExpr::unpackSequence(ASTContext &Ctx, ReflexprIdExpr *REE,
 }
 
 bool UnaryMetaobjectOpExpr::hasIntResult() const {
+  if (isApplicabilityOnly())
+    return true;
+
   switch (getResultKind()) {
     case MOOR_SizeT:
     case MOOR_ULong:
@@ -4009,6 +4035,12 @@ bool UnaryMetaobjectOpExpr::getIntResult(ASTContext &Ctx, void *EvlInfo,
                                          llvm::APSInt &result) const {
   if (ReflexprIdExpr *REE = getArgumentReflexprIdExpr(Ctx, EvlInfo)) {
     const UnaryMetaobjectOp MoOp = getKind();
+    if (isApplicabilityOnly()) {
+      result = makeBoolResult(Ctx, Ctx.BoolTy,
+                              isOperationApplicable(Ctx, REE, MoOp));
+      return true;
+    }
+
     switch (MoOp) {
 #define METAOBJECT_INT_OP_1(S, OpRes, OpName) \
       case UMOO_##OpName: \
@@ -4037,6 +4069,9 @@ bool UnaryMetaobjectOpExpr::getIntResult(ASTContext &Ctx, void *EvlInfo,
 }
 
 bool UnaryMetaobjectOpExpr::hasObjResult() const {
+  if (isApplicabilityOnly())
+    return false;
+
   return getResultKind() == MOOR_Metaobject;
 }
 
@@ -4060,6 +4095,9 @@ bool UnaryMetaobjectOpExpr::getObjResult(ASTContext &Ctx, void *EvlInfo,
 }
 
 bool UnaryMetaobjectOpExpr::hasStrResult() const {
+  if (isApplicabilityOnly())
+    return false;
+
   return getResultKind() == MOOR_String;
 }
 
@@ -4090,6 +4128,9 @@ bool UnaryMetaobjectOpExpr::getStrResult(ASTContext &Ctx, void *EvlInfo,
 }
 
 bool UnaryMetaobjectOpExpr::hasPtrResult() const {
+  if (isApplicabilityOnly())
+    return false;
+
   return getResultKind() == MOOR_Pointer;
 }
 
@@ -4168,7 +4209,12 @@ Stmt::child_range UnaryMetaobjectOpExpr::children() {
 QualType NaryMetaobjectOpExpr::getResultKindType(ASTContext &Ctx,
                                                  NaryMetaobjectOp Oper,
                                                  MetaobjectOpResult OpRes,
-                                                 unsigned arity, Expr **argExpr) {
+                                                 unsigned arity, Expr **argExpr,
+                                                 bool applicabilityOnly) {
+
+  if (applicabilityOnly)
+      return Ctx.BoolTy;
+
   switch (OpRes) {
   case MOOR_Metaobject:
     return Ctx.MetaobjectIdTy;
@@ -4191,7 +4237,9 @@ NaryMetaobjectOpExpr::NaryMetaobjectOpExpr(ASTContext &Ctx,
                                            NaryMetaobjectOp Oper,
                                            MetaobjectOpResult OpRes,
                                            QualType resultType, unsigned arity,
-                                           Expr **argExpr, SourceLocation opLoc,
+                                           Expr **argExpr,
+                                           bool applicabilityOnly,
+                                           SourceLocation opLoc,
                                            SourceLocation endLoc)
     : Expr(NaryMetaobjectOpExprClass, resultType, VK_PRValue, OK_Ordinary),
       OpLoc(opLoc), EndLoc(endLoc) {
@@ -4205,6 +4253,7 @@ NaryMetaobjectOpExpr::NaryMetaobjectOpExpr(ASTContext &Ctx,
 
   setKind(Oper);
   setResultKind(OpRes);
+  setApplicabilityOnly(applicabilityOnly);
   setDependence(computeDependence(this));
 }
 
@@ -4212,11 +4261,14 @@ NaryMetaobjectOpExpr *
 NaryMetaobjectOpExpr::Create(ASTContext &Ctx, NaryMetaobjectOp Oper,
                              MetaobjectOpResult OpRes,
                              unsigned arity, Expr **argExpr,
+                             bool applicabilityOnly,
                              SourceLocation opLoc, SourceLocation endLoc) {
-  QualType resType = getResultKindType(Ctx, Oper, OpRes, arity, argExpr);
+  QualType resultType = getResultKindType(
+      Ctx, Oper, OpRes, arity, argExpr, applicabilityOnly);
 
-  return new (Ctx) NaryMetaobjectOpExpr(Ctx, Oper, OpRes, resType,
-                                        arity, argExpr, opLoc, endLoc);
+  return new (Ctx) NaryMetaobjectOpExpr(Ctx, Oper, OpRes, resultType,
+                                        arity, argExpr, applicabilityOnly,
+                                        opLoc, endLoc);
 }
 
 StringRef NaryMetaobjectOpExpr::getOperationSpelling(NaryMetaobjectOp MoOp) {
@@ -4316,6 +4368,9 @@ ReflexprIdExpr *NaryMetaobjectOpExpr::opGetElement(ASTContext &Ctx,
 }
 
 bool NaryMetaobjectOpExpr::hasIntResult() const {
+  if (isApplicabilityOnly())
+    return true;
+
   switch (getResultKind()) {
     case MOOR_SizeT:
     case MOOR_ULong:
@@ -4333,6 +4388,11 @@ bool NaryMetaobjectOpExpr::hasIntResult() const {
 bool NaryMetaobjectOpExpr::getIntResult(ASTContext &Ctx, void *EvlInfo,
                                         llvm::APSInt &result) const {
   const auto opKind = getKind();
+  if (isApplicabilityOnly()) {
+    result = makeBoolResult(Ctx, Ctx.BoolTy, true);
+    return true;
+  }
+
   if(opKind == NMOO_ReflectsSame) {
     ReflexprIdExpr *REE0 = getArgumentReflexprIdExpr(Ctx, 0, EvlInfo);
     ReflexprIdExpr *REE1 = getArgumentReflexprIdExpr(Ctx, 1, EvlInfo);

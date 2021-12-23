@@ -3970,15 +3970,31 @@ ExprResult Parser::ParseMetaobjectOpExpression() {
   if (Arity == 1) {
     return ParseUnaryMetaobjectOpExpression(OpTok, OpLoc);
   }
+
   return ParseNaryMetaobjectOpExpression(OpTok, OpLoc, Arity);
 }
 
+void Parser::ParseMetaobjectOpApplicability(bool& applicabilityOnly) {
+
+  if (Tok.is(tok::kw_bool)) {
+      applicabilityOnly = true;
+      ConsumeToken(); // 'bool'
+      if (Tok.isNot(tok::comma)) {
+        Diag(Tok.getLocation(), diag::err_expected_comma_after) << "bool";
+      } else {
+        ConsumeToken(); // ','
+      }
+  }
+}
+
 ExprResult
-Parser::ParseUnaryMetaobjectOpExpression(Token OpTok,
-                                                SourceLocation OpLoc) {
+Parser::ParseUnaryMetaobjectOpExpression(Token OpTok, SourceLocation OpLoc) {
   BalancedDelimiterTracker Parens(*this, tok::l_paren);
   if (Parens.expectAndConsume(diag::err_expected_lparen_after, OpTok.getName()))
     return ExprError();
+
+  bool applicabilityOnly = false;
+  ParseMetaobjectOpApplicability(applicabilityOnly);
 
   UnaryMetaobjectOp Operation = UnaryMetaobjectOpFromTokKind(OpTok.getKind());
   MetaobjectOpResult OpResult = MetaobjectOpResultFromTokKind(OpTok.getKind());
@@ -3995,8 +4011,9 @@ Parser::ParseUnaryMetaobjectOpExpression(Token OpTok,
 
   if (Tok.is(tok::r_paren)) {
     Parens.consumeClose();
-    return Actions.ActOnUnaryMetaobjectOpExpr(Operation, OpResult, ArgExpr,
-                                              OpLoc, Parens.getCloseLocation());
+    return Actions.ActOnUnaryMetaobjectOpExpr(
+        Operation, OpResult, ArgExpr, applicabilityOnly,
+        OpLoc, Parens.getCloseLocation());
   }
   return ExprError();
 }
@@ -4007,6 +4024,9 @@ ExprResult Parser::ParseNaryMetaobjectOpExpression(Token OpTok,
   BalancedDelimiterTracker Parens(*this, tok::l_paren);
   if (Parens.expectAndConsume(diag::err_expected_lparen_after, OpTok.getName()))
     return ExprError();
+
+  bool applicabilityOnly = false;
+  ParseMetaobjectOpApplicability(applicabilityOnly);
 
   NaryMetaobjectOp Operation = NaryMetaobjectOpFromTokKind(OpTok.getKind());
   MetaobjectOpResult OpResult = MetaobjectOpResultFromTokKind(OpTok.getKind());
@@ -4041,7 +4061,8 @@ ExprResult Parser::ParseNaryMetaobjectOpExpression(Token OpTok,
   if (Tok.is(tok::r_paren)) {
     Parens.consumeClose();
     return Actions.ActOnNaryMetaobjectOpExpr(
-        Operation, OpResult, Arity, ArgExpr, OpLoc, Parens.getCloseLocation());
+        Operation, OpResult, Arity, ArgExpr, applicabilityOnly,
+        OpLoc, Parens.getCloseLocation());
   }
   return ExprError();
 }

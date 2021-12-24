@@ -41,6 +41,7 @@ namespace elf {
 
 using llvm::object::Archive;
 
+class InputSection;
 class Symbol;
 
 // If --reproduce is specified, all input files are written to this tar archive.
@@ -114,12 +115,12 @@ public:
 
   SmallVector<Symbol *, 0> symbols;
 
+  // .got2 in the current file. This is used by PPC32 -fPIC/-fPIE to compute
+  // offsets in PLT call stubs.
+  InputSection *ppc32Got2 = nullptr;
+
   // Index of MIPS GOT built for this file.
   uint32_t mipsGotIndex = -1;
-
-  // outSecOff of .got2 in the current file. This is used by PPC32 -fPIC/-fPIE
-  // to compute offsets in PLT call stubs.
-  uint32_t ppc32Got2OutSecOff = 0;
 
   // groupId is used for --warn-backrefs which is an optional error
   // checking feature. All files within the same --{start,end}-group or
@@ -396,12 +397,12 @@ inline bool isBitcode(MemoryBufferRef mb) {
 
 std::string replaceThinLTOSuffix(StringRef path);
 
-extern std::vector<ArchiveFile *> archiveFiles;
-extern std::vector<BinaryFile *> binaryFiles;
-extern std::vector<BitcodeFile *> bitcodeFiles;
-extern std::vector<BitcodeFile *> lazyBitcodeFiles;
-extern std::vector<ELFFileBase *> objectFiles;
-extern std::vector<SharedFile *> sharedFiles;
+extern SmallVector<ArchiveFile *, 0> archiveFiles;
+extern SmallVector<BinaryFile *, 0> binaryFiles;
+extern SmallVector<BitcodeFile *, 0> bitcodeFiles;
+extern SmallVector<BitcodeFile *, 0> lazyBitcodeFiles;
+extern SmallVector<ELFFileBase *, 0> objectFiles;
+extern SmallVector<SharedFile *, 0> sharedFiles;
 
 } // namespace elf
 } // namespace lld

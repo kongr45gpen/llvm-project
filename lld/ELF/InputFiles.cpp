@@ -43,12 +43,12 @@ using namespace lld::elf;
 bool InputFile::isInGroup;
 uint32_t InputFile::nextGroupId;
 
-std::vector<ArchiveFile *> elf::archiveFiles;
-std::vector<BinaryFile *> elf::binaryFiles;
-std::vector<BitcodeFile *> elf::bitcodeFiles;
-std::vector<BitcodeFile *> elf::lazyBitcodeFiles;
-std::vector<ELFFileBase *> elf::objectFiles;
-std::vector<SharedFile *> elf::sharedFiles;
+SmallVector<ArchiveFile *, 0> elf::archiveFiles;
+SmallVector<BinaryFile *, 0> elf::binaryFiles;
+SmallVector<BitcodeFile *, 0> elf::bitcodeFiles;
+SmallVector<BitcodeFile *, 0> elf::lazyBitcodeFiles;
+SmallVector<ELFFileBase *, 0> elf::objectFiles;
+SmallVector<SharedFile *, 0> elf::sharedFiles;
 
 std::unique_ptr<TarWriter> elf::tar;
 
@@ -878,8 +878,8 @@ InputSectionBase *ObjFile<ELFT>::createInputSection(uint32_t idx,
       // to work. In a full implementation we would merge all attribute
       // sections.
       if (in.attributes == nullptr) {
-        in.attributes = std::make_unique<InputSection>(*this, sec, name);
-        return in.attributes.get();
+        in.attributes = make<InputSection>(*this, sec, name);
+        return in.attributes;
       }
       return &InputSection::discarded;
     }
@@ -900,8 +900,8 @@ InputSectionBase *ObjFile<ELFT>::createInputSection(uint32_t idx,
       // standard extensions to enable. In a full implementation we would merge
       // all attribute sections.
       if (in.attributes == nullptr) {
-        in.attributes = std::make_unique<InputSection>(*this, sec, name);
-        return in.attributes.get();
+        in.attributes = make<InputSection>(*this, sec, name);
+        return in.attributes;
       }
       return &InputSection::discarded;
     }
@@ -1782,45 +1782,27 @@ InputFile *elf::createLazyFile(MemoryBufferRef mb, StringRef archiveName,
 }
 
 template <class ELFT> void ObjFile<ELFT>::parseLazy() {
-  using Elf_Sym = typename ELFT::Sym;
+  const ArrayRef<typename ELFT::Sym> eSyms = this->getELFSyms<ELFT>();
+  auto &symbols = this->symbols;
+  SymbolTable *const symtab = elf::symtab.get();
+  const StringRef strtab = this->stringTable;
 
-  // Find a symbol table.
-  ELFFile<ELFT> obj = check(ELFFile<ELFT>::create(mb.getBuffer()));
-  ArrayRef<typename ELFT::Shdr> sections = CHECK(obj.sections(), this);
+  symbols.resize(eSyms.size());
+  for (size_t i = firstGlobal, end = eSyms.size(); i != end; ++i)
+    if (eSyms[i].st_shndx != SHN_UNDEF)
+      symbols[i] = symtab->insert(CHECK(eSyms[i].getName(strtab), this));
 
-  for (const typename ELFT::Shdr &sec : sections) {
-    if (sec.sh_type != SHT_SYMTAB)
-      continue;
-
-    // A symbol table is found.
-    ArrayRef<Elf_Sym> eSyms = CHECK(obj.symbols(&sec), this);
-    uint32_t firstGlobal = sec.sh_info;
-    StringRef strtab = CHECK(obj.getStringTableForSymtab(sec, sections), this);
-    this->symbols.resize(eSyms.size());
-
-    // Get existing symbols or insert placeholder symbols.
-    for (size_t i = firstGlobal, end = eSyms.size(); i != end; ++i)
-      if (eSyms[i].st_shndx != SHN_UNDEF)
-        this->symbols[i] =
-            symtab->insert(CHECK(eSyms[i].getName(strtab), this));
-
-    // Replace existing symbols with LazyObject symbols.
-    //
-    // resolve() may trigger this->extract() if an existing symbol is an
-    // undefined symbol. If that happens, this LazyObjFile has served
-    // its purpose, and we can exit from the loop early.
-    for (Symbol *sym : this->symbols) {
-      if (!sym)
-        continue;
+  // Replace existing symbols with LazyObject symbols.
+  //
+  // resolve() may trigger this->extract() if an existing symbol is an undefined
+  // symbol. If that happens, this function has served its purpose, and we can
+  // exit from the loop early.
+  for (Symbol *sym : this->symbols)
+    if (sym) {
       sym->resolve(LazyObject{*this, sym->getName()});
-
-      // If extracted, stop iterating because the symbol resolution has been
-      // done by ObjFile::parse.
       if (!lazy)
         return;
     }
-    return;
-  }
 }
 
 bool InputFile::shouldExtractForCommon(StringRef name) {

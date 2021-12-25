@@ -1247,7 +1247,7 @@ void CodeGenFunction::EmitOMPReductionClauseInit(
     RedCG.emitAggregateType(*this, Count);
     AutoVarEmission Emission = EmitAutoVarAlloca(*PrivateVD);
     RedCG.emitInitialization(*this, Count, Emission.getAllocatedAddress(),
-                             RedCG.getSharedLValue(Count),
+                             RedCG.getSharedLValue(Count).getAddress(*this),
                              [&Emission](CodeGenFunction &CGF) {
                                CGF.EmitAutoVarInit(Emission);
                                return true;
@@ -5966,6 +5966,9 @@ static void emitOMPAtomicExpr(CodeGenFunction &CGF, OpenMPClauseKind Kind,
   case OMPC_capture:
     emitOMPAtomicCaptureExpr(CGF, AO, IsPostfixUpdate, V, X, E, UE,
                              IsXLHSInRHSPart, Loc);
+    break;
+  case OMPC_compare:
+    // Do nothing here as we already emit an error.
     break;
   case OMPC_if:
   case OMPC_final:

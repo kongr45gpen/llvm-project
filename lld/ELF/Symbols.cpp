@@ -78,7 +78,6 @@ static uint64_t getSymVA(const Symbol &sym, int64_t addend) {
       return d.value;
 
     assert(isec != &InputSection::discarded);
-    isec = isec->repl;
 
     uint64_t offset = d.value;
 
@@ -348,7 +347,7 @@ void elf::maybeWarnUnorderableSymbol(const Symbol *sym) {
     report(": unable to order absolute symbol: ");
   else if (d && isa<OutputSection>(d->section))
     report(": unable to order synthetic symbol: ");
-  else if (d && !d->section->repl->isLive())
+  else if (d && !d->section->isLive())
     report(": unable to order discarded symbol: ");
 }
 
@@ -551,7 +550,7 @@ void Symbol::resolveUndefined(const Undefined &other) {
   }
 
   // Undefined symbols in a SharedFile do not change the binding.
-  if (dyn_cast_or_null<SharedFile>(other.file))
+  if (isa_and_nonnull<SharedFile>(other.file))
     return;
 
   if (isUndefined() || isShared()) {
@@ -609,7 +608,7 @@ int Symbol::compare(const Symbol *other) const {
   auto *oldSym = cast<Defined>(this);
   auto *newSym = cast<Defined>(other);
 
-  if (dyn_cast_or_null<BitcodeFile>(other->file))
+  if (isa_and_nonnull<BitcodeFile>(other->file))
     return 0;
 
   if (!oldSym->section && !newSym->section && oldSym->value == newSym->value &&

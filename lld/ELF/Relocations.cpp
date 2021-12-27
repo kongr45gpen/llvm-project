@@ -100,11 +100,11 @@ void elf::reportRangeError(uint8_t *loc, const Relocation &rel, const Twine &v,
                            int64_t min, uint64_t max) {
   ErrorPlace errPlace = getErrorPlace(loc);
   std::string hint;
-  if (rel.sym && !rel.sym->isLocal())
+  if (rel.sym && !rel.sym->isSection())
     hint = "; references " + lld::toString(*rel.sym);
   if (!errPlace.srcLoc.empty())
     hint += "\n>>> referenced by " + errPlace.srcLoc;
-  if (rel.sym && !rel.sym->isLocal())
+  if (rel.sym && !rel.sym->isSection())
     hint += getDefinedLocation(*rel.sym);
 
   if (errPlace.isec && errPlace.isec->name.startswith(".debug"))
@@ -741,7 +741,7 @@ static bool maybeReportUndefined(Symbol &sym, InputSectionBase &sec,
                                  uint64_t offset) {
   // If versioned, issue an error (even if the symbol is weak) because we don't
   // know the defining filename which is required to construct a Verneed entry.
-  if (*sym.getVersionSuffix() == '@') {
+  if (sym.hasVersionSuffix) {
     undefs.push_back({&sym, {{&sec, offset}}, false});
     return true;
   }
@@ -1145,10 +1145,9 @@ static unsigned handleMipsTlsRelocation(RelType type, Symbol &sym,
 // symbol in TLS block.
 //
 // Returns the number of relocations processed.
-template <class ELFT>
-static unsigned
-handleTlsRelocation(RelType type, Symbol &sym, InputSectionBase &c,
-                    typename ELFT::uint offset, int64_t addend, RelExpr expr) {
+static unsigned handleTlsRelocation(RelType type, Symbol &sym,
+                                    InputSectionBase &c, uint64_t offset,
+                                    int64_t addend, RelExpr expr) {
   if (!sym.isTls())
     return 0;
 
@@ -1264,7 +1263,7 @@ handleTlsRelocation(RelType type, Symbol &sym, InputSectionBase &c,
 
 template <class ELFT, class RelTy>
 static void scanReloc(InputSectionBase &sec, OffsetGetter &getOffset, RelTy *&i,
-                      RelTy *start, RelTy *end) {
+                      RelTy *end) {
   const RelTy &rel = *i;
   uint32_t symIndex = rel.getSymbol(config->isMips64EL);
   Symbol &sym = sec.getFile<ELFT>()->getSymbol(symIndex);
@@ -1354,8 +1353,8 @@ static void scanReloc(InputSectionBase &sec, OffsetGetter &getOffset, RelTy *&i,
                   getLocation(sec, sym, offset));
       return;
     }
-  } else if (unsigned processed = handleTlsRelocation<ELFT>(
-                 type, sym, sec, offset, addend, expr)) {
+  } else if (unsigned processed =
+                 handleTlsRelocation(type, sym, sec, offset, addend, expr)) {
     i += (processed - 1);
     return;
   }
@@ -1471,7 +1470,7 @@ static void scanRelocs(InputSectionBase &sec, ArrayRef<RelTy> rels) {
     rels = sortRels(rels, storage);
 
   for (auto i = rels.begin(), end = rels.end(); i != end;)
-    scanReloc<ELFT>(sec, getOffset, i, rels.begin(), end);
+    scanReloc<ELFT>(sec, getOffset, i, end);
 
   // Sort relocations by offset for more efficient searching for
   // R_RISCV_PCREL_HI20 and R_PPC64_ADDR64.
@@ -1817,7 +1816,7 @@ void ThunkCreator::mergeThunks(ArrayRef<OutputSection *> outputSections) {
                           });
 
         // Merge sorted vectors of Thunks and InputSections by outSecOff
-        std::vector<InputSection *> tmp;
+        SmallVector<InputSection *, 0> tmp;
         tmp.reserve(isd->sections.size() + newThunks.size());
 
         std::merge(isd->sections.begin(), isd->sections.end(),

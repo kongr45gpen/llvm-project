@@ -8947,10 +8947,10 @@ ExprResult Sema::ActOnReflexprSpecExpr(bool idOnly, tok::TokenKind specTok,
       idOnly, GetReflexprSpecExpr(specTok, opLoc, argRange.getEnd()));
 }
 
-ExprResult Sema::GetReflexprNamedDeclExpr(const NamedDecl *nDecl,
+ExprResult Sema::GetReflexprNamedDeclExpr(const NamedDecl *ND,
                                           SourceLocation opLoc,
                                           SourceLocation endLoc) {
-  return ReflexprIdExpr::getNamedDeclReflexprIdExpr(Context, nDecl,
+  return ReflexprIdExpr::getNamedDeclReflexprIdExpr(Context, ND,
                                                     opLoc, endLoc);
 }
 
@@ -8964,11 +8964,12 @@ ExprResult Sema::ActOnReflexprScopedExpr(bool idOnly, Scope *S,
   LookupParsedName(R, S, &SS);
 
   if (!R.empty() && !R.isAmbiguous()) {
-    if (const NamedDecl *nDecl = R.getFoundDecl()) {
-      if (!isa<TemplateTypeParmDecl>(nDecl) && !isa<TemplateDecl>(nDecl) &&
-          !isa<FunctionDecl>(nDecl)) {
+    if (auto *ND = R.getFoundDecl()) {
+      MarkAnyDeclReferenced(opLoc, ND, false);
+      if (!isa<TemplateTypeParmDecl>(ND) && !isa<TemplateDecl>(ND) &&
+          !isa<FunctionDecl>(ND)) {
         return OptionallyWrapReflexprExpr(
-            idOnly, GetReflexprNamedDeclExpr(nDecl, opLoc, argRange.getEnd()));
+            idOnly, GetReflexprNamedDeclExpr(ND, opLoc, argRange.getEnd()));
       }
     }
   }

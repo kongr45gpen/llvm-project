@@ -15,11 +15,13 @@
 #ifndef LLVM_CLANG_BASIC_REFLECTION_H
 #define LLVM_CLANG_BASIC_REFLECTION_H
 
+#include <cstdint>
+
 namespace clang {
 
   // [reflection-ts] FIXME This needs to be fixed to match the TS wording
   // When updating this also update METAOBJECT_TRAIT in TokenKinds.def
-  enum MetaobjectConcept  {
+  enum MetaobjectConcept  : std::uint64_t {
     MOC_Nothing                     = 0,
     MOC_Object                      = (1UL <<  0U),
     MOC_ObjectSequence              = (1UL <<  1U) | MOC_Object,

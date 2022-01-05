@@ -2094,9 +2094,11 @@ ReflexprIdExpr::getTypeReflexprIdExpr(ASTContext &Ctx,
                                       bool removeSugar,
                                       SourceLocation opLoc,
                                       SourceLocation endLoc) {
-  // [reflection-ts] FIXME cache?
-  return new (Ctx) ReflexprIdExpr(Ctx.MetaobjectIdTy, TInfo,
-                                  removeSugar, opLoc, endLoc);
+  if (ReflexprIdExpr *E = Ctx.findTypeInfoReflexpr(TInfo))
+    return E;
+  return Ctx.cacheTypeInfoReflexpr(
+      TInfo, new (Ctx) ReflexprIdExpr(Ctx.MetaobjectIdTy, TInfo,
+                                      removeSugar, opLoc, endLoc));
 }
 
 ReflexprIdExpr*

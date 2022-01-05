@@ -126,7 +126,7 @@ public:
     // 1. Separate reduction and parallel dims.
     SmallVector<int64_t, 4> parallelDims, parallelShapes;
     SmallVector<int64_t, 4> reductionDims, reductionShapes;
-    for (auto it : llvm::enumerate(reductionMask)) {
+    for (const auto &it : llvm::enumerate(reductionMask)) {
       int64_t i = it.index();
       bool isReduction = it.value();
       if (isReduction) {
@@ -237,7 +237,6 @@ struct TwoDimMultiReductionToElementWise
     if (!elementType.isIntOrIndexOrFloat())
       return failure();
 
-    Value condition;
     Value result =
         rewriter.create<vector::ExtractOp>(loc, multiReductionOp.source(), 0)
             .getResult();

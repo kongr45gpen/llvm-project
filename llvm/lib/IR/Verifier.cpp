@@ -1059,6 +1059,7 @@ void Verifier::visitDIDerivedType(const DIDerivedType &N) {
                N.getTag() == dwarf::DW_TAG_reference_type ||
                N.getTag() == dwarf::DW_TAG_rvalue_reference_type ||
                N.getTag() == dwarf::DW_TAG_const_type ||
+               N.getTag() == dwarf::DW_TAG_immutable_type ||
                N.getTag() == dwarf::DW_TAG_volatile_type ||
                N.getTag() == dwarf::DW_TAG_restrict_type ||
                N.getTag() == dwarf::DW_TAG_atomic_type ||
@@ -2150,9 +2151,7 @@ void Verifier::verifyInlineAsmCall(const CallBase &Call) {
   unsigned ArgNo = 0;
   for (const InlineAsm::ConstraintInfo &CI : IA->ParseConstraints()) {
     // Only deal with constraints that correspond to call arguments.
-    bool HasArg = CI.Type == InlineAsm::isInput ||
-                  (CI.Type == InlineAsm::isOutput && CI.isIndirect);
-    if (!HasArg)
+    if (!CI.hasArg())
       continue;
 
     if (CI.isIndirect) {
@@ -2161,7 +2160,9 @@ void Verifier::verifyInlineAsmCall(const CallBase &Call) {
              "Operand for indirect constraint must have pointer type",
              &Call);
 
-      // TODO: Require elementtype attribute here.
+      Assert(Call.getAttributes().getParamElementType(ArgNo),
+             "Operand for indirect constraint must have elementtype attribute",
+             &Call);
     } else {
       Assert(!Call.paramHasAttr(ArgNo, Attribute::ElementType),
              "Elementtype attribute can only be applied for indirect "

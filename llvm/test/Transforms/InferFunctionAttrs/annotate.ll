@@ -201,8 +201,8 @@ declare i32 @abs(i32)
 ; CHECK: declare noundef i32 @access(i8* nocapture noundef readonly, i32 noundef) [[NOFREE_NOUNWIND:#[0-9]+]]
 declare i32 @access(i8*, i32)
 
-; CHECK: declare double @acos(double) [[NOFREE_NOUNWIND_WILLRETURN_READNONE:#[0-9]+]]
-declare double @acos(double) readonly
+; CHECK: declare double @acos(double) [[NOFREE_NOUNWIND_WILLRETURN_WRITEONLY]]
+declare double @acos(double)
 
 ; CHECK: declare float @acosf(float) [[NOFREE_NOUNWIND_WILLRETURN_WRITEONLY]]
 declare float @acosf(float)
@@ -777,7 +777,7 @@ declare i64 @readlink(i8*, i8*, i64)
 ; CHECK: declare noalias noundef i8* @realloc(i8* nocapture, i64 noundef) [[INACCESSIBLEMEMORARGMEMONLY_NOUNWIND_WILLRETURN]]
 declare i8* @realloc(i8*, i64)
 
-; CHECK: declare noundef i8* @reallocf(i8*, i64 noundef) [[WILLRETURN:#[0-9]+]]
+; CHECK: declare noalias noundef i8* @reallocf(i8* nocapture, i64 noundef) [[INACCESSIBLEMEMORARGMEMONLY_NOUNWIND_WILLRETURN]]
 declare i8* @reallocf(i8*, i64)
 
 ; CHECK: declare noundef i8* @realpath(i8* nocapture noundef readonly, i8* noundef) [[NOFREE_NOUNWIND]]
@@ -1065,7 +1065,6 @@ declare void @memset_pattern16(i8*, i8*, i64)
 
 ; CHECK-DAG: attributes [[NOFREE_NOUNWIND_WILLRETURN]] = { mustprogress nofree nounwind willreturn }
 ; CHECK-DAG: attributes [[NOFREE_NOUNWIND_WILLRETURN_WRITEONLY]] = { mustprogress nofree nounwind willreturn writeonly }
-; CHECK-DAG: attributes [[NOFREE_NOUNWIND_WILLRETURN_READNONE]] = { mustprogress nofree nosync nounwind readnone willreturn }
 ; CHECK-DAG: attributes [[NOFREE_NOUNWIND]] = { nofree nounwind }
 ; CHECK-DAG: attributes [[INACCESSIBLEMEMONLY_NOFREE_NOUNWIND_WILLRETURN]] = { inaccessiblememonly mustprogress nofree nounwind willreturn }
 ; CHECK-DAG: attributes [[NOFREE_NOUNWIND_READONLY_WILLRETURN]] = { mustprogress nofree nounwind readonly willreturn }
@@ -1075,7 +1074,6 @@ declare void @memset_pattern16(i8*, i8*, i64)
 ; CHECK-DAG: attributes [[NOFREE_WILLRETURN]] = { mustprogress nofree willreturn }
 ; CHECK-DAG: attributes [[ARGMEMONLY_NOFREE_NOUNWIND_READONLY_WILLRETURN]] = { argmemonly mustprogress nofree nounwind readonly willreturn }
 ; CHECK-DAG: attributes [[NOFREE]] = { nofree }
-; CHECK-DAG: attributes [[WILLRETURN]] = { mustprogress willreturn }
 ; CHECK-DAG: attributes [[INACCESSIBLEMEMORARGONLY_NOFREE_NOUNWIND_WILLRETURN]]  = { inaccessiblemem_or_argmemonly mustprogress nofree nounwind willreturn }
 ; CHECK-DAG: attributes [[ARGMEMONLY_NOFREE_NOUNWIND]] = { argmemonly nofree nounwind }
 

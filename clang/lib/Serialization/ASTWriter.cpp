@@ -427,7 +427,8 @@ void TypeLocWriter::VisitTypeOfTypeLoc(TypeOfTypeLoc TL) {
 }
 
 void TypeLocWriter::VisitDecltypeTypeLoc(DecltypeTypeLoc TL) {
-  Record.AddSourceLocation(TL.getNameLoc());
+  Record.AddSourceLocation(TL.getDecltypeLoc());
+  Record.AddSourceLocation(TL.getRParenLoc());
 }
 
 void TypeLocWriter::VisitUnrefltypeTypeLoc(UnrefltypeTypeLoc TL) {
@@ -455,6 +456,9 @@ void TypeLocWriter::VisitAutoTypeLoc(AutoTypeLoc TL) {
       Record.AddTemplateArgumentLocInfo(TL.getTypePtr()->getArg(I).getKind(),
                                         TL.getArgLocInfo(I));
   }
+  Record.push_back(TL.isDecltypeAuto());
+  if (TL.isDecltypeAuto())
+    Record.AddSourceLocation(TL.getRParenLoc());
 }
 
 void TypeLocWriter::VisitDeducedTemplateSpecializationTypeLoc(

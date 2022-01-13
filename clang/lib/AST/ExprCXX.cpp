@@ -1986,6 +1986,8 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType,
       RParenLoc(RParenLoc) {
   if (isa<ParenExpr>(expression)) {
     setKind(MOK_ParenthesizedExpression);
+  } else if (isa<CXXConstructExpr>(expression)) {
+    setKind(MOK_ConstructionExpression);
   } else if (isa<CallExpr>(expression)) {
     setKind(MOK_FunctionCallExpression);
   } else {
@@ -2290,6 +2292,8 @@ StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
     return "a enumerator";
   case MOK_ParenthesizedExpression:
     return "a parenthesized expression";
+  case MOK_ConstructionExpression:
+    return "a construction expression";
   case MOK_FunctionCallExpression:
     return "a function call expression";
   case MOK_FunctionalTypeConversion:
@@ -2399,6 +2403,8 @@ translateMetaobjectKindToMetaobjectConcept(MetaobjectKind MoK) {
     return MOC_Enumerator;
   case MOK_ParenthesizedExpression:
     return MOC_ParenthesizedExpression;
+  case MOK_ConstructionExpression:
+    return MOC_ConstructionExpression;
   case MOK_FunctionCallExpression:
     return MOC_FunctionCallExpression;
   case MOK_FunctionalTypeConversion:
@@ -2875,7 +2881,8 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_GetSubExpression:
     return conceptIsA(MoC, MOC_ParenthesizedExpression);
   case UMOO_GetCallable:
-    return conceptIsA(MoC, MOC_FunctionCallExpression);
+    return conceptIsA(MoC, MOC_ConstructionExpression) ||
+           conceptIsA(MoC, MOC_FunctionCallExpression);
   case UMOO_HideProtected:
   case UMOO_HidePrivate:
   case UMOO_IsEmpty:
@@ -3477,6 +3484,11 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetCallable(ASTContext &Ctx,
                                                         ReflexprIdExpr *REE) {
   assert(REE && REE->isArgumentExpression());
 
+  if (auto *CCE = dyn_cast<CXXConstructExpr>(REE->getArgumentExpression())) {
+    if (const auto *CD = CCE->getConstructor()) {
+      return ReflexprIdExpr::getNamedDeclReflexprIdExpr(Ctx, CD);
+    }
+  }
   if (auto *CE = dyn_cast<CallExpr>(REE->getArgumentExpression())) {
     if (const auto *FD = CE->getDirectCallee()) {
       return ReflexprIdExpr::getNamedDeclReflexprIdExpr(Ctx, FD);

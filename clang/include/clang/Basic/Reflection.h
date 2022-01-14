@@ -210,6 +210,7 @@ namespace clang {
     UMOO_IsMetaFunctionCallExpression,
     UMOO_IsMetaFunctionalTypeConversion,
     UMOO_IsMetaSpecifier,
+    UMOO_GetDebugInfo,
     UMOO_SourceFileNameLen,
     UMOO_GetSourceFileName,
     UMOO_GetSourceLine,

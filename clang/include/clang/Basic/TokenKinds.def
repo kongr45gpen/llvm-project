@@ -472,6 +472,7 @@ METAOBJECT_TRAIT(specifier                   , Specifier)
 
 // reflection TS metaobject unary operations
 METAOBJECT_INT_OP_1(get_id_value                    , SizeT      , GetIdValue)
+METAOBJECT_STR_OP_1(get_debug_info                  , String     , GetDebugInfo)
 METAOBJECT_INT_OP_1(source_file_name_len            , SizeT      , SourceFileNameLen)
 METAOBJECT_STR_OP_1(get_source_file_name            , String     , GetSourceFileName)
 METAOBJECT_INT_OP_1(get_source_line                 , ULong      , GetSourceLine)

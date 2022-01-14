@@ -5030,6 +5030,7 @@ public:
 
   static ReflexprIdExpr* fromExpr(ASTContext&, Expr *E, void *EvlInfo = nullptr);
 
+  std::string getDebugInfo(ASTContext &Ctx) const;
   static StringRef getMetaobjectKindName(MetaobjectKind MoK);
   static StringRef getMetaobjectKindName(ASTContext &Ctx, ReflexprIdExpr* REE) {
     return getMetaobjectKindName(REE->getKind());
@@ -5295,6 +5296,7 @@ class UnaryMetaobjectOpExpr : public Expr, public MetaobjectOpExprBase {
   static bool getTraitValue(UnaryMetaobjectOp, MetaobjectConcept);
 
   static uintptr_t opGetIdValue(ASTContext &, ReflexprIdExpr*);
+  static std::string opGetDebugInfo(ASTContext &, ReflexprIdExpr*);
 
   static uint64_t opSourceFileNameLen(ASTContext&, ReflexprIdExpr*);
   static std::string opGetSourceFileName(ASTContext&, ReflexprIdExpr*);

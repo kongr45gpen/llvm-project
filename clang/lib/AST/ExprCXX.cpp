@@ -2210,6 +2210,53 @@ ReflexprIdExpr *ReflexprIdExpr::fromExpr(ASTContext &Ctx, Expr *E,
   return nullptr;
 }
 
+std::string ReflexprIdExpr::getDebugInfo(ASTContext &Ctx) const {
+  std::string result;
+  result.append("{");
+  result.append(R"("id":)");
+  result.append(std::to_string(getIdValue(Ctx).getZExtValue()));
+  result.append(R"(,"concepts":[)");
+  const auto MOC = getCategory();
+  bool first = true;
+  const auto appendIfMatches = [&](auto Cat, const char* Name) {
+    if ((MOC & Cat) == Cat) {
+      if (first) {
+        first = false;
+      } else {
+        result.append(",");
+      }
+      result.append("\"");
+      result.append(Name);
+      result.append("\"");
+    }
+  };
+#define METAOBJECT_TRAIT(S, Concept) appendIfMatches(MOC_##Concept, #Concept);
+#include "clang/Basic/TokenKinds.def"
+#undef METAOBJECT_TRAIT
+  result.append("]");
+  if (isArgumentExpression()) {
+    if (const auto *E = getArgumentExpression()) {
+      result.append(R"(,"arg_stmt":")");
+      switch (E->getStmtClass()) {
+#define STMT(CLASS, PARENT) case CLASS##Class: \
+        result.append(#CLASS); break;
+#define STMT_RANGE(BASE, FIRST, LAST)
+#define LAST_STMT_RANGE(BASE, FIRST, LAST)
+#define ABSTRACT_STMT(STMT)
+#include "clang/AST/StmtNodes.inc"
+#undef STMT
+#undef STMT_RANGE
+#undef LAST_STMT_RANGE
+#undef ABSTRACT_STMT
+        case NoStmtClass: break;
+      }
+      result.append("\"");
+    }
+  }
+  result.append("}");
+  return result;
+}
+
 StringRef ReflexprIdExpr::getMetaobjectKindName(MetaobjectKind MoK) {
   switch (MoK) {
   case MOK_Specifier:
@@ -2775,6 +2822,7 @@ bool UnaryMetaobjectOpExpr::isOperationApplicable(MetaobjectKind MoK,
   case UMOO_GetIdValue:
 #define METAOBJECT_TRAIT(S, Concept) case UMOO_IsMeta##Concept:
 #include "clang/Basic/TokenKinds.def"
+  case UMOO_GetDebugInfo:
   case UMOO_SourceFileNameLen:
   case UMOO_GetSourceFileName:
   case UMOO_GetSourceLine:
@@ -2926,6 +2974,13 @@ uintptr_t UnaryMetaobjectOpExpr::opGetIdValue(ASTContext &Ctx,
   assert(REE);
 
   return REE->getIdValue(Ctx).getZExtValue();
+}
+
+std::string UnaryMetaobjectOpExpr::opGetDebugInfo(ASTContext &Ctx,
+                                                  ReflexprIdExpr *REE) {
+  assert(REE);
+
+  return REE->getDebugInfo(Ctx);
 }
 
 uint64_t UnaryMetaobjectOpExpr::opSourceFileNameLen(ASTContext &Ctx,

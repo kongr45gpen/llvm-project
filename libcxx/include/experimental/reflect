@@ -641,6 +641,16 @@ template <ObjectSequence _Tp>
 inline constexpr auto get_size_v = get_size<_Tp>::value;
 
 // string
+
+template <Object _Tp>
+struct _LIBCPP_TEMPLATE_VIS get_debug_info {
+  static constexpr const char value[] =
+    __metaobject_get_debug_info(__unwrap_metaobject_id_v<_Tp>);
+};
+
+template <Object _Tp>
+inline constexpr auto get_debug_info_v = get_debug_info<_Tp>::value;
+
 template <Object _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_source_file_name {
   static constexpr const char value[
@@ -650,7 +660,6 @@ struct _LIBCPP_TEMPLATE_VIS get_source_file_name {
 
 template <Object _Tp>
 inline constexpr auto get_source_file_name_v = get_source_file_name<_Tp>::value;
-
 
 template <Named _Tp>
 struct _LIBCPP_TEMPLATE_VIS get_name {

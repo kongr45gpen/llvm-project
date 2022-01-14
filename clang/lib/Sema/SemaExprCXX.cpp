@@ -8982,8 +8982,10 @@ ExprResult Sema::ActOnReflexprScopedExpr(bool idOnly, Scope *S,
 ExprResult Sema::ActOnReflexprExprExpr(bool idOnly, Expr *expr,
                                        SourceLocation opLoc,
                                        SourceLocation endLoc) {
-  return ReflexprIdExpr::getExpressionReflexprIdExpr(Context, expr,
-                                                     opLoc, endLoc);
+  return OptionallyWrapReflexprExpr(
+          idOnly,
+          ReflexprIdExpr::getExpressionReflexprIdExpr(Context, expr,
+                                                      opLoc, endLoc));
 }
 
 ExprResult Sema::GetReflexprTypeExpr(const TypeSourceInfo *TInfo,

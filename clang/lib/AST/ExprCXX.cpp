@@ -1984,18 +1984,23 @@ ReflexprIdExpr::ReflexprIdExpr(QualType resultType,
     : Expr(ReflexprIdExprClass, resultType, VK_PRValue, OK_Ordinary),
       OperatorLoc(OperatorLoc),
       RParenLoc(RParenLoc) {
-  if (isa<ParenExpr>(expression)) {
-    setKind(MOK_ParenthesizedExpression);
-  } else if (isa<CXXConstructExpr>(expression)) {
-    setKind(MOK_ConstructionExpression);
-  } else if (isa<CallExpr>(expression)) {
-    setKind(MOK_FunctionCallExpression);
+  if(expression) {
+    if (isa<ParenExpr>(expression)) {
+      setKind(MOK_ParenthesizedExpression);
+    } else if (isa<CXXConstructExpr>(expression)) {
+      setKind(MOK_ConstructionExpression);
+    } else if (isa<CallExpr>(expression)) {
+      setKind(MOK_FunctionCallExpression);
+    } else {
+      setKind(MOK_Expression);
+    }
+    setArgKind(REAK_Expression);
+    setArgumentExpression(expression);
   } else {
-    setKind(MOK_Expression);
+    setKind(MOK_Object);
+    setArgKind(REAK_Nothing);
   }
   setSeqKind(MOSK_None);
-  setArgKind(REAK_Expression);
-  setArgumentExpression(expression);
   setAccessibility(MOA_AllowPrivate);
   setRemoveSugar(false);
   setDependence(computeDependence(this));
@@ -3481,7 +3486,7 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetSubExpression(ASTContext &Ctx,
 }
 
 ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetCallable(ASTContext &Ctx,
-                                                        ReflexprIdExpr *REE) {
+                                                     ReflexprIdExpr *REE) {
   assert(REE && REE->isArgumentExpression());
 
   if (auto *CCE = dyn_cast<CXXConstructExpr>(REE->getArgumentExpression())) {

@@ -1,5 +1,6 @@
 #include <experimental/reflect>
 #include <string_view>
+#include <string>
 #include <iostream>
 
 namespace meta = std::experimental::reflect;
@@ -18,7 +19,7 @@ struct example {
 };
 
 int main() {
-  example<int> e;
-  e.foo(1, 2.3F, "blah");
+  example<std::string> e;
+  e.foo("1", 2.3F, "blah");
   return 0;
 }

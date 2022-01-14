@@ -3534,9 +3534,20 @@ ReflexprIdExpr *UnaryMetaobjectOpExpr::opGetSubExpression(ASTContext &Ctx,
                                                           ReflexprIdExpr *REE) {
   assert(REE && REE->isArgumentExpression());
 
-  if (auto *PE = dyn_cast<ParenExpr>(REE->getArgumentExpression())) {
-    return ReflexprIdExpr::getExpressionReflexprIdExpr(Ctx, PE->getSubExpr());
+  Expr *E = REE->getArgumentExpression();
+  while (E) {
+    if (auto *PE = dyn_cast<ParenExpr>(E)) {
+      E =  PE->getSubExpr();
+    } else if(auto *CBTE = dyn_cast<CXXBindTemporaryExpr>(E)) {
+      E = CBTE->getSubExpr();
+    } else {
+      break;
+    }
   }
+  if (E && (E != REE->getArgumentExpression())) {
+    return ReflexprIdExpr::getExpressionReflexprIdExpr(Ctx, E);
+  }
+
   return nullptr;
 }
 

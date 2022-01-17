@@ -7671,12 +7671,12 @@ SDValue RISCVTargetLowering::PerformDAGCombine(SDNode *N,
       if (VecVT.getVectorElementType() == MemVT) {
         SDLoc DL(N);
         MVT MaskVT = MVT::getVectorVT(MVT::i1, VecVT.getVectorElementCount());
-        return DAG.getStoreVP(Store->getChain(), DL, Src, Store->getBasePtr(),
-                              DAG.getConstant(1, DL, MaskVT),
-                              DAG.getConstant(1, DL, Subtarget.getXLenVT()),
-                              Store->getPointerInfo(),
-                              Store->getOriginalAlign(),
-                              Store->getMemOperand()->getFlags());
+        return DAG.getStoreVP(
+            Store->getChain(), DL, Src, Store->getBasePtr(), Store->getOffset(),
+            DAG.getConstant(1, DL, MaskVT),
+            DAG.getConstant(1, DL, Subtarget.getXLenVT()), MemVT,
+            Store->getMemOperand(), Store->getAddressingMode(),
+            Store->isTruncatingStore(), /*IsCompress*/ false);
       }
     }
 
@@ -7964,6 +7964,7 @@ unsigned RISCVTargetLowering::ComputeNumSignBitsForTargetNode(
   case RISCVISD::UNSHFLW:
   case RISCVISD::BCOMPRESSW:
   case RISCVISD::BDECOMPRESSW:
+  case RISCVISD::BFPW:
   case RISCVISD::FCVT_W_RV64:
   case RISCVISD::FCVT_WU_RV64:
   case RISCVISD::STRICT_FCVT_W_RV64:

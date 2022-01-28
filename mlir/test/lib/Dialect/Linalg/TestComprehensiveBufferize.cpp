@@ -12,11 +12,11 @@
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arithmetic/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Bufferization/Transforms/OneShotAnalysis.h"
 #include "mlir/Dialect/Linalg/ComprehensiveBufferize/AffineInterfaceImpl.h"
-#include "mlir/Dialect/Linalg/ComprehensiveBufferize/ArithInterfaceImpl.h"
 #include "mlir/Dialect/Linalg/ComprehensiveBufferize/LinalgInterfaceImpl.h"
 #include "mlir/Dialect/Linalg/ComprehensiveBufferize/SCFInterfaceImpl.h"
 #include "mlir/Dialect/Linalg/ComprehensiveBufferize/StdInterfaceImpl.h"
@@ -59,7 +59,7 @@ struct TestComprehensiveFunctionBufferize
                     vector::VectorDialect, scf::SCFDialect, StandardOpsDialect,
                     arith::ArithmeticDialect, AffineDialect>();
     affine_ext::registerBufferizableOpInterfaceExternalModels(registry);
-    arith_ext::registerBufferizableOpInterfaceExternalModels(registry);
+    arith::registerBufferizableOpInterfaceExternalModels(registry);
     linalg_ext::registerBufferizableOpInterfaceExternalModels(registry);
     scf_ext::registerBufferizableOpInterfaceExternalModels(registry);
     std_ext::registerBufferizableOpInterfaceExternalModels(registry);
@@ -91,6 +91,10 @@ struct TestComprehensiveFunctionBufferize
       *this, "dialect-filter",
       llvm::cl::desc("Bufferize only ops from the specified dialects"),
       llvm::cl::ZeroOrMore, llvm::cl::MiscFlags::CommaSeparated};
+  Option<bool> fullyDynamicLayoutMaps{
+      *this, "fully-dynamic-layout-maps",
+      llvm::cl::desc("Use fully dynamic layout maps on memref types"),
+      llvm::cl::init(true)};
   Option<bool> createDeallocs{
       *this, "create-deallocs",
       llvm::cl::desc("Specify if buffers should be deallocated"),
@@ -108,6 +112,7 @@ void TestComprehensiveFunctionBufferize::runOnOperation() {
   options->allowUnknownOps = allowUnknownOps;
   options->testAnalysisOnly = testAnalysisOnly;
   options->analysisFuzzerSeed = analysisFuzzerSeed;
+  options->fullyDynamicLayoutMaps = fullyDynamicLayoutMaps;
   options->createDeallocs = createDeallocs;
 
   if (dialectFilter.hasValue()) {

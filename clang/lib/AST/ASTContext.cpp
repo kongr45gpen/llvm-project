@@ -1762,16 +1762,16 @@ ReflexprIdExpr* ASTContext::findNamedDeclReflexpr(const NamedDecl* ND) const {
 
 ReflexprIdExpr* ASTContext::cacheTypeInfoReflexpr(const TypeSourceInfo *TI,
                                                   ReflexprIdExpr *E) {
-  std::pair<const TypeSourceInfo*, ReflexprIdExpr*> P(TI, E);
-  bool FirstOne = TypeInfoReflexprs.insert(P).second;
+  std::pair<QualType, ReflexprIdExpr*> P(TI->getType(), E);
+  bool FirstOne = QualTypeReflexprs.insert(P).second;
   assert(FirstOne);
   (void)FirstOne;
   return E;
 }
 
 ReflexprIdExpr* ASTContext::findTypeInfoReflexpr(const TypeSourceInfo *TI) const {
-  TypeInfoReflexprMap::const_iterator p = TypeInfoReflexprs.find(TI);
-  if (p != TypeInfoReflexprs.end())
+  TypeInfoReflexprMap::const_iterator p = QualTypeReflexprs.find(TI->getType());
+  if (p != QualTypeReflexprs.end())
     return p->second;
   return nullptr;
 }

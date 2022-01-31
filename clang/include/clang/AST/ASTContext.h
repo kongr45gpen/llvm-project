@@ -299,8 +299,8 @@ class ASTContext : public RefCountedBase<ASTContext> {
   SpecifierReflexprMap SpecifierReflexprs ;
   using NamedDeclReflexprMap = llvm::DenseMap<const NamedDecl*, ReflexprIdExpr*>;
   NamedDeclReflexprMap NamedDeclReflexprs;
-  using TypeInfoReflexprMap = llvm::DenseMap<const TypeSourceInfo*, ReflexprIdExpr*>;
-  TypeInfoReflexprMap TypeInfoReflexprs;
+  using TypeInfoReflexprMap = llvm::DenseMap<QualType, ReflexprIdExpr*>;
+  TypeInfoReflexprMap QualTypeReflexprs;
 
   /// A cache from types to unadjusted alignment information. Only ARM and
   /// AArch64 targets need this information, keeping it separate prevents

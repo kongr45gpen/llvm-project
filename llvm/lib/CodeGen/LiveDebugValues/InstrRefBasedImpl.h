@@ -132,6 +132,11 @@ public:
     u.s = {Block, Inst, Loc.asU64()};
   }
 
+  ValueIDNum &operator=(const ValueIDNum &Other) {
+    u.Value = Other.u.Value;
+    return *this;
+  }
+
   uint64_t getBlock() const { return u.s.BlockNo; }
   uint64_t getInst() const { return u.s.InstNo; }
   uint64_t getLoc() const { return u.s.LocNo; }
@@ -957,6 +962,15 @@ private:
                      SmallPtrSetImpl<MachineBasicBlock *> &AllBlocks,
                      ValueIDNum **MInLocs,
                      SmallVectorImpl<MLocTransferMap> &MLocTransfer);
+
+  /// Propagate variable values to blocks in the common case where there's
+  /// only one value assigned to the variable. This function has better
+  /// performance as it doesn't have to find the dominance frontier between
+  /// different assignments.
+  void placePHIsForSingleVarDefinition(
+          const SmallPtrSetImpl<MachineBasicBlock *> &InScopeBlocks,
+          MachineBasicBlock *MBB, SmallVectorImpl<VLocTracker> &AllTheVLocs,
+          const DebugVariable &Var, LiveInsT &Output);
 
   /// Calculate the iterated-dominance-frontier for a set of defs, using the
   /// existing LLVM facilities for this. Works for a single "value" or

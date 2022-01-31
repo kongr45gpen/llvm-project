@@ -2201,7 +2201,6 @@ const char *AArch64TargetLowering::getTargetNodeName(unsigned Opcode) const {
     MAKE_CASE(AArch64ISD::INSR)
     MAKE_CASE(AArch64ISD::PTEST)
     MAKE_CASE(AArch64ISD::PTRUE)
-    MAKE_CASE(AArch64ISD::PFALSE)
     MAKE_CASE(AArch64ISD::LD1_MERGE_ZERO)
     MAKE_CASE(AArch64ISD::LD1S_MERGE_ZERO)
     MAKE_CASE(AArch64ISD::LDNF1_MERGE_ZERO)
@@ -3745,6 +3744,10 @@ SDValue AArch64TargetLowering::LowerBITCAST(SDValue Op,
 
   if (OpVT != MVT::f16 && OpVT != MVT::bf16)
     return SDValue();
+
+  // Bitcasts between f16 and bf16 are legal.
+  if (ArgVT == MVT::f16 || ArgVT == MVT::bf16)
+    return Op;
 
   assert(ArgVT == MVT::i16);
   SDLoc DL(Op);
@@ -6475,12 +6478,18 @@ AArch64TargetLowering::LowerCall(CallLoweringInfo &CLI,
 
   unsigned CallOpc = AArch64ISD::CALL;
   // Calls with operand bundle "clang.arc.attachedcall" are special. They should
-  // be expanded to the call, directly followed by a special marker sequence.
-  // Use the CALL_RVMARKER to do that.
+  // be expanded to the call, directly followed by a special marker sequence and
+  // a call to an ObjC library function.  Use CALL_RVMARKER to do that.
   if (CLI.CB && objcarc::hasAttachedCallOpBundle(CLI.CB)) {
     assert(!IsTailCall &&
            "tail calls cannot be marked with clang.arc.attachedcall");
     CallOpc = AArch64ISD::CALL_RVMARKER;
+
+    // Add a target global address for the retainRV/claimRV runtime function
+    // just before the call target.
+    Function *ARCFn = *objcarc::getAttachedARCFunction(CLI.CB);
+    auto GA = DAG.getTargetGlobalAddress(ARCFn, DL, PtrVT);
+    Ops.insert(Ops.begin() + 1, GA);
   }
 
   // Returns a chain and a flag for retval copy to use.
@@ -9985,8 +9994,9 @@ SDValue AArch64TargetLowering::LowerSPLAT_VECTOR(SDValue Op,
     // The only legal i1 vectors are SVE vectors, so we can use SVE-specific
     // lowering code.
     if (auto *ConstVal = dyn_cast<ConstantSDNode>(SplatVal)) {
+      // We can hande the zero case during isel.
       if (ConstVal->isZero())
-        return DAG.getNode(AArch64ISD::PFALSE, dl, VT);
+        return Op;
       if (ConstVal->isOne())
         return getPTrue(DAG, dl, VT, AArch64SVEPredPattern::all);
     }
@@ -15092,7 +15102,7 @@ static bool isAllInactivePredicate(SDValue N) {
   while (N.getOpcode() == AArch64ISD::REINTERPRET_CAST)
     N = N.getOperand(0);
 
-  return N.getOpcode() == AArch64ISD::PFALSE;
+  return ISD::isConstantSplatVectorAllZeros(N.getNode());
 }
 
 static bool isAllActivePredicate(SelectionDAG &DAG, SDValue N) {

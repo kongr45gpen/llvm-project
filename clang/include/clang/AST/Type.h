@@ -2557,6 +2557,10 @@ public:
     return getKind() >= Half && getKind() <= Ibm128;
   }
 
+  bool isMetaobjectId() const {
+    return getKind() == BuiltinType::MetaobjectId;
+  }
+
   /// Determines whether the given kind corresponds to a placeholder type.
   static bool isPlaceholderTypeKind(Kind K) {
     return K >= Overload;

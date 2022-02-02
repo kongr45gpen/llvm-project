@@ -1116,6 +1116,10 @@ public:
   /// of the standard library resides.
   NamespaceDecl *StdExperimentalNamespaceCache;
 
+  /// The namespace for reflection TS declarations
+  LazyDeclPtr ReflectionNamespace;
+  NamespaceDecl *ReflectionNamespaceCache;
+
   /// The C++ "std::initializer_list" template, which is defined in
   /// \<initializer_list>.
   ClassTemplateDecl *StdInitializerList;
@@ -5816,6 +5820,8 @@ public:
 
   NamespaceDecl *lookupStdExperimentalNamespace();
   NamespaceDecl *getCachedCoroNamespace() { return CoroTraitsNamespaceCache; }
+
+  NamespaceDecl *lookupReflectionNamespace();
 
   CXXRecordDecl *getStdBadAlloc() const;
   EnumDecl *getStdAlignValT() const;

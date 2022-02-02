@@ -2999,6 +2999,13 @@ void Sema::FindAssociatedClassesAndNamespaces(
   for (unsigned ArgIdx = 0; ArgIdx != Args.size(); ++ArgIdx) {
     Expr *Arg = Args[ArgIdx];
 
+    // [ReflectionTS]
+    if (getLangOpts().ReflectionTS && getLangOpts().ReflectionExt) {
+      if (Arg->getType()->isMetaobjectIdType()) {
+        Result.Namespaces.insert(lookupReflectionNamespace());
+        continue;
+      }
+    }
     if (Arg->getType() != Context.OverloadTy) {
       addAssociatedClassesAndNamespaces(Result, Arg->getType());
       continue;

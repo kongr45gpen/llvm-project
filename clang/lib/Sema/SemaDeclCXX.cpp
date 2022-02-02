@@ -11049,6 +11049,7 @@ Decl *Sema::ActOnStartNamespaceDef(
   bool IsInline = InlineLoc.isValid();
   bool IsInvalid = false;
   bool IsStd = false;
+  bool IsReflection = false;
   bool AddToKnown = false;
   Scope *DeclRegionScope = NamespcScope->getParent();
 
@@ -11091,6 +11092,14 @@ Decl *Sema::ActOnStartNamespaceDef(
       PrevNS = getStdNamespace();
       IsStd = true;
       AddToKnown = !IsInline;
+    } else if (II->isStr("mirror") &&
+               CurContext->getRedeclContext()->isTranslationUnit()) {
+      // [ReflectionTS]: this should be removed eventually
+      // and std::*::reflect should be used
+      PrevNS = cast_or_null<NamespaceDecl>(
+        ReflectionNamespace.get(Context.getExternalSource()));
+      IsReflection = true;
+      AddToKnown = !IsInline;
     } else {
       // We've seen this namespace for the first time.
       AddToKnown = !IsInline;
@@ -11126,6 +11135,8 @@ Decl *Sema::ActOnStartNamespaceDef(
 
   if (IsStd)
     StdNamespace = Namespc;
+  if (IsReflection)
+    ReflectionNamespace = Namespc;
   if (AddToKnown)
     KnownNamespaces[Namespc] = false;
 
@@ -11230,6 +11241,25 @@ NamespaceDecl *Sema::lookupStdExperimentalNamespace() {
     }
   }
   return StdExperimentalNamespaceCache;
+}
+
+NamespaceDecl *Sema::lookupReflectionNamespace() {
+  if (!ReflectionNamespaceCache) {
+    ReflectionNamespaceCache = cast_or_null<NamespaceDecl>(
+      ReflectionNamespace.get(Context.getExternalSource()));
+  }
+  if (!ReflectionNamespaceCache) {
+    ReflectionNamespaceCache =
+      NamespaceDecl::Create(Context,
+                            Context.getTranslationUnitDecl(),
+                            /*Inline=*/false,
+                            SourceLocation(), SourceLocation(),
+                            // [ReflectionTS] TODO
+                            &PP.getIdentifierTable().get("mirror"),
+                            /*PrevDecl=*/nullptr);
+  }
+
+  return ReflectionNamespaceCache;
 }
 
 namespace {

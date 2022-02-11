@@ -2394,6 +2394,7 @@ cc_library(
     includes = ["include"],
     deps = [
         ":Affine",
+        ":AffineUtils",
         ":ArithmeticDialect",
         ":ConversionPassIncGen",
         ":IR",
@@ -2580,6 +2581,7 @@ td_library(
     ],
     includes = ["include"],
     deps = [
+        ":CastInterfacesTdFiles",
         ":ControlFlowInterfacesTdFiles",
         ":InferTypeOpInterfaceTdFiles",
         ":SideEffectInterfacesTdFiles",
@@ -3537,6 +3539,7 @@ cc_library(
     includes = ["include"],
     deps = [
         ":ArithmeticToLLVM",
+        ":ControlFlowToLLVM",
         ":ConversionPassIncGen",
         ":GPUCommonTransforms",
         ":GPUDialect",

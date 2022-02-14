@@ -2547,7 +2547,7 @@ template <typename Derived, typename Alloc> struct AbstractManglingParser {
   Node *parseName(NameState *State = nullptr);
   Node *parseLocalName(NameState *State);
   Node *parseOperatorName(NameState *State);
-  Node *parseUnqualifiedName(NameState *State);
+  Node *parseUnqualifiedName(NameState *State, Node *Scope);
   Node *parseUnnamedTypeName(NameState *State);
   Node *parseSourceName(NameState *State);
   Node *parseUnscopedName(NameState *State);
@@ -2659,37 +2659,33 @@ Node *AbstractManglingParser<Derived, Alloc>::parseLocalName(NameState *State) {
 template <typename Derived, typename Alloc>
 Node *
 AbstractManglingParser<Derived, Alloc>::parseUnscopedName(NameState *State) {
-  bool IsStd = consumeIf("St");
-  consumeIf('L');
-
-  Node *Result = getDerived().parseUnqualifiedName(State);
-  if (Result == nullptr)
-    return nullptr;
-  if (IsStd) {
-    if (auto *Std = make<NameType>("std"))
-      Result = make<NestedName>(Std, Result);
-    else
+  Node *Std = nullptr;
+  if (consumeIf("St")) {
+    Std = make<NameType>("std");
+    if (Std == nullptr)
       return nullptr;
   }
+  consumeIf('L');
 
-  return Result;
+  return getDerived().parseUnqualifiedName(State, Std);
 }
 
 // <unqualified-name> ::= <operator-name> [abi-tags]
-//                    ::= <ctor-dtor-name>
-//                    ::= <source-name>
-//                    ::= <unnamed-type-name>
+//                    ::= <ctor-dtor-name> [<abi-tags>]
+//                    ::= <source-name> [<abi-tags>]
+//                    ::= <unnamed-type-name> [<abi-tags>]
 //                    ::= DC <source-name>+ E      # structured binding declaration
 template <typename Derived, typename Alloc>
 Node *
-AbstractManglingParser<Derived, Alloc>::parseUnqualifiedName(NameState *State) {
-  // <ctor-dtor-name>s are special-cased in parseNestedName().
+AbstractManglingParser<Derived, Alloc>::parseUnqualifiedName(NameState *State,
+                                                             Node *Scope) {
   Node *Result;
   if (look() == 'U')
     Result = getDerived().parseUnnamedTypeName(State);
   else if (look() >= '1' && look() <= '9')
     Result = getDerived().parseSourceName(State);
   else if (consumeIf("DC")) {
+    // Structured binding
     size_t BindingsBegin = Names.size();
     do {
       Node *Binding = getDerived().parseSourceName(State);
@@ -2698,10 +2694,18 @@ AbstractManglingParser<Derived, Alloc>::parseUnqualifiedName(NameState *State) {
       Names.push_back(Binding);
     } while (!consumeIf('E'));
     Result = make<StructuredBindingName>(popTrailingNodeArray(BindingsBegin));
-  } else
+  } else if (look() == 'C' || look() == 'D') {
+    // A <ctor-dtor-name>.
+    if (Scope == nullptr)
+      return nullptr;
+    Result = getDerived().parseCtorDtorName(Scope, State);
+  } else {
     Result = getDerived().parseOperatorName(State);
+  }
   if (Result != nullptr)
     Result = getDerived().parseAbiTags(Result);
+  if (Result != nullptr && Scope != nullptr)
+    Result = make<NestedName>(Scope, Result);
   return Result;
 }
 
@@ -3237,24 +3241,8 @@ AbstractManglingParser<Derived, Alloc>::parseNestedName(NameState *State) {
         return nullptr;
       continue; // Do not push a new substitution.
     } else {
-      Node *N = nullptr;
-      if (look() == 'C' || (look() == 'D' && look(1) != 'C')) {
-        // An <unqualified-name> that's actually a <ctor-dtor-name>.
-        if (SoFar == nullptr)
-          return nullptr;
-        N = getDerived().parseCtorDtorName(SoFar, State);
-        if (N != nullptr)
-          N = getDerived().parseAbiTags(N);
-      } else {
-        //          ::= <prefix> <unqualified-name>
-        N = getDerived().parseUnqualifiedName(State);
-      }
-      if (N == nullptr)
-        return nullptr;
-      if (SoFar)
-        SoFar = make<NestedName>(SoFar, N);
-      else
-        SoFar = N;
+      //          ::= [<prefix>] <unqualified-name>
+      SoFar = getDerived().parseUnqualifiedName(State, SoFar);
     }
     if (SoFar == nullptr)
       return nullptr;
@@ -5044,30 +5032,29 @@ Node *AbstractManglingParser<Derived, Alloc>::parseExpr() {
     // interpreted as <type> node 'short' or 'ellipsis'. However, neither
     // __uuidof(short) nor __uuidof(...) can actually appear, so there is no
     // actual conflict here.
+    bool IsUUID = false;
+    Node *UUID = nullptr;
     if (Name->getBaseName() == "__uuidof") {
-      if (numLeft() < 2)
-        return nullptr;
-      if (*First == 't') {
-        ++First;
-        Node *Ty = getDerived().parseType();
-        if (!Ty)
-          return nullptr;
-        return make<CallExpr>(Name, makeNodeArray(&Ty, &Ty + 1));
-      }
-      if (*First == 'z') {
-        ++First;
-        Node *Ex = getDerived().parseExpr();
-        if (!Ex)
-          return nullptr;
-        return make<CallExpr>(Name, makeNodeArray(&Ex, &Ex + 1));
+      if (consumeIf('t')) {
+        UUID = getDerived().parseType();
+        IsUUID = true;
+      } else if (consumeIf('z')) {
+        UUID = getDerived().parseExpr();
+        IsUUID = true;
       }
     }
     size_t ExprsBegin = Names.size();
-    while (!consumeIf('E')) {
-      Node *E = getDerived().parseTemplateArg();
-      if (E == nullptr)
-        return E;
-      Names.push_back(E);
+    if (IsUUID) {
+      if (UUID == nullptr)
+        return nullptr;
+      Names.push_back(UUID);
+    } else {
+      while (!consumeIf('E')) {
+        Node *E = getDerived().parseTemplateArg();
+        if (E == nullptr)
+          return E;
+        Names.push_back(E);
+      }
     }
     return make<CallExpr>(Name, popTrailingNodeArray(ExprsBegin));
   }

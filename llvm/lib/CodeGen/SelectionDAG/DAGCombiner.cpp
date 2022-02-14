@@ -426,6 +426,7 @@ namespace {
     SDValue visitREM(SDNode *N);
     SDValue visitMULHU(SDNode *N);
     SDValue visitMULHS(SDNode *N);
+    SDValue visitAVG(SDNode *N);
     SDValue visitSMUL_LOHI(SDNode *N);
     SDValue visitUMUL_LOHI(SDNode *N);
     SDValue visitMULO(SDNode *N);
@@ -1635,6 +1636,10 @@ SDValue DAGCombiner::visit(SDNode *N) {
   case ISD::UREM:               return visitREM(N);
   case ISD::MULHU:              return visitMULHU(N);
   case ISD::MULHS:              return visitMULHS(N);
+  case ISD::AVGFLOORS:
+  case ISD::AVGFLOORU:
+  case ISD::AVGCEILS:
+  case ISD::AVGCEILU:           return visitAVG(N);
   case ISD::SMUL_LOHI:          return visitSMUL_LOHI(N);
   case ISD::UMUL_LOHI:          return visitUMUL_LOHI(N);
   case ISD::SMULO:
@@ -4650,6 +4655,46 @@ SDValue DAGCombiner::visitMULHU(SDNode *N) {
   // folding based on known bits.
   if (SimplifyDemandedBits(SDValue(N, 0)))
     return SDValue(N, 0);
+
+  return SDValue();
+}
+
+SDValue DAGCombiner::visitAVG(SDNode *N) {
+  unsigned Opcode = N->getOpcode();
+  SDValue N0 = N->getOperand(0);
+  SDValue N1 = N->getOperand(1);
+  EVT VT = N->getValueType(0);
+  SDLoc DL(N);
+
+  // fold (avg c1, c2)
+  if (SDValue C = DAG.FoldConstantArithmetic(Opcode, DL, VT, {N0, N1}))
+    return C;
+
+  // canonicalize constant to RHS.
+  if (DAG.isConstantIntBuildVectorOrConstantInt(N0) &&
+      !DAG.isConstantIntBuildVectorOrConstantInt(N1))
+    return DAG.getNode(Opcode, DL, N->getVTList(), N1, N0);
+
+  if (VT.isVector()) {
+    if (SDValue FoldedVOp = SimplifyVBinOp(N, DL))
+      return FoldedVOp;
+
+    // fold (avgfloor x, 0) -> x >> 1
+    if (ISD::isConstantSplatVectorAllZeros(N1.getNode())) {
+      if (Opcode == ISD::AVGFLOORS)
+        return DAG.getNode(ISD::SRA, DL, VT, N0, DAG.getConstant(1, DL, VT));
+      if (Opcode == ISD::AVGFLOORU)
+        return DAG.getNode(ISD::SRL, DL, VT, N0, DAG.getConstant(1, DL, VT));
+    }
+  }
+
+  // fold (avg x, undef) -> x
+  if (N0.isUndef())
+    return N1;
+  if (N1.isUndef())
+    return N0;
+
+  // TODO If we use avg for scalars anywhere, we can add (avgfl x, 0) -> x >> 1
 
   return SDValue();
 }
@@ -9765,7 +9810,8 @@ SDValue DAGCombiner::foldSelectOfConstants(SDNode *N) {
       if (C1Val.isPowerOf2() && C2Val.isZero()) {
         if (VT != MVT::i1)
           Cond = DAG.getNode(ISD::ZERO_EXTEND, DL, VT, Cond);
-        SDValue ShAmtC = DAG.getConstant(C1Val.exactLogBase2(), DL, VT);
+        SDValue ShAmtC =
+            DAG.getShiftAmountConstant(C1Val.exactLogBase2(), VT, DL);
         return DAG.getNode(ISD::SHL, DL, VT, Cond, ShAmtC);
       }
 
@@ -12688,6 +12734,87 @@ SDValue DAGCombiner::visitEXTEND_VECTOR_INREG(SDNode *N) {
   return SDValue();
 }
 
+// Attempt to form one of the avg patterns from:
+// truncate(shr(add(zext(OpB), zext(OpA)), 1))
+// Creating avgflooru/avgfloors/avgceilu/avgceils, with the ceiling having an
+// extra rounding add:
+// truncate(shr(add(zext(OpB), zext(OpA), 1), 1))
+// This starts at a truncate, meaning the shift will always be shl, as the top
+// bits are known to not be demanded.
+static SDValue performAvgCombine(SDNode *N, SelectionDAG &DAG) {
+  assert(N->getOpcode() == ISD::TRUNCATE && "TRUNCATE node expected");
+  EVT VT = N->getValueType(0);
+
+  SDValue Shift = N->getOperand(0);
+  if (Shift.getOpcode() != ISD::SRL)
+    return SDValue();
+
+  // Is the right shift using an immediate value of 1?
+  ConstantSDNode *N1C = isConstOrConstSplat(Shift.getOperand(1));
+  if (!N1C || !N1C->isOne())
+    return SDValue();
+
+  // We are looking for an avgfloor
+  // add(ext, ext)
+  // or one of these as a avgceil
+  // add(add(ext, ext), 1)
+  // add(add(ext, 1), ext)
+  // add(ext, add(ext, 1))
+  SDValue Add = Shift.getOperand(0);
+  if (Add.getOpcode() != ISD::ADD)
+    return SDValue();
+
+  SDValue ExtendOpA = Add.getOperand(0);
+  SDValue ExtendOpB = Add.getOperand(1);
+  auto MatchOperands = [&](SDValue Op1, SDValue Op2, SDValue Op3) {
+    ConstantSDNode *ConstOp;
+    if ((ConstOp = isConstOrConstSplat(Op1)) && ConstOp->isOne()) {
+      ExtendOpA = Op2;
+      ExtendOpB = Op3;
+      return true;
+    }
+    if ((ConstOp = isConstOrConstSplat(Op2)) && ConstOp->isOne()) {
+      ExtendOpA = Op1;
+      ExtendOpB = Op3;
+      return true;
+    }
+    if ((ConstOp = isConstOrConstSplat(Op3)) && ConstOp->isOne()) {
+      ExtendOpA = Op1;
+      ExtendOpB = Op2;
+      return true;
+    }
+    return false;
+  };
+  bool IsCeil = (ExtendOpA.getOpcode() == ISD::ADD &&
+                 MatchOperands(ExtendOpA.getOperand(0), ExtendOpA.getOperand(1),
+                               ExtendOpB)) ||
+                (ExtendOpB.getOpcode() == ISD::ADD &&
+                 MatchOperands(ExtendOpB.getOperand(0), ExtendOpB.getOperand(1),
+                               ExtendOpA));
+
+  unsigned ExtendOpAOpc = ExtendOpA.getOpcode();
+  unsigned ExtendOpBOpc = ExtendOpB.getOpcode();
+  if (!(ExtendOpAOpc == ExtendOpBOpc &&
+        (ExtendOpAOpc == ISD::ZERO_EXTEND || ExtendOpAOpc == ISD::SIGN_EXTEND)))
+    return SDValue();
+
+  // Is the result of the right shift being truncated to the same value type as
+  // the original operands, OpA and OpB?
+  SDValue OpA = ExtendOpA.getOperand(0);
+  SDValue OpB = ExtendOpB.getOperand(0);
+  EVT OpAVT = OpA.getValueType();
+  if (VT != OpAVT || OpAVT != OpB.getValueType())
+    return SDValue();
+
+  bool IsSignExtend = ExtendOpAOpc == ISD::SIGN_EXTEND;
+  unsigned AVGOpc = IsSignExtend ? (IsCeil ? ISD::AVGCEILS : ISD::AVGFLOORS)
+                                 : (IsCeil ? ISD::AVGCEILU : ISD::AVGFLOORU);
+  if (!DAG.getTargetLoweringInfo().isOperationLegalOrCustom(AVGOpc, VT))
+    return SDValue();
+
+  return DAG.getNode(AVGOpc, SDLoc(N), VT, OpA, OpB);
+}
+
 SDValue DAGCombiner::visitTRUNCATE(SDNode *N) {
   SDValue N0 = N->getOperand(0);
   EVT VT = N->getValueType(0);
@@ -12974,6 +13101,8 @@ SDValue DAGCombiner::visitTRUNCATE(SDNode *N) {
 
   if (SDValue NewVSel = matchVSelectOpSizesWithSetCC(N))
     return NewVSel;
+  if (SDValue M = performAvgCombine(N, DAG))
+    return M;
 
   // Narrow a suitable binary operation with a non-opaque constant operand by
   // moving it ahead of the truncate. This is limited to pre-legalization
@@ -19112,47 +19241,33 @@ SDValue DAGCombiner::scalarizeExtractedVectorLoad(SDNode *EVE, EVT InVecVT,
   SDValue NewPtr = TLI.getVectorElementPointer(DAG, OriginalLoad->getBasePtr(),
                                                InVecVT, EltNo);
 
-  // The replacement we need to do here is a little tricky: we need to
-  // replace an extractelement of a load with a load.
-  // Use ReplaceAllUsesOfValuesWith to do the replacement.
-  // Note that this replacement assumes that the extractvalue is the only
-  // use of the load; that's okay because we don't want to perform this
-  // transformation in other cases anyway.
+  // We are replacing a vector load with a scalar load. The new load must have
+  // identical memory op ordering to the original.
   SDValue Load;
-  SDValue Chain;
   if (ResultVT.bitsGT(VecEltVT)) {
     // If the result type of vextract is wider than the load, then issue an
     // extending load instead.
-    ISD::LoadExtType ExtType = TLI.isLoadExtLegal(ISD::ZEXTLOAD, ResultVT,
-                                                  VecEltVT)
-                                   ? ISD::ZEXTLOAD
-                                   : ISD::EXTLOAD;
-    Load = DAG.getExtLoad(ExtType, SDLoc(EVE), ResultVT,
-                          OriginalLoad->getChain(), NewPtr, MPI, VecEltVT,
-                          Alignment, OriginalLoad->getMemOperand()->getFlags(),
+    ISD::LoadExtType ExtType =
+        TLI.isLoadExtLegal(ISD::ZEXTLOAD, ResultVT, VecEltVT) ? ISD::ZEXTLOAD
+                                                              : ISD::EXTLOAD;
+    Load = DAG.getExtLoad(ExtType, DL, ResultVT, OriginalLoad->getChain(),
+                          NewPtr, MPI, VecEltVT, Alignment,
+                          OriginalLoad->getMemOperand()->getFlags(),
                           OriginalLoad->getAAInfo());
-    Chain = Load.getValue(1);
+    DAG.makeEquivalentMemoryOrdering(OriginalLoad, Load);
   } else {
-    Load = DAG.getLoad(
-        VecEltVT, SDLoc(EVE), OriginalLoad->getChain(), NewPtr, MPI, Alignment,
-        OriginalLoad->getMemOperand()->getFlags(), OriginalLoad->getAAInfo());
-    Chain = Load.getValue(1);
+    // The result type is narrower or the same width as the vector element
+    Load = DAG.getLoad(VecEltVT, DL, OriginalLoad->getChain(), NewPtr, MPI,
+                       Alignment, OriginalLoad->getMemOperand()->getFlags(),
+                       OriginalLoad->getAAInfo());
+    DAG.makeEquivalentMemoryOrdering(OriginalLoad, Load);
     if (ResultVT.bitsLT(VecEltVT))
-      Load = DAG.getNode(ISD::TRUNCATE, SDLoc(EVE), ResultVT, Load);
+      Load = DAG.getNode(ISD::TRUNCATE, DL, ResultVT, Load);
     else
       Load = DAG.getBitcast(ResultVT, Load);
   }
-  WorklistRemover DeadNodes(*this);
-  SDValue From[] = { SDValue(EVE, 0), SDValue(OriginalLoad, 1) };
-  SDValue To[] = { Load, Chain };
-  DAG.ReplaceAllUsesOfValuesWith(From, To, 2);
-  // Make sure to revisit this node to clean it up; it will usually be dead.
-  AddToWorklist(EVE);
-  // Since we're explicitly calling ReplaceAllUses, add the new node to the
-  // worklist explicitly as well.
-  AddToWorklistWithUsers(Load.getNode());
   ++OpsNarrowed;
-  return SDValue(EVE, 0);
+  return Load;
 }
 
 /// Transform a vector binary operation into a scalar binary operation by moving

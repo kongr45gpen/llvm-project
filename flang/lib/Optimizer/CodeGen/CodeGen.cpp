@@ -16,7 +16,9 @@
 #include "flang/ISO_Fortran_binding.h"
 #include "flang/Optimizer/Dialect/FIRAttr.h"
 #include "flang/Optimizer/Dialect/FIROps.h"
+#include "flang/Optimizer/Support/InternalNames.h"
 #include "flang/Optimizer/Support/TypeCode.h"
+#include "flang/Semantics/runtime-type-info.h"
 #include "mlir/Conversion/ArithmeticToLLVM/ArithmeticToLLVM.h"
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
@@ -927,18 +929,27 @@ struct AllocMemOpConversion : public FIROpConversion<fir::AllocMemOp> {
   mlir::LogicalResult
   matchAndRewrite(fir::AllocMemOp heap, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    mlir::Type ty = convertType(heap.getType());
+    auto heapTy = heap.getType();
+    auto ty = convertType(heapTy);
     mlir::LLVM::LLVMFuncOp mallocFunc = getMalloc(heap, rewriter);
     mlir::Location loc = heap.getLoc();
     auto ity = lowerTy().indexType();
-    if (auto recTy = fir::unwrapSequenceType(heap.getAllocatedType())
-                         .dyn_cast<fir::RecordType>())
-      if (recTy.getNumLenParams() != 0) {
-        TODO(loc,
-             "fir.allocmem codegen of derived type with length parameters");
-        return failure();
-      }
+    auto dataTy = fir::unwrapRefType(heapTy);
+    if (fir::isRecordWithTypeParameters(fir::unwrapSequenceType(dataTy)))
+      TODO(loc, "fir.allocmem codegen of derived type with length parameters");
     mlir::Value size = genTypeSizeInBytes(loc, ity, rewriter, ty);
+    // !fir.array<NxMx!fir.char<K,?>> sets `size` to the width of !fir.char<K>.
+    // So multiply the constant dimensions here.
+    if (fir::hasDynamicSize(dataTy))
+      if (auto seqTy = dataTy.dyn_cast<fir::SequenceType>())
+        if (fir::characterWithDynamicLen(seqTy.getEleTy())) {
+          fir::SequenceType::Extent arrSize = 1;
+          for (auto d : seqTy.getShape())
+            if (d != fir::SequenceType::getUnknownExtent())
+              arrSize *= d;
+          size = rewriter.create<mlir::LLVM::MulOp>(
+              loc, ity, size, genConstantIndex(loc, ity, rewriter, arrSize));
+        }
     for (mlir::Value opnd : adaptor.getOperands())
       size = rewriter.create<mlir::LLVM::MulOp>(
           loc, ity, size, integerCast(loc, rewriter, ity, opnd));
@@ -1656,19 +1667,22 @@ struct EmboxCommonConversion : public FIROpConversion<OP> {
       return rewriter.create<mlir::LLVM::AddressOfOp>(loc, ty,
                                                       global.getSymName());
     }
+    auto i8Ty = rewriter.getIntegerType(8);
+    if (fir::NameUniquer::belongsToModule(
+            name, Fortran::semantics::typeInfoBuiltinModule)) {
+      // Type info derived types do not have type descriptors since they are the
+      // types defining type descriptors.
+      auto i8PtrTy = mlir::LLVM::LLVMPointerType::get(i8Ty);
+      return rewriter.create<mlir::LLVM::NullOp>(loc, i8PtrTy);
+    }
     // The global does not exist in the current translation unit, but may be
     // defined elsewhere (e.g., type defined in a module).
-    // For now, create a extern_weak symbol (will become nullptr if unresolved)
-    // to support generating code without the front-end generated symbols.
-    // These could be made available_externally to require the symbols to be
+    // Create an available_externally global to require the symbols to be
     // defined elsewhere and to cause link-time failure otherwise.
-    auto i8Ty = rewriter.getIntegerType(8);
     mlir::OpBuilder modBuilder(module.getBodyRegion());
-    // TODO: The symbol should be lowered to constant in lowering, they are read
-    // only.
-    modBuilder.create<mlir::LLVM::GlobalOp>(loc, i8Ty, /*isConstant=*/false,
-                                            mlir::LLVM::Linkage::ExternWeak,
-                                            name, mlir::Attribute{});
+    modBuilder.create<mlir::LLVM::GlobalOp>(
+        loc, i8Ty, /*isConstant=*/true,
+        mlir::LLVM::Linkage::AvailableExternally, name, mlir::Attribute{});
     auto ty = mlir::LLVM::LLVMPointerType::get(i8Ty);
     return rewriter.create<mlir::LLVM::AddressOfOp>(loc, ty, name);
   }

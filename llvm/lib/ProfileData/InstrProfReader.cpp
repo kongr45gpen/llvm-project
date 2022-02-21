@@ -946,10 +946,10 @@ Error IndexedInstrProfReader::readHeader() {
   const IndexedInstrProf::Header *Header = &HeaderOr.get();
   Cur += Header->size();
 
-  Cur = readSummary((IndexedInstrProf::ProfVersion)Header->Version, Cur,
+  Cur = readSummary((IndexedInstrProf::ProfVersion)Header->formatVersion(), Cur,
                     /* UseCS */ false);
-  if (Header->Version & VARIANT_MASK_CSIR_PROF)
-    Cur = readSummary((IndexedInstrProf::ProfVersion)Header->Version, Cur,
+  if (Header->formatVersion() & VARIANT_MASK_CSIR_PROF)
+    Cur = readSummary((IndexedInstrProf::ProfVersion)Header->formatVersion(), Cur,
                       /* UseCS */ true);
 
   // Read the hash type and start offset.
@@ -962,12 +962,12 @@ Error IndexedInstrProfReader::readHeader() {
 
   // The hash table with profile counts comes next.
   auto IndexPtr = std::make_unique<InstrProfReaderIndex<OnDiskHashTableImplV3>>(
-      Start + HashOffset, Cur, Start, HashType, Header->Version);
+      Start + HashOffset, Cur, Start, HashType, Header->formatVersion());
 
   // The MemProfOffset field in the header is only valid when the format version
   // is higher than 8 (when it was introduced).
-  if (GET_VERSION(Header->Version) >= 8 &&
-      Header->Version & VARIANT_MASK_MEMPROF) {
+  if (GET_VERSION(Header->formatVersion()) >= 8 &&
+      Header->formatVersion() & VARIANT_MASK_MEMPROF) {
     uint64_t MemProfOffset =
         endian::byte_swap<uint64_t, little>(Header->MemProfOffset);
 
@@ -1034,10 +1034,13 @@ IndexedInstrProfReader::getInstrProfRecord(StringRef FuncName,
 }
 
 Expected<ArrayRef<memprof::MemProfRecord>>
-IndexedInstrProfReader::getMemProfRecord(uint64_t FuncNameHash) {
+IndexedInstrProfReader::getMemProfRecord(const uint64_t FuncNameHash) {
+  // TODO: Add memprof specific errors.
+  if (MemProfTable == nullptr)
+    return make_error<InstrProfError>(instrprof_error::invalid_prof,
+                                      "no memprof data available in profile");
   auto Iter = MemProfTable->find(FuncNameHash);
   if (Iter == MemProfTable->end())
-    // TODO: Add memprof specific errors.
     return make_error<InstrProfError>(instrprof_error::hash_mismatch,
                                       "memprof record not found for hash " +
                                           Twine(FuncNameHash));

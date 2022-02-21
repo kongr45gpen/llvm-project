@@ -38,6 +38,9 @@ What's New in Libc++ 15.0.0?
 New Features
 ------------
 
+ - Implemented P0627R6 (Function to mark unreachable code)
+ - Implemented P1165R1 (Make stateful allocator propagation more consistent for operator+(basic_string))
+
 API Changes
 -----------
 
@@ -49,6 +52,10 @@ API Changes
 - The header ``<experimental/filesystem>`` has been removed. Instead, use
   ``<filesystem>`` header. The associated macro
   ``_LIBCPP_DEPRECATED_EXPERIMENTAL_FILESYSTEM`` has also been removed.
+
+- Transitive includes of ``<algorithm>`` have been removed. If you see compiler errors
+  related to missing declarations inside namespace ``std`` when updating libc++,
+  you are probably missing ``#include <algorithm>`` in a file where you use algorithms.
 
 ABI Changes
 -----------

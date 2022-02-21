@@ -287,7 +287,7 @@ enum class InstrProfKind {
   CS = 0x8, // A context sensitive IR-level profile.
   SingleByteCoverage = 0x10, // Use single byte probes for coverage.
   FunctionEntryOnly = 0x20,  // Only instrument the function entry basic block.
-  MemProf = 0x40, // A memory profile collected using -fmemory-profile.
+  MemProf = 0x40, // A memory profile collected using -fprofile=memory.
   LLVM_MARK_AS_BITMASK_ENUM(/*LargestValue=*/MemProf)
 };
 
@@ -1042,6 +1042,10 @@ struct Header {
   // Returns the size of the header in bytes for all valid fields based on the
   // version. I.e a older version header will return a smaller size.
   size_t size() const;
+
+  // Returns the format version in little endian. The header retains the version
+  // in native endian of the compiler runtime.
+  uint64_t formatVersion() const;
 };
 
 // Profile summary data recorded in the profile data file in indexed

@@ -1791,7 +1791,7 @@ struct FormatStyle {
   };
 
   /// The concept declaration style to use.
-  /// \version 13
+  /// \version 12
   BreakBeforeConceptDeclarationsStyle BreakBeforeConceptDeclarations;
 
   /// If ``true``, ternary operators will be placed after line breaks.
@@ -2185,7 +2185,7 @@ struct FormatStyle {
   };
 
   /// Defines in which cases to put empty line before access modifiers.
-  /// \version 13
+  /// \version 12
   EmptyLineBeforeAccessModifierStyle EmptyLineBeforeAccessModifier;
 
   /// If ``true``, clang-format detects whether function calls and
@@ -2523,6 +2523,8 @@ struct FormatStyle {
 
   /// Indent the requires clause in a template. This only applies when
   /// ``RequiresClausePosition`` is ``OwnLine``, or ``WithFollowing``.
+  ///
+  /// In clang-format 13 and 14 it was named ``IndentRequires``.
   /// \code
   ///    true:
   ///    template <typename It>
@@ -2538,7 +2540,7 @@ struct FormatStyle {
   ///      //....
   ///    }
   /// \endcode
-  /// \version 13
+  /// \version 15
   bool IndentRequiresClause;
 
   /// The number of columns to use for indentation.
@@ -3594,6 +3596,25 @@ struct FormatStyle {
     ///    object.operator++ (10);                object.operator++(10);
     /// \endcode
     bool AfterOverloadedOperator;
+    /// If ``true``, put space between requires keyword in a requires clause and
+    /// opening parentheses, if there is one.
+    /// \code
+    ///    true:                                  false:
+    ///    template<typename T>            vs.    template<typename T>
+    ///    requires (A<T> && B<T>)                requires(A<T> && B<T>)
+    ///    ...                                    ...
+    /// \endcode
+    bool AfterRequiresInClause;
+    /// If ``true``, put space between requires keyword in a requires expression
+    /// and opening parentheses.
+    /// \code
+    ///    true:                                  false:
+    ///    template<typename T>            vs.    template<typename T>
+    ///    concept C = requires (T t) {           concept C = requires(T t) {
+    ///                  ...                                    ...
+    ///                }                                      }
+    /// \endcode
+    bool AfterRequiresInExpression;
     /// If ``true``, put a space before opening parentheses only if the
     /// parentheses are not empty.
     /// \code
@@ -3607,7 +3628,8 @@ struct FormatStyle {
         : AfterControlStatements(false), AfterForeachMacros(false),
           AfterFunctionDeclarationName(false),
           AfterFunctionDefinitionName(false), AfterIfMacros(false),
-          AfterOverloadedOperator(false), BeforeNonEmptyParentheses(false) {}
+          AfterOverloadedOperator(false), AfterRequiresInClause(false),
+          AfterRequiresInExpression(false), BeforeNonEmptyParentheses(false) {}
 
     bool operator==(const SpaceBeforeParensCustom &Other) const {
       return AfterControlStatements == Other.AfterControlStatements &&
@@ -3617,6 +3639,8 @@ struct FormatStyle {
              AfterFunctionDefinitionName == Other.AfterFunctionDefinitionName &&
              AfterIfMacros == Other.AfterIfMacros &&
              AfterOverloadedOperator == Other.AfterOverloadedOperator &&
+             AfterRequiresInClause == Other.AfterRequiresInClause &&
+             AfterRequiresInExpression == Other.AfterRequiresInExpression &&
              BeforeNonEmptyParentheses == Other.BeforeNonEmptyParentheses;
     }
   };

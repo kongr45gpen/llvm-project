@@ -1324,6 +1324,11 @@ static inline uint64_t read(const unsigned char *Buffer, size_t Offset) {
   return *reinterpret_cast<const uint64_t *>(Buffer + Offset);
 }
 
+uint64_t Header::formatVersion() const {
+  using namespace support;
+  return endian::byte_swap<uint64_t, little>(Version);
+}
+
 Expected<Header> Header::readFromBuffer(const unsigned char *Buffer) {
   using namespace support;
   static_assert(std::is_standard_layout<Header>::value,
@@ -1339,12 +1344,11 @@ Expected<Header> Header::readFromBuffer(const unsigned char *Buffer) {
 
   // Read the version.
   H.Version = read(Buffer, offsetOf(&Header::Version));
-  uint64_t FormatVersion = endian::byte_swap<uint64_t, little>(H.Version);
-  if (GET_VERSION(FormatVersion) >
+  if (GET_VERSION(H.formatVersion()) >
       IndexedInstrProf::ProfVersion::CurrentVersion)
     return make_error<InstrProfError>(instrprof_error::unsupported_version);
 
-  switch (GET_VERSION(FormatVersion)) {
+  switch (GET_VERSION(H.formatVersion())) {
     // When a new field is added in the header add a case statement here to
     // populate it.
     static_assert(
@@ -1354,7 +1358,7 @@ Expected<Header> Header::readFromBuffer(const unsigned char *Buffer) {
   case 8ull:
     H.MemProfOffset = read(Buffer, offsetOf(&Header::MemProfOffset));
     LLVM_FALLTHROUGH;
-  default:
+  default: // Version7 (when the backwards compatible header was introduced).
     H.HashType = read(Buffer, offsetOf(&Header::HashType));
     H.HashOffset = read(Buffer, offsetOf(&Header::HashOffset));
   }
@@ -1363,7 +1367,7 @@ Expected<Header> Header::readFromBuffer(const unsigned char *Buffer) {
 }
 
 size_t Header::size() const {
-  switch (GET_VERSION(Version)) {
+  switch (GET_VERSION(formatVersion())) {
     // When a new field is added to the header add a case statement here to
     // compute the size as offset of the new field + size of the new field. This
     // relies on the field being added to the end of the list.
@@ -1373,7 +1377,7 @@ size_t Header::size() const {
                   "fall through to the latest version.");
   case 8ull:
     return offsetOf(&Header::MemProfOffset) + sizeof(Header::MemProfOffset);
-  default:
+  default: // Version7 (when the backwards compatible header was introduced).
     return offsetOf(&Header::HashOffset) + sizeof(Header::HashOffset);
   }
 }

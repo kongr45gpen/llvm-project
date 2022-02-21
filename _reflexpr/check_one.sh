@@ -4,10 +4,8 @@ SRC_CPP="${1}"
 PREFIX="${2:-/opt/llvm/install}"
 echo $(basename "${SRC_CPP}")
 "${PREFIX}/bin/clang++" \
-	-std=c++2b  -stdlib=libc++ \
+	-std=c++20  -stdlib=libc++ \
 	-freflection-ts -freflection-ext \
-	-isystem "${PREFIX}/include/c++/v1" \
-	-isystem "${PREFIX}/lib/clang/14.0.0/include" \
 	-o "${SRC_DIR}/test" \
 	"${SRC_CPP}" && \
 (export "LD_LIBRARY_PATH=${PREFIX}/lib" && "${SRC_DIR}/test")

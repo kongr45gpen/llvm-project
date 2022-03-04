@@ -488,7 +488,7 @@ class BitcodeReader : public BitcodeReaderBase, public GVMaterializer {
   /// types of a Type*. This is used during upgrades of typed pointer IR in
   /// opaque pointer mode.
   DenseMap<unsigned, SmallVector<unsigned, 1>> ContainedTypeIDs;
-  DenseMap<Function *, FunctionType *> FunctionTypes;
+  DenseMap<Function *, unsigned> FunctionTypeIDs;
   BitcodeReaderValueList ValueList;
   Optional<MetadataLoader> MDLoader;
   std::vector<Comdat *> ComdatList;
@@ -1493,6 +1493,8 @@ static Attribute::AttrKind getAttrFromCode(uint64_t Code) {
     return Attribute::NoProfile;
   case bitc::ATTR_KIND_NO_UNWIND:
     return Attribute::NoUnwind;
+  case bitc::ATTR_KIND_NO_SANITIZE_BOUNDS:
+    return Attribute::NoSanitizeBounds;
   case bitc::ATTR_KIND_NO_SANITIZE_COVERAGE:
     return Attribute::NoSanitizeCoverage;
   case bitc::ATTR_KIND_NULL_POINTER_IS_VALID:
@@ -3503,7 +3505,7 @@ Error BitcodeReader::parseFunctionRecord(ArrayRef<uint64_t> Record) {
 
   assert(Func->getFunctionType() == FTy &&
          "Incorrect fully specified type provided for function");
-  FunctionTypes[Func] = cast<FunctionType>(FTy);
+  FunctionTypeIDs[Func] = FTyID;
 
   Func->setCallingConv(CC);
   bool isProto = Record[2];
@@ -4054,7 +4056,7 @@ void BitcodeReader::propagateAttributeTypes(CallBase *CB,
       if (!CI.hasArg())
         continue;
 
-      if (CI.isIndirect && !CB->getAttributes().getParamElementType(ArgNo)) {
+      if (CI.isIndirect && !CB->getParamElementType(ArgNo)) {
         Type *ElemTy = ArgsTys[ArgNo]->getPointerElementType();
         CB->addParamAttr(
             ArgNo, Attribute::get(Context, Attribute::ElementType, ElemTy));
@@ -4067,7 +4069,7 @@ void BitcodeReader::propagateAttributeTypes(CallBase *CB,
   switch (CB->getIntrinsicID()) {
   case Intrinsic::preserve_array_access_index:
   case Intrinsic::preserve_struct_access_index:
-    if (!CB->getAttributes().getParamElementType(0)) {
+    if (!CB->getParamElementType(0)) {
       Type *ElTy = ArgsTys[0]->getPointerElementType();
       Attribute NewAttr = Attribute::get(Context, Attribute::ElementType, ElTy);
       CB->addParamAttr(0, NewAttr);
@@ -4092,14 +4094,14 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
   unsigned ModuleMDLoaderSize = MDLoader->size();
 
   // Add all the function arguments to the value table.
-#ifndef NDEBUG
   unsigned ArgNo = 0;
-  FunctionType *FTy = FunctionTypes[F];
-#endif
+  unsigned FTyID = FunctionTypeIDs[F];
   for (Argument &I : F->args()) {
-    assert(I.getType() == FTy->getParamType(ArgNo++) &&
+    unsigned ArgTyID = getContainedTypeID(FTyID, ArgNo + 1);
+    assert(I.getType() == getTypeByID(ArgTyID) &&
            "Incorrect fully specified type for Function Argument");
-    ValueList.push_back(&I, TODOTypeID);
+    ValueList.push_back(&I, ArgTyID);
+    ++ArgNo;
   }
   unsigned NextValueNo = ValueList.size();
   BasicBlock *CurBB = nullptr;

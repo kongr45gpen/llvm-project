@@ -28,7 +28,6 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
@@ -504,6 +503,7 @@ void TruncInstCombine::ReduceExpressionGraph(Type *SclTy) {
   for (auto &Node : OldNewPHINodes) {
     PHINode *OldPN = Node.first;
     OldPN->replaceAllUsesWith(PoisonValue::get(OldPN->getType()));
+    InstInfoMap.erase(OldPN);
     OldPN->eraseFromParent();
   }
   // Now we have expression graph turned into dag.
@@ -511,9 +511,6 @@ void TruncInstCombine::ReduceExpressionGraph(Type *SclTy) {
   // visit any of its operands, this way, when we get to the operand, we already
   // removed the instructions (from the expression dag) that uses it.
   for (auto &I : llvm::reverse(InstInfoMap)) {
-    // Skip phi-nodes since they were erased before
-    if (isa<PHINode>(I.first))
-      continue;
     // We still need to check that the instruction has no users before we erase
     // it, because {SExt, ZExt}Inst Instruction might have other users that was
     // not reduced, in such case, we need to keep that instruction.

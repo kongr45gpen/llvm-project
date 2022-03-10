@@ -1270,7 +1270,7 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
   TemplateParameterDepthRAII CurTemplateDepthTracker(TemplateParameterDepth);
   Actions.PushLambdaScope();
 
-  ParsedAttributes Attr(AttrFactory);
+  ParsedAttributesWithRange Attr(AttrFactory);
   if (getLangOpts().CUDA) {
     // In CUDA code, GNU attributes are allowed to appear immediately after the
     // "[...]", even if there is no "(...)" before the lambda body.
@@ -1373,7 +1373,8 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
           DeclEndLoc = ESpecRange.getEnd();
 
         // Parse attribute-specifier[opt].
-        MaybeParseCXX11Attributes(Attr, &DeclEndLoc);
+        if (MaybeParseCXX11Attributes(Attr))
+          DeclEndLoc = Attr.Range.getEnd();
 
         // Parse OpenCL addr space attribute.
         if (Tok.isOneOf(tok::kw___private, tok::kw___global, tok::kw___local,

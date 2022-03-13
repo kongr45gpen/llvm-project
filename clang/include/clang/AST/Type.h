@@ -2562,6 +2562,7 @@ public:
   bool isMetaobjectId() const {
     return getKind() == BuiltinType::MetaobjectId;
   }
+  bool isSVEBool() const { return getKind() == Kind::SveBool; }
 
   /// Determines whether the given kind corresponds to a placeholder type.
   static bool isPlaceholderTypeKind(Kind K) {

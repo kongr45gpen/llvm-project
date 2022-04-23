@@ -8,6 +8,7 @@
 
 #include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/AsmState.h"
 #include "mlir/IR/BlockAndValueMapping.h"
@@ -32,17 +33,16 @@ namespace bufferization {
 using namespace mlir;
 using namespace bufferization;
 
-/// Attribute name used to mark the bufferization layout for region
-/// arguments during linalg comprehensive bufferization.
-constexpr const ::llvm::StringLiteral
-    bufferization::BufferizableOpInterface::kBufferLayoutAttrName;
-
 /// Attribute name used to mark region arguments that can be bufferized
 /// in-place during linalg comprehensive bufferization.
 constexpr const ::llvm::StringLiteral
     bufferization::BufferizableOpInterface::kInplaceableAttrName;
 
+/// Attribute name used to mark allocs that are created by the bufferization.
 static const char *kBufferAllocationAttr = "bufferization.allocation";
+
+/// Attribute name used to mark allocs that should not be deallocated.
+static const char *kSkipDeallocAttr = "bufferization.skip_dealloc";
 
 //===----------------------------------------------------------------------===//
 // BufferizationOptions
@@ -50,6 +50,31 @@ static const char *kBufferAllocationAttr = "bufferization.allocation";
 
 // Default constructor for BufferizationOptions.
 BufferizationOptions::BufferizationOptions() = default;
+
+bool BufferizationOptions::isOpAllowed(Operation *op) const {
+  // Special case: If function boundary bufferization is deactivated, do not
+  // allow ops that belong to the `func` dialect.
+  bool isFuncBoundaryOp = isa_and_nonnull<func::FuncDialect>(op->getDialect());
+  if (!bufferizeFunctionBoundaries && isFuncBoundaryOp)
+    return false;
+
+  // All other ops: Allow/disallow according to filter.
+  bool isAllowed = !filterHasAllowRule();
+  for (const OpFilterEntry &entry : opFilter) {
+    bool filterResult = entry.fn(op);
+    switch (entry.type) {
+    case OpFilterEntry::ALLOW:
+      isAllowed |= filterResult;
+      break;
+    case OpFilterEntry::DENY:
+      if (filterResult)
+        // DENY filter matches. This op is no allowed. (Even if other ALLOW
+        // filters may match.)
+        return false;
+    };
+  }
+  return isAllowed;
+}
 
 BufferizableOpInterface
 BufferizationOptions::dynCastBufferizableOp(Operation *op) const {
@@ -242,29 +267,40 @@ Value mlir::bufferization::lookupBuffer(RewriterBase &rewriter, Value tensor,
                                                     tensor);
 }
 
-/// Return the result buffer (memref) for a given OpResult (tensor). Allocate
+/// Return the buffer (memref) for a given OpOperand (tensor). Allocate
 /// a new buffer and copy over data from the existing buffer if out-of-place
-/// bufferization is necessary.
+/// bufferization was decided.
 FailureOr<Value>
 BufferizationState::getBuffer(RewriterBase &rewriter, OpOperand &opOperand,
-                              bool forceInPlace,
+                              Optional<ForceInPlacability> overrideInPlace,
                               Optional<Operation *> customCopyInsertionPoint) {
   const BufferizationOptions &options = analysisState.getOptions();
   OpBuilder::InsertionGuard guard(rewriter);
   Operation *op = opOperand.getOwner();
   Location loc = op->getLoc();
+  SmallVector<OpResult> aliasingOpResults =
+      analysisState.getAliasingOpResult(opOperand);
   Value operand = opOperand.get();
   Value operandBuffer = lookupBuffer(rewriter, operand, options);
 
-  if (forceInPlace || analysisState.isInPlace(opOperand))
+  // Can `operandBuffer` be used directly or do we need a copy?
+  bool inplace =
+      overrideInPlace != FORCE_OUT_OF_PLACE &&
+      (overrideInPlace == FORCE_INPLACE || analysisState.isInPlace(opOperand));
+  if (inplace)
     return operandBuffer;
 
   // Bufferizing out-of-place: Allocate a new buffer.
   // Move insertion point right after `operandBuffer`. That is where the
   // allocation should be inserted (in the absence of allocation hoisting).
   setInsertionPointAfter(rewriter, operandBuffer);
-  // Allocate the result buffer.
-  FailureOr<Value> resultBuffer = createAlloc(rewriter, loc, operandBuffer);
+  // Allocate the result buffer. The buffer should be deallocated if the tensor
+  // is not yielded and deallocs are enabled in general.
+  bool dealloc = llvm::none_of(aliasingOpResults, [&](Value v) {
+    return getAnalysisState().isTensorYielded(v);
+  });
+  FailureOr<Value> resultBuffer = createAlloc(
+      rewriter, loc, operandBuffer, dealloc && getOptions().createDeallocs);
   if (failed(resultBuffer))
     return failure();
   // Do not copy if the last preceding writes of `operand` are ops that do
@@ -281,8 +317,6 @@ BufferizationState::getBuffer(RewriterBase &rewriter, OpOperand &opOperand,
       }))
     return resultBuffer;
   // Do not copy if the copied data is never read.
-  SmallVector<OpResult> aliasingOpResults =
-      analysisState.getAliasingOpResult(opOperand);
   if (!aliasingOpResults.empty() &&
       !analysisState.bufferizesToMemoryRead(opOperand) &&
       llvm::none_of(aliasingOpResults, [&](OpResult opResult) {
@@ -305,6 +339,18 @@ BufferizationState::getBuffer(RewriterBase &rewriter, OpOperand &opOperand,
     return failure();
 
   return resultBuffer;
+}
+
+/// Return the buffer type for a given OpOperand (tensor) after bufferization.
+BaseMemRefType BufferizationState::getBufferType(OpOperand &opOperand) const {
+  Value tensor = opOperand.get();
+  auto tensorType = tensor.getType().dyn_cast<TensorType>();
+  assert(tensorType && "unexpected non-tensor type");
+
+  if (auto toTensorOp = tensor.getDefiningOp<bufferization::ToTensorOp>())
+    return toTensorOp.memref().getType().cast<BaseMemRefType>();
+
+  return getMemRefType(tensorType, getOptions());
 }
 
 void bufferization::replaceOpWithBufferizedValues(RewriterBase &rewriter,
@@ -339,7 +385,12 @@ void bufferization::replaceOpWithBufferizedValues(RewriterBase &rewriter,
 
 AlwaysCopyAnalysisState::AlwaysCopyAnalysisState(
     const BufferizationOptions &options)
-    : AnalysisState(options) {}
+    : AnalysisState(options) {
+  // Note: Allocations must be deallocated with a subsequent run of the buffer
+  // deallocation pass.
+  assert(!options.createDeallocs &&
+         "cannot create deallocs with AlwaysCopyBufferizationState");
+}
 
 /// Return `true` if the given OpResult has been decided to bufferize inplace.
 bool AlwaysCopyAnalysisState::isInPlace(OpOperand &opOperand) const {
@@ -354,6 +405,13 @@ bool AlwaysCopyAnalysisState::areEquivalentBufferizedValues(Value v1,
   // There is no analysis, so we do not know if the values are equivalent. The
   // conservative answer is "false".
   return false;
+}
+
+/// Return true if the given tensor (or an aliasing tensor) is yielded from
+/// the containing block. Also include all aliasing tensors in the same block.
+bool AlwaysCopyAnalysisState::isTensorYielded(Value tensor) const {
+  // There is no analysis, so conservatively answer "true".
+  return true;
 }
 
 //===----------------------------------------------------------------------===//
@@ -426,37 +484,43 @@ static MemRefType getAllocationTypeAndShape(OpBuilder &b, Location loc,
 }
 
 static Value createBufferAllocation(OpBuilder &b, Location loc, MemRefType type,
-                                    ValueRange dynShape) {
+                                    ValueRange dynShape, bool skipDealloc) {
   auto allocaOp = b.create<memref::AllocaOp>(loc, type, dynShape);
   allocaOp->setAttr(kBufferAllocationAttr, b.getUnitAttr());
+  if (skipDealloc)
+    allocaOp->setAttr(kSkipDeallocAttr, b.getUnitAttr());
   return allocaOp.getResult();
 }
 
 /// Create an allocation after `shapedValue.getDefiningOp` (or at the top of the
 /// block in case of a bbArg).
 FailureOr<Value> BufferizationState::createAlloc(OpBuilder &b, Location loc,
-                                                 Value shapedValue) {
+                                                 Value shapedValue,
+                                                 Optional<bool> dealloc) {
   // Take a guard before anything else.
   OpBuilder::InsertionGuard g(b);
+
+  // Compute allocation memref type.
   assert(shapedValue.getType().isa<ShapedType>());
-  MemRefType memRefType = shapedValue.getType().dyn_cast<MemRefType>();
   SmallVector<Value> dynShape;
   MemRefType allocMemRefType =
       getAllocationTypeAndShape(b, loc, shapedValue, dynShape);
-  Value alloc = createBufferAllocation(b, loc, allocMemRefType, dynShape);
-  if (memRefType && memRefType != allocMemRefType) {
-    assert(memref::CastOp::areCastCompatible(alloc.getType(), memRefType) &&
-           "createAlloc: cast incompatible");
-    alloc = b.create<memref::CastOp>(loc, memRefType, alloc);
-  }
-  return alloc;
-}
 
-/// Create a memref allocation with the given type and dynamic extents.
-FailureOr<Value> BufferizationState::createAlloc(OpBuilder &b, Location loc,
-                                                 MemRefType type,
-                                                 ValueRange dynShape) {
-  return createBufferAllocation(b, loc, type, dynShape);
+  // Should be the buffer be deallocated again or should we let it leak?
+  bool skipDealloc;
+  if (dealloc) {
+    skipDealloc = !dealloc.getValue();
+  } else {
+    assert(shapedValue.getType().isa<TensorType>() &&
+           "must specify `dealloc` if non-tensor value is passed");
+    // Buffer should be not be deallocated if deallocs are generally deactivated
+    // or if the tensor is yielded from a block.
+    skipDealloc = !getOptions().createDeallocs ||
+                  getAnalysisState().isTensorYielded(shapedValue);
+  }
+
+  // Create the buffer allocation.
+  return createBufferAllocation(b, loc, allocMemRefType, dynShape, skipDealloc);
 }
 
 /// Create a memory copy between two memref buffers.
@@ -470,9 +534,13 @@ LogicalResult bufferization::createMemCpy(OpBuilder &b, Location loc,
   return success();
 }
 
-static LogicalResult
-createAllocDeallocOps(Operation *op, const BufferizationOptions &options) {
+LogicalResult
+bufferization::createAllocDeallocOps(Operation *op,
+                                     const BufferizationOptions &options,
+                                     bool onlyLeakingAllocs, bool *changed) {
   IRRewriter rewriter(op->getContext());
+  if (changed)
+    *changed = false;
 
   // Bufferization creates memref.alloca ops. After bufferization, these must be
   // rewritten to alloc/dealloc ops as specified in the bufferization options.
@@ -480,7 +548,13 @@ createAllocDeallocOps(Operation *op, const BufferizationOptions &options) {
     // Ignore memref.alloca ops that were not created by the bufferization.
     if (!allocaOp->hasAttr(kBufferAllocationAttr))
       return WalkResult::skip();
+    // If `onlyLeakingAllocs`, process only ops that are marked as
+    // "skip dealloc".
+    bool skipDealloc = allocaOp->hasAttr(kSkipDeallocAttr);
+    if (onlyLeakingAllocs && !skipDealloc)
+      return WalkResult::skip();
 
+    // Create alloc.
     Block *block = allocaOp->getBlock();
     rewriter.setInsertionPoint(allocaOp);
     FailureOr<Value> alloc =
@@ -489,11 +563,14 @@ createAllocDeallocOps(Operation *op, const BufferizationOptions &options) {
     if (failed(alloc))
       return WalkResult::interrupt();
     rewriter.replaceOp(allocaOp, *alloc);
+    if (changed)
+      *changed = true;
 
-    // Stop here if deallocations are deactivated.
-    if (!options.createDeallocs)
+    // Stop here if the buffer should not be deallocated.
+    if (skipDealloc)
       return WalkResult::advance();
 
+    // Create dealloc.
     rewriter.setInsertionPoint(block->getTerminator());
     if (failed(createDealloc(rewriter, alloc->getLoc(), *alloc, options)))
       return WalkResult::interrupt();
@@ -506,8 +583,9 @@ createAllocDeallocOps(Operation *op, const BufferizationOptions &options) {
 
 /// Try to hoist all new buffer allocations until the next hoisting barrier.
 // TODO: Consolidate this function with the existing buffer hoisting pass.
-static LogicalResult
-hoistBufferAllocations(Operation *op, const BufferizationOptions &options) {
+LogicalResult
+bufferization::hoistBufferAllocations(Operation *op,
+                                      const BufferizationOptions &options) {
   // Nothing to do if allocation hoisting is deactivated.
   if (!options.hoistAllocations)
     return success();
@@ -560,17 +638,6 @@ hoistBufferAllocations(Operation *op, const BufferizationOptions &options) {
   return success();
 }
 
-LogicalResult
-bufferization::finalizeBuffers(Operation *op,
-                               const BufferizationOptions &options) {
-  if (failed(hoistBufferAllocations(op, options)))
-    return failure();
-  if (failed(createAllocDeallocOps(op, options)))
-    return failure();
-
-  return success();
-}
-
 //===----------------------------------------------------------------------===//
 // Bufferization-specific BlockAndValueMapping support with debugging.
 //===----------------------------------------------------------------------===//
@@ -579,7 +646,7 @@ bool bufferization::isFunctionArgument(Value value) {
   auto bbArg = value.dyn_cast<BlockArgument>();
   if (!bbArg)
     return false;
-  return isa<FuncOp>(bbArg.getOwner()->getParentOp());
+  return isa<func::FuncOp>(bbArg.getOwner()->getParentOp());
 }
 
 MemRefType bufferization::getContiguousMemRefType(ShapedType shapedType,

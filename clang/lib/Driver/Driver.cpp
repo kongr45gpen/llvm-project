@@ -13,6 +13,7 @@
 #include "ToolChains/AVR.h"
 #include "ToolChains/Ananas.h"
 #include "ToolChains/BareMetal.h"
+#include "ToolChains/CSKYToolChain.h"
 #include "ToolChains/Clang.h"
 #include "ToolChains/CloudABI.h"
 #include "ToolChains/Contiki.h"
@@ -25,6 +26,7 @@
 #include "ToolChains/Gnu.h"
 #include "ToolChains/HIPAMD.h"
 #include "ToolChains/HIPSPV.h"
+#include "ToolChains/HLSL.h"
 #include "ToolChains/Haiku.h"
 #include "ToolChains/Hexagon.h"
 #include "ToolChains/Hurd.h"
@@ -59,6 +61,7 @@
 #include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Job.h"
 #include "clang/Driver/Options.h"
+#include "clang/Driver/Phases.h"
 #include "clang/Driver/SanitizerArgs.h"
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
@@ -188,13 +191,14 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
                DiagnosticsEngine &Diags, std::string Title,
                IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS)
     : Diags(Diags), VFS(std::move(VFS)), Mode(GCCMode),
-      SaveTemps(SaveTempsNone), BitcodeEmbed(EmbedNone), LTOMode(LTOK_None),
-      ClangExecutable(ClangExecutable), SysRoot(DEFAULT_SYSROOT),
-      DriverTitle(Title), CCCPrintBindings(false), CCPrintOptions(false),
-      CCPrintHeaders(false), CCLogDiagnostics(false), CCGenDiagnostics(false),
-      CCPrintProcessStats(false), TargetTriple(TargetTriple), Saver(Alloc),
-      CheckInputsExist(true), GenReproducer(false),
-      SuppressMissingInputWarning(false) {
+      SaveTemps(SaveTempsNone), BitcodeEmbed(EmbedNone),
+      CXX20HeaderType(HeaderMode_None), ModulesModeCXX20(false),
+      LTOMode(LTOK_None), ClangExecutable(ClangExecutable),
+      SysRoot(DEFAULT_SYSROOT), DriverTitle(Title), CCCPrintBindings(false),
+      CCPrintOptions(false), CCPrintHeaders(false), CCLogDiagnostics(false),
+      CCGenDiagnostics(false), CCPrintProcessStats(false),
+      TargetTriple(TargetTriple), Saver(Alloc), CheckInputsExist(true),
+      GenReproducer(false), SuppressMissingInputWarning(false) {
   // Provide a sane fallback if no VFS is specified.
   if (!this->VFS)
     this->VFS = llvm::vfs::getRealFileSystem();
@@ -230,6 +234,7 @@ void Driver::setDriverMode(StringRef Value) {
                    .Case("cpp", CPPMode)
                    .Case("cl", CLMode)
                    .Case("flang", FlangMode)
+                   .Case("dxc", DXCMode)
                    .Default(None))
     Mode = *M;
   else
@@ -333,11 +338,15 @@ phases::ID Driver::getFinalPhase(const DerivedArgList &DAL,
       CCGenDiagnostics) {
     FinalPhase = phases::Preprocess;
 
-  // --precompile only runs up to precompilation.
-  } else if ((PhaseArg = DAL.getLastArg(options::OPT__precompile))) {
+    // --precompile only runs up to precompilation.
+    // Options that cause the output of C++20 compiled module interfaces or
+    // header units have the same effect.
+  } else if ((PhaseArg = DAL.getLastArg(options::OPT__precompile)) ||
+             (PhaseArg = DAL.getLastArg(options::OPT_extract_api)) ||
+             (PhaseArg = DAL.getLastArg(options::OPT_fmodule_header,
+                                        options::OPT_fmodule_header_EQ))) {
     FinalPhase = phases::Precompile;
-
-  // -{fsyntax-only,-analyze,emit-ast} only run up to the compiler.
+    // -{fsyntax-only,-analyze,emit-ast} only run up to the compiler.
   } else if ((PhaseArg = DAL.getLastArg(options::OPT_fsyntax_only)) ||
              (PhaseArg = DAL.getLastArg(options::OPT_print_supported_cpus)) ||
              (PhaseArg = DAL.getLastArg(options::OPT_module_file_info)) ||
@@ -346,8 +355,7 @@ phases::ID Driver::getFinalPhase(const DerivedArgList &DAL,
              (PhaseArg = DAL.getLastArg(options::OPT_rewrite_legacy_objc)) ||
              (PhaseArg = DAL.getLastArg(options::OPT__migrate)) ||
              (PhaseArg = DAL.getLastArg(options::OPT__analyze)) ||
-             (PhaseArg = DAL.getLastArg(options::OPT_emit_ast)) ||
-             (PhaseArg = DAL.getLastArg(options::OPT_extract_api))) {
+             (PhaseArg = DAL.getLastArg(options::OPT_emit_ast))) {
     FinalPhase = phases::Compile;
 
   // -S only runs up to the backend.
@@ -1189,7 +1197,14 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
     T.setEnvironment(llvm::Triple::MSVC);
     T.setObjectFormat(llvm::Triple::COFF);
     TargetTriple = T.str();
+  } else if (IsDXCMode()) {
+    // clang-dxc target is build from target_profile option.
+    // Just set OS to shader model to select HLSLToolChain.
+    llvm::Triple T(TargetTriple);
+    T.setOS(llvm::Triple::ShaderModel);
+    TargetTriple = T.str();
   }
+
   if (const Arg *A = Args.getLastArg(options::OPT_target))
     TargetTriple = A->getValue();
   if (const Arg *A = Args.getLastArg(options::OPT_ccc_install_dir))
@@ -1239,6 +1254,37 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
                                                 << Name;
     } else
       BitcodeEmbed = static_cast<BitcodeEmbedMode>(Model);
+  }
+
+  // Setting up the jobs for some precompile cases depends on whether we are
+  // treating them as PCH, implicit modules or C++20 ones.
+  // TODO: inferring the mode like this seems fragile (it meets the objective
+  // of not requiring anything new for operation, however).
+  const Arg *Std = Args.getLastArg(options::OPT_std_EQ);
+  ModulesModeCXX20 =
+      !Args.hasArg(options::OPT_fmodules) && Std &&
+      (Std->containsValue("c++20") || Std->containsValue("c++2b") ||
+       Std->containsValue("c++2a") || Std->containsValue("c++latest"));
+
+  // Process -fmodule-header{=} flags.
+  if (Arg *A = Args.getLastArg(options::OPT_fmodule_header_EQ,
+                               options::OPT_fmodule_header)) {
+    // These flags force C++20 handling of headers.
+    ModulesModeCXX20 = true;
+    if (A->getOption().matches(options::OPT_fmodule_header))
+      CXX20HeaderType = HeaderMode_Default;
+    else {
+      StringRef ArgName = A->getValue();
+      unsigned Kind = llvm::StringSwitch<unsigned>(ArgName)
+                          .Case("user", HeaderMode_User)
+                          .Case("system", HeaderMode_System)
+                          .Default(~0U);
+      if (Kind == ~0U) {
+        Diags.Report(diag::err_drv_invalid_value)
+            << A->getAsString(Args) << ArgName;
+      } else
+        CXX20HeaderType = static_cast<ModuleHeaderMode>(Kind);
+    }
   }
 
   std::unique_ptr<llvm::opt::InputArgList> UArgs =
@@ -2209,6 +2255,14 @@ bool Driver::DiagnoseInputExistence(const DerivedArgList &Args, StringRef Value,
   if (Value == "-")
     return true;
 
+  // If it's a header to be found in the system or user search path, then defer
+  // complaints about its absence until those searches can be done.  When we
+  // are definitely processing headers for C++20 header units, extend this to
+  // allow the user to put "-fmodule-header -xc++-header vector" for example.
+  if (Ty == types::TY_CXXSHeader || Ty == types::TY_CXXUHeader ||
+      (ModulesModeCXX20 && Ty == types::TY_CXXHeader))
+    return true;
+
   if (getVFS().exists(Value))
     return true;
 
@@ -2272,6 +2326,21 @@ bool Driver::DiagnoseInputExistence(const DerivedArgList &Args, StringRef Value,
   return false;
 }
 
+// Get the C++20 Header Unit type corresponding to the input type.
+static types::ID CXXHeaderUnitType(ModuleHeaderMode HM) {
+  switch (HM) {
+  case HeaderMode_User:
+    return types::TY_CXXUHeader;
+  case HeaderMode_System:
+    return types::TY_CXXSHeader;
+  case HeaderMode_Default:
+    break;
+  case HeaderMode_None:
+    llvm_unreachable("should not be called in this case");
+  }
+  return types::TY_CXXHUHeader;
+}
+
 // Construct a the list of inputs and their types.
 void Driver::BuildInputs(const ToolChain &TC, DerivedArgList &Args,
                          InputList &Inputs) const {
@@ -2306,6 +2375,14 @@ void Driver::BuildInputs(const ToolChain &TC, DerivedArgList &Args,
 
     // No driver mode exposes -x and /TC or /TP; we don't support mixing them.
     assert(!Args.hasArg(options::OPT_x) && "-x and /TC or /TP is not allowed");
+  }
+
+  // Warn -x after last input file has no effect
+  {
+    Arg *LastXArg = Args.getLastArgNoClaim(options::OPT_x);
+    Arg *LastInputArg = Args.getLastArgNoClaim(options::OPT_INPUT);
+    if (LastXArg && LastInputArg && LastInputArg->getIndex() < LastXArg->getIndex())
+      Diag(clang::diag::warn_drv_unused_x) << LastXArg->getValue();
   }
 
   for (Arg *A : Args) {
@@ -2360,7 +2437,9 @@ void Driver::BuildInputs(const ToolChain &TC, DerivedArgList &Args,
             types::ID OldTy = Ty;
             Ty = types::lookupCXXTypeForCType(Ty);
 
-            if (Ty != OldTy)
+            // Do not complain about foo.h, when we are known to be processing
+            // it as a C++20 header unit.
+            if (Ty != OldTy && !(OldTy == types::TY_CHeader && hasHeaderMode()))
               Diag(clang::diag::warn_drv_treating_input_as_cxx)
                   << getTypeName(OldTy) << getTypeName(Ty);
           }
@@ -2383,6 +2462,14 @@ void Driver::BuildInputs(const ToolChain &TC, DerivedArgList &Args,
           else if (Args.hasArg(options::OPT_ObjCXX))
             Ty = types::TY_ObjCXX;
         }
+
+        // Disambiguate headers that are meant to be header units from those
+        // intended to be PCH.  Avoid missing '.h' cases that are counted as
+        // C headers by default - we know we are in C++ mode and we do not
+        // want to issue a complaint about compiling things in the wrong mode.
+        if ((Ty == types::TY_CXXHeader || Ty == types::TY_CHeader) &&
+            hasHeaderMode())
+          Ty = CXXHeaderUnitType(CXX20HeaderType);
       } else {
         assert(InputTypeArg && "InputType set w/o InputTypeArg");
         if (!InputTypeArg->getOption().matches(options::OPT_x)) {
@@ -2434,6 +2521,11 @@ void Driver::BuildInputs(const ToolChain &TC, DerivedArgList &Args,
         Diag(clang::diag::err_drv_unknown_language) << A->getValue();
         InputType = types::TY_Object;
       }
+
+      // If the user has put -fmodule-header{,=} then we treat C++ headers as
+      // header unit inputs.  So we 'promote' -xc++-header appropriately.
+      if (InputType == types::TY_CXXHeader && hasHeaderMode())
+        InputType = CXXHeaderUnitType(CXX20HeaderType);
     } else if (A->getOption().getID() == options::OPT_U) {
       assert(A->getNumValues() == 1 && "The /U option has one value.");
       StringRef Val = A->getValue(0);
@@ -3011,7 +3103,7 @@ class OffloadingActionBuilder final {
       if (Args.hasArg(options::OPT_gpu_bundle_output,
                       options::OPT_no_gpu_bundle_output))
         BundleOutput = Args.hasFlag(options::OPT_gpu_bundle_output,
-                                    options::OPT_no_gpu_bundle_output);
+                                    options::OPT_no_gpu_bundle_output, true);
     }
 
     bool canUseBundlerUnbundler() const override { return true; }
@@ -3047,7 +3139,7 @@ class OffloadingActionBuilder final {
 
       // amdgcn does not support linking of object files, therefore we skip
       // backend and assemble phases to output LLVM IR. Except for generating
-      // non-relocatable device coee, where we generate fat binary for device
+      // non-relocatable device code, where we generate fat binary for device
       // code and pass to host in Backend phase.
       if (CudaDeviceActions.empty())
         return ABRT_Success;
@@ -3056,7 +3148,7 @@ class OffloadingActionBuilder final {
               CudaDeviceActions.size() == GpuArchList.size()) &&
              "Expecting one action per GPU architecture.");
       assert(!CompileHostOnly &&
-             "Not expecting CUDA actions in host-only compilation.");
+             "Not expecting HIP actions in host-only compilation.");
 
       if (!Relocatable && CurPhase == phases::Backend && !EmitLLVM &&
           !EmitAsm) {
@@ -3185,12 +3277,16 @@ class OffloadingActionBuilder final {
              "Linker inputs and GPU arch list sizes do not match.");
 
       ActionList Actions;
-      // Append a new link action for each device.
       unsigned I = 0;
+      // Append a new link action for each device.
+      // Each entry in DeviceLinkerInputs corresponds to a GPU arch.
       for (auto &LI : DeviceLinkerInputs) {
-        // Each entry in DeviceLinkerInputs corresponds to a GPU arch.
-        auto *DeviceLinkAction =
-            C.MakeAction<LinkJobAction>(LI, types::TY_Image);
+
+        types::ID Output = Args.hasArg(options::OPT_emit_llvm)
+                                   ? types::TY_LLVM_BC
+                                   : types::TY_Image;
+
+        auto *DeviceLinkAction = C.MakeAction<LinkJobAction>(LI, Output);
         // Linking all inputs for the current GPU arch.
         // LI contains all the inputs for the linker.
         OffloadAction::DeviceDependences DeviceLinkDeps;
@@ -3201,6 +3297,12 @@ class OffloadingActionBuilder final {
         ++I;
       }
       DeviceLinkerInputs.clear();
+
+      // If emitting LLVM, do not generate final host/device compilation action
+      if (Args.hasArg(options::OPT_emit_llvm)) {
+          AL.append(Actions);
+          return;
+      }
 
       // Create a host object from all the device images by embedding them
       // in a fat binary for mixed host-device compilation. For device-only
@@ -3729,7 +3831,8 @@ void Driver::handleArguments(Compilation &C, DerivedArgList &Args,
   phases::ID FinalPhase = getFinalPhase(Args, &FinalPhaseArg);
 
   if (FinalPhase == phases::Link) {
-    if (Args.hasArg(options::OPT_emit_llvm))
+    // Emitting LLVM while linking disabled except in HIPAMD Toolchain
+    if (Args.hasArg(options::OPT_emit_llvm) && !Args.hasArg(options::OPT_hip_link))
       Diag(clang::diag::err_drv_emit_llvm_link);
     if (IsCLMode() && LTOMode != LTOK_None &&
         !Args.getLastArgValue(options::OPT_fuse_ld_EQ)
@@ -3875,8 +3978,13 @@ void Driver::BuildActions(Compilation &C, DerivedArgList &Args,
 
   // Construct the actions to perform.
   HeaderModulePrecompileJobAction *HeaderModuleAction = nullptr;
+  ExtractAPIJobAction *ExtractAPIAction = nullptr;
   ActionList LinkerInputs;
   ActionList MergerInputs;
+
+  bool UseNewOffloadingDriver =
+      C.isOffloadingHostKind(Action::OFK_OpenMP) &&
+      !Args.hasArg(options::OPT_fno_openmp_new_driver);
 
   for (auto &I : Inputs) {
     types::ID InputType = I.first;
@@ -3893,14 +4001,14 @@ void Driver::BuildActions(Compilation &C, DerivedArgList &Args,
 
     // Use the current host action in any of the offloading actions, if
     // required.
-    if (!Args.hasArg(options::OPT_fopenmp_new_driver))
+    if (!UseNewOffloadingDriver)
       if (OffloadBuilder.addHostDependenceToDeviceActions(Current, InputArg))
         break;
 
     for (phases::ID Phase : PL) {
 
       // Add any offload action the host action depends on.
-      if (!Args.hasArg(options::OPT_fopenmp_new_driver))
+      if (!UseNewOffloadingDriver)
         Current = OffloadBuilder.addDeviceDependencesToHostAction(
             Current, InputArg, Phase, PL.back(), FullPL);
       if (!Current)
@@ -3909,7 +4017,10 @@ void Driver::BuildActions(Compilation &C, DerivedArgList &Args,
       // Queue linker inputs.
       if (Phase == phases::Link) {
         assert(Phase == PL.back() && "linking must be final compilation step.");
-        LinkerInputs.push_back(Current);
+        // We don't need to generate additional link commands if emitting AMD bitcode
+        if (!(C.getInputArgs().hasArg(options::OPT_hip_link) &&
+             (C.getInputArgs().hasArg(options::OPT_emit_llvm))))
+          LinkerInputs.push_back(Current);
         Current = nullptr;
         break;
       }
@@ -3935,9 +4046,15 @@ void Driver::BuildActions(Compilation &C, DerivedArgList &Args,
         break;
       }
 
+      if (Phase == phases::Precompile && ExtractAPIAction) {
+        ExtractAPIAction->addHeaderInput(Current);
+        Current = nullptr;
+        break;
+      }
+
       // Try to build the offloading actions and add the result as a dependency
       // to the host.
-      if (Args.hasArg(options::OPT_fopenmp_new_driver))
+      if (UseNewOffloadingDriver)
         Current = BuildOffloadingActions(C, Args, I, Current);
 
       // FIXME: Should we include any prior module file outputs as inputs of
@@ -3952,12 +4069,14 @@ void Driver::BuildActions(Compilation &C, DerivedArgList &Args,
 
       if (auto *HMA = dyn_cast<HeaderModulePrecompileJobAction>(NewCurrent))
         HeaderModuleAction = HMA;
+      else if (auto *EAA = dyn_cast<ExtractAPIJobAction>(NewCurrent))
+        ExtractAPIAction = EAA;
 
       Current = NewCurrent;
 
       // Use the current host action in any of the offloading actions, if
       // required.
-      if (!Args.hasArg(options::OPT_fopenmp_new_driver))
+      if (!UseNewOffloadingDriver)
         if (OffloadBuilder.addHostDependenceToDeviceActions(Current, InputArg))
           break;
 
@@ -3970,7 +4089,7 @@ void Driver::BuildActions(Compilation &C, DerivedArgList &Args,
       Actions.push_back(Current);
 
     // Add any top level actions generated for offloading.
-    if (!Args.hasArg(options::OPT_fopenmp_new_driver))
+    if (!UseNewOffloadingDriver)
       OffloadBuilder.appendTopLevelActions(Actions, Current, InputArg);
     else if (Current)
       Current->propagateHostOffloadInfo(C.getActiveOffloadKinds(),
@@ -3982,18 +4101,19 @@ void Driver::BuildActions(Compilation &C, DerivedArgList &Args,
   if (LinkerInputs.empty()) {
     Arg *FinalPhaseArg;
     if (getFinalPhase(Args, &FinalPhaseArg) == phases::Link)
-      OffloadBuilder.appendDeviceLinkActions(Actions);
+      if (!UseNewOffloadingDriver)
+        OffloadBuilder.appendDeviceLinkActions(Actions);
   }
 
   if (!LinkerInputs.empty()) {
-    if (!Args.hasArg(options::OPT_fopenmp_new_driver))
+    if (!UseNewOffloadingDriver)
       if (Action *Wrapper = OffloadBuilder.makeHostLinkAction())
         LinkerInputs.push_back(Wrapper);
     Action *LA;
     // Check if this Linker Job should emit a static library.
     if (ShouldEmitStaticLibrary(Args)) {
       LA = C.MakeAction<StaticLibJobAction>(LinkerInputs, types::TY_Image);
-    } else if (Args.hasArg(options::OPT_fopenmp_new_driver) &&
+    } else if (UseNewOffloadingDriver &&
                C.getActiveOffloadKinds() != Action::OFK_None) {
       LA = C.MakeAction<LinkerWrapperJobAction>(LinkerInputs, types::TY_Image);
       LA->propagateHostOffloadInfo(C.getActiveOffloadKinds(),
@@ -4001,7 +4121,7 @@ void Driver::BuildActions(Compilation &C, DerivedArgList &Args,
     } else {
       LA = C.MakeAction<LinkJobAction>(LinkerInputs, types::TY_Image);
     }
-    if (!Args.hasArg(options::OPT_fopenmp_new_driver))
+    if (!UseNewOffloadingDriver)
       LA = OffloadBuilder.processHostLinkAction(LA);
     Actions.push_back(LA);
   }
@@ -4195,6 +4315,10 @@ Action *Driver::ConstructPhaseAction(
     return C.MakeAction<PreprocessJobAction>(Input, OutputTy);
   }
   case phases::Precompile: {
+    // API extraction should not generate an actual precompilation action.
+    if (Args.hasArg(options::OPT_extract_api))
+      return C.MakeAction<ExtractAPIJobAction>(Input, types::TY_API_INFO);
+
     types::ID OutputTy = getPrecompiledType(Input->getType());
     assert(OutputTy != types::TY_INVALID &&
            "Cannot precompile this input type!");
@@ -4209,8 +4333,7 @@ Action *Driver::ConstructPhaseAction(
         OutputTy = types::TY_ModuleFile;
     }
 
-    if (Args.hasArg(options::OPT_fsyntax_only) ||
-        Args.hasArg(options::OPT_extract_api)) {
+    if (Args.hasArg(options::OPT_fsyntax_only)) {
       // Syntax checks should not emit a PCH file
       OutputTy = types::TY_Nothing;
     }
@@ -4239,7 +4362,7 @@ Action *Driver::ConstructPhaseAction(
     if (Args.hasArg(options::OPT_verify_pch))
       return C.MakeAction<VerifyPCHJobAction>(Input, types::TY_Nothing);
     if (Args.hasArg(options::OPT_extract_api))
-      return C.MakeAction<CompileJobAction>(Input, types::TY_API_INFO);
+      return C.MakeAction<ExtractAPIJobAction>(Input, types::TY_API_INFO);
     return C.MakeAction<CompileJobAction>(Input, types::TY_LLVM_BC);
   }
   case phases::Backend: {
@@ -5651,6 +5774,9 @@ const ToolChain &Driver::getToolChain(const ArgList &Args,
     case llvm::Triple::PS4:
       TC = std::make_unique<toolchains::PS4CPU>(*this, Target, Args);
       break;
+    case llvm::Triple::PS5:
+      TC = std::make_unique<toolchains::PS5CPU>(*this, Target, Args);
+      break;
     case llvm::Triple::Contiki:
       TC = std::make_unique<toolchains::Contiki>(*this, Target, Args);
       break;
@@ -5659,6 +5785,9 @@ const ToolChain &Driver::getToolChain(const ArgList &Args,
       break;
     case llvm::Triple::ZOS:
       TC = std::make_unique<toolchains::ZOS>(*this, Target, Args);
+      break;
+    case llvm::Triple::ShaderModel:
+      TC = std::make_unique<toolchains::HLSLToolChain>(*this, Target, Args);
       break;
     default:
       // Of these targets, Hexagon is the only one that might have
@@ -5705,6 +5834,9 @@ const ToolChain &Driver::getToolChain(const ArgList &Args,
       case llvm::Triple::spirv32:
       case llvm::Triple::spirv64:
         TC = std::make_unique<toolchains::SPIRVToolChain>(*this, Target, Args);
+        break;
+      case llvm::Triple::csky:
+        TC = std::make_unique<toolchains::CSKYToolChain>(*this, Target, Args);
         break;
       default:
         if (Target.getVendor() == llvm::Triple::Myriad)
@@ -5770,7 +5902,8 @@ bool Driver::ShouldUseClangCompiler(const JobAction &JA) const {
 
   // And say "no" if this is not a kind of action clang understands.
   if (!isa<PreprocessJobAction>(JA) && !isa<PrecompileJobAction>(JA) &&
-      !isa<CompileJobAction>(JA) && !isa<BackendJobAction>(JA))
+      !isa<CompileJobAction>(JA) && !isa<BackendJobAction>(JA) &&
+      !isa<ExtractAPIJobAction>(JA))
     return false;
 
   return true;
@@ -5874,7 +6007,13 @@ Driver::getIncludeExcludeOptionFlagMasks(bool IsClCompatMode) const {
   } else {
     ExcludedFlagsBitmask |= options::CLOption;
   }
-
+  if (IsDXCMode()) {
+    // Include DXC and Core options.
+    IncludedFlagsBitmask |= options::DXCOption;
+    IncludedFlagsBitmask |= options::CoreOption;
+  } else {
+    ExcludedFlagsBitmask |= options::DXCOption;
+  }
   return std::make_pair(IncludedFlagsBitmask, ExcludedFlagsBitmask);
 }
 

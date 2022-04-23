@@ -283,6 +283,8 @@ void TextNodeDumper::Visit(const Decl *D) {
       OS << " constexpr";
     if (FD->isConsteval())
       OS << " consteval";
+    if (FD->isMultiVersion())
+      OS << " multiversion";
   }
 
   if (!isa<FunctionDecl>(*D)) {
@@ -910,12 +912,17 @@ void TextNodeDumper::VisitMetaobjectIdTemplateArgument(const TemplateArgument &T
 }
 
 void TextNodeDumper::VisitTemplateTemplateArgument(const TemplateArgument &TA) {
+  if (TA.getAsTemplate().getKind() == TemplateName::UsingTemplate)
+    OS << " using";
   OS << " template ";
   TA.getAsTemplate().dump(OS);
 }
 
 void TextNodeDumper::VisitTemplateExpansionTemplateArgument(
     const TemplateArgument &TA) {
+  if (TA.getAsTemplateOrTemplatePattern().getKind() ==
+      TemplateName::UsingTemplate)
+    OS << " using";
   OS << " template expansion ";
   TA.getAsTemplateOrTemplatePattern().dump(OS);
 }
@@ -1585,10 +1592,18 @@ void TextNodeDumper::VisitAutoType(const AutoType *T) {
   }
 }
 
+void TextNodeDumper::VisitDeducedTemplateSpecializationType(
+    const DeducedTemplateSpecializationType *T) {
+  if (T->getTemplateName().getKind() == TemplateName::UsingTemplate)
+    OS << " using";
+}
+
 void TextNodeDumper::VisitTemplateSpecializationType(
     const TemplateSpecializationType *T) {
   if (T->isTypeAlias())
     OS << " alias";
+  if (T->getTemplateName().getKind() == TemplateName::UsingTemplate)
+    OS << " using";
   OS << " ";
   T->getTemplateName().dump(OS);
 }

@@ -79,11 +79,12 @@ SDValue VETargetLowering::lowerToVVP(SDValue Op, SelectionDAG &DAG) const {
   if (!Mask)
     Mask = CDAG.getConstantMask(Packing, true);
 
-  if (isVVPBinaryOp(VVPOpcode)) {
-    assert(LegalVecVT.isSimple());
+  assert(LegalVecVT.isSimple());
+  if (isVVPUnaryOp(VVPOpcode))
+    return CDAG.getNode(VVPOpcode, LegalVecVT, {Op->getOperand(0), Mask, AVL});
+  if (isVVPBinaryOp(VVPOpcode))
     return CDAG.getNode(VVPOpcode, LegalVecVT,
                         {Op->getOperand(0), Op->getOperand(1), Mask, AVL});
-  }
   if (isVVPReductionOp(VVPOpcode)) {
     auto SrcHasStart = hasReductionStartParam(Op->getOpcode());
     SDValue StartV = SrcHasStart ? Op->getOperand(0) : SDValue();
@@ -182,8 +183,8 @@ SDValue VETargetLowering::splitPackedLoadStore(SDValue Op,
          "Can only split packed load/store");
   MVT SplitDataVT = splitVectorType(DataVT);
 
-  SDValue PassThru = getNodePassthru(Op);
-  assert(!PassThru && "Should have been folded in lowering to VVP layer");
+  assert(!getNodePassthru(Op) &&
+         "Should have been folded in lowering to VVP layer");
 
   // Analyze the operation
   SDValue PackedMask = getNodeMask(Op);

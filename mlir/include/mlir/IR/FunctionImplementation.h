@@ -58,22 +58,20 @@ using FuncTypeBuilder = function_ref<Type(
 /// attributes and locations of the arguments.
 ParseResult parseFunctionArgumentList(
     OpAsmParser &parser, bool allowAttributes, bool allowVariadic,
-    SmallVectorImpl<OpAsmParser::OperandType> &argNames,
+    SmallVectorImpl<OpAsmParser::UnresolvedOperand> &argNames,
     SmallVectorImpl<Type> &argTypes, SmallVectorImpl<NamedAttrList> &argAttrs,
-    SmallVectorImpl<Location> &argLocations, bool &isVariadic);
+    bool &isVariadic);
 
 /// Parses a function signature using `parser`. The `allowVariadic` argument
 /// indicates whether functions with variadic arguments are supported. The
 /// trailing arguments are populated by this function with names, types,
 /// attributes and locations of the arguments and those of the results.
-ParseResult
-parseFunctionSignature(OpAsmParser &parser, bool allowVariadic,
-                       SmallVectorImpl<OpAsmParser::OperandType> &argNames,
-                       SmallVectorImpl<Type> &argTypes,
-                       SmallVectorImpl<NamedAttrList> &argAttrs,
-                       SmallVectorImpl<Location> &argLocations,
-                       bool &isVariadic, SmallVectorImpl<Type> &resultTypes,
-                       SmallVectorImpl<NamedAttrList> &resultAttrs);
+ParseResult parseFunctionSignature(
+    OpAsmParser &parser, bool allowVariadic,
+    SmallVectorImpl<OpAsmParser::UnresolvedOperand> &argNames,
+    SmallVectorImpl<Type> &argTypes, SmallVectorImpl<NamedAttrList> &argAttrs,
+    bool &isVariadic, SmallVectorImpl<Type> &resultTypes,
+    SmallVectorImpl<NamedAttrList> &resultAttrs);
 
 /// Parser implementation for function-like operations.  Uses
 /// `funcTypeBuilder` to construct the custom function type given lists of

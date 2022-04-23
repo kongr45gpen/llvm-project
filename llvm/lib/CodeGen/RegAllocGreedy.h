@@ -12,9 +12,7 @@
 #ifndef LLVM_CODEGEN_REGALLOCGREEDY_H_
 #define LLVM_CODEGEN_REGALLOCGREEDY_H_
 
-#include "AllocationOrder.h"
 #include "InterferenceCache.h"
-#include "LiveDebugVariables.h"
 #include "RegAllocBase.h"
 #include "RegAllocEvictionAdvisor.h"
 #include "SpillPlacement.h"
@@ -23,52 +21,44 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IndexedMap.h"
-#include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/CalcSpillWeights.h"
-#include "llvm/CodeGen/EdgeBundles.h"
 #include "llvm/CodeGen/LiveInterval.h"
-#include "llvm/CodeGen/LiveIntervalUnion.h"
-#include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/LiveRangeEdit.h"
-#include "llvm/CodeGen/LiveRegMatrix.h"
-#include "llvm/CodeGen/LiveStacks.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
-#include "llvm/CodeGen/MachineDominators.h"
-#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineLoopInfo.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterClassInfo.h"
-#include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/CodeGen/Spiller.h"
-#include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
-#include "llvm/CodeGen/VirtRegMap.h"
-#include "llvm/IR/DebugInfoMetadata.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/MC/MCRegisterInfo.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/BranchProbability.h"
-#include "llvm/Target/TargetMachine.h"
 #include <algorithm>
-#include <cassert>
 #include <cstdint>
 #include <memory>
 #include <queue>
-#include <tuple>
 #include <utility>
 
 namespace llvm {
+class AllocationOrder;
+class AnalysisUsage;
+class EdgeBundles;
+class LiveDebugVariables;
+class LiveIntervals;
+class LiveRegMatrix;
+class MachineBasicBlock;
+class MachineBlockFrequencyInfo;
+class MachineDominatorTree;
+class MachineLoop;
+class MachineLoopInfo;
+class MachineOptimizationRemarkEmitter;
+class MachineOptimizationRemarkMissed;
+class SlotIndex;
+class SlotIndexes;
+class TargetInstrInfo;
+class VirtRegMap;
+
 class LLVM_LIBRARY_VISIBILITY RAGreedy : public MachineFunctionPass,
                                          public RegAllocBase,
                                          private LiveRangeEdit::Delegate {
@@ -163,6 +153,11 @@ private:
   // Convenient shortcuts.
   using PQueue = std::priority_queue<std::pair<unsigned, unsigned>>;
   using SmallLISet = SmallPtrSet<const LiveInterval *, 4>;
+
+  // We need to track all tentative recolorings so we can roll back any
+  // successful and unsuccessful recoloring attempts.
+  using RecoloringStack =
+      SmallVector<std::pair<const LiveInterval *, MCRegister>, 8>;
 
   // context
   MachineFunction *MF;
@@ -361,7 +356,7 @@ public:
 private:
   MCRegister selectOrSplitImpl(const LiveInterval &,
                                SmallVectorImpl<Register> &, SmallVirtRegSet &,
-                               unsigned = 0);
+                               RecoloringStack &, unsigned = 0);
 
   bool LRE_CanEraseVirtReg(Register) override;
   void LRE_WillShrinkVirtReg(Register) override;
@@ -427,9 +422,10 @@ private:
                     SmallVectorImpl<Register> &, const SmallVirtRegSet &);
   unsigned tryLastChanceRecoloring(const LiveInterval &, AllocationOrder &,
                                    SmallVectorImpl<Register> &,
-                                   SmallVirtRegSet &, unsigned);
+                                   SmallVirtRegSet &, RecoloringStack &,
+                                   unsigned);
   bool tryRecoloringCandidates(PQueue &, SmallVectorImpl<Register> &,
-                               SmallVirtRegSet &, unsigned);
+                               SmallVirtRegSet &, RecoloringStack &, unsigned);
   void tryHintRecoloring(const LiveInterval &);
   void tryHintsRecoloring();
 

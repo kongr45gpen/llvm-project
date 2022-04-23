@@ -1,4 +1,4 @@
-// RUN:   mlir-opt %s -pass-pipeline="async-to-async-runtime,builtin.func(async-runtime-ref-counting,async-runtime-ref-counting-opt),convert-async-to-llvm,builtin.func(convert-arith-to-llvm),convert-vector-to-llvm,convert-memref-to-llvm,convert-func-to-llvm,reconcile-unrealized-casts" \
+// RUN:   mlir-opt %s -pass-pipeline="async-to-async-runtime,func.func(async-runtime-ref-counting,async-runtime-ref-counting-opt),convert-async-to-llvm,func.func(convert-arith-to-llvm),convert-vector-to-llvm,convert-memref-to-llvm,convert-func-to-llvm,reconcile-unrealized-casts" \
 // RUN: | mlir-cpu-runner                                                      \
 // RUN:     -e main -entry-point-result=void -O0                               \
 // RUN:     -shared-libs=%linalg_test_lib_dir/libmlir_c_runner_utils%shlibext  \
@@ -6,7 +6,7 @@
 // RUN:     -shared-libs=%linalg_test_lib_dir/libmlir_async_runtime%shlibext   \
 // RUN: | FileCheck %s --dump-input=always
 
-func @main() {
+func.func @main() {
 
   // ------------------------------------------------------------------------ //
   // Blocking async.await outside of the async.execute.
@@ -74,5 +74,5 @@ func @main() {
   return
 }
 
-func private @print_memref_f32(memref<*xf32>)
+func.func private @print_memref_f32(memref<*xf32>)
   attributes { llvm.emit_c_interface }

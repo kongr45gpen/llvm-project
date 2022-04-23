@@ -151,8 +151,6 @@ public:
   std::vector<CallGraphEntry> callGraph;
 
 private:
-  Section *compactUnwindSection = nullptr;
-
   template <class LP> void parseLazy();
   template <class SectionHeader> void parseSections(ArrayRef<SectionHeader>);
   template <class LP>
@@ -163,9 +161,9 @@ private:
   Symbol *parseNonSectionSymbol(const NList &sym, StringRef name);
   template <class SectionHeader>
   void parseRelocations(ArrayRef<SectionHeader> sectionHeaders,
-                        const SectionHeader &, Subsections &);
+                        const SectionHeader &, Section &);
   void parseDebugInfo();
-  void registerCompactUnwind();
+  void registerCompactUnwind(Section &compactUnwindSection);
 };
 
 // command-line -sectcreate file
@@ -307,6 +305,7 @@ std::vector<const CommandType *> findCommands(const void *anyHdr,
 } // namespace macho
 
 std::string toString(const macho::InputFile *file);
+std::string toString(const macho::Section &);
 } // namespace lld
 
 #endif

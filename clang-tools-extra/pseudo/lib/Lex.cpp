@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang-pseudo/Token.h"
+#include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/TokenKinds.h"
 #include "clang/Lex/Lexer.h"
@@ -98,9 +99,21 @@ TokenStream cook(const TokenStream &Code, const LangOptions &LangOpts) {
       Tok.Length = Text.size();
       Tok.Flags &= ~static_cast<decltype(Tok.Flags)>(LexFlags::NeedsCleaning);
     }
-    // Cook raw_identifiers into identifier, keyword, etc.
-    if (Tok.Kind == tok::raw_identifier)
+
+    if (Tok.Kind == tok::raw_identifier) {
+      // Cook raw_identifiers into identifier, keyword, etc.
       Tok.Kind = Identifiers.get(Tok.text()).getTokenID();
+    } else if (Tok.Kind == tok::greatergreater) {
+      // Split the greatergreater token.
+      // FIXME: split lessless token to support Cuda triple angle brackets <<<.
+      assert(Tok.text() == ">>");
+      Tok.Kind = tok::greater;
+      Tok.Length = 1;
+      Result.push(Tok);
+      // Line is wrong if the first greater is followed by an escaped newline!
+      Tok.Data = Tok.text().data() + 1;
+    }
+
     Result.push(std::move(Tok));
   }
 

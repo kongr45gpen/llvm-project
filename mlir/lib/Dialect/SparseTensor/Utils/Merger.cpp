@@ -8,6 +8,7 @@
 
 #include "mlir/Dialect/SparseTensor/Utils/Merger.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 
 #include "mlir/IR/Operation.h"
 #include "llvm/Support/Debug.h"
@@ -563,7 +564,7 @@ Type Merger::inferType(unsigned e, Value src) {
   // Inspect source type. For vector types, apply the same
   // vectorization to the destination type.
   if (auto vtp = src.getType().dyn_cast<VectorType>())
-    return VectorType::get(vtp.getNumElements(), dtp);
+    return VectorType::get(vtp.getNumElements(), dtp, vtp.getNumScalableDims());
   return dtp;
 }
 

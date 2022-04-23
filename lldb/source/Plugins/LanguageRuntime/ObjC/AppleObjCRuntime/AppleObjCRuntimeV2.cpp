@@ -21,6 +21,7 @@
 
 #include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "lldb/Core/Debugger.h"
+#include "lldb/Core/DebuggerEvents.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/Section.h"
@@ -665,8 +666,8 @@ AppleObjCRuntimeV2::AppleObjCRuntimeV2(Process *process,
       m_loaded_objc_opt(false), m_non_pointer_isa_cache_up(),
       m_tagged_pointer_vendor_up(
           TaggedPointerVendorV2::CreateInstance(*this, objc_module_sp)),
-      m_encoding_to_type_sp(), m_noclasses_warning_emitted(false),
-      m_CFBoolean_values(), m_realized_class_generation_count(0) {
+      m_encoding_to_type_sp(), m_CFBoolean_values(),
+      m_realized_class_generation_count(0) {
   static const ConstString g_gdb_object_getClass("gdb_object_getClass");
   m_has_object_getClass = HasSymbol(g_gdb_object_getClass);
   static const ConstString g_objc_copyRealizedClassList(
@@ -1553,7 +1554,7 @@ AppleObjCRuntimeV2::DynamicClassInfoExtractor::GetClassInfoUtilityFunctionImpl(
   if (!utility_fn_or_error) {
     LLDB_LOG_ERROR(
         log, utility_fn_or_error.takeError(),
-        "Failed to get utility function for implementation lookup: {0}");
+        "Failed to get utility function for dynamic info extractor: {0}");
     return {};
   }
 
@@ -1683,7 +1684,7 @@ AppleObjCRuntimeV2::SharedCacheClassInfoExtractor::
   if (!utility_fn_or_error) {
     LLDB_LOG_ERROR(
         log, utility_fn_or_error.takeError(),
-        "Failed to get utility function for implementation lookup: {0}");
+        "Failed to get utility function for shared class info extractor: {0}");
     return nullptr;
   }
 
@@ -2009,7 +2010,8 @@ AppleObjCRuntimeV2::SharedCacheClassInfoExtractor::UpdateISAToDescriptorMap() {
     return DescriptorMapUpdateResult::Fail();
 
   // The number of entries to pre-allocate room for.
-  const uint32_t max_num_classes = 256 * 1024;
+  // Each entry is (addrsize + 4) bytes
+  const uint32_t max_num_classes = 163840;
 
   UtilityFunction *get_class_info_code = GetClassInfoUtilityFunction(exe_ctx);
   if (!get_class_info_code) {
@@ -2330,32 +2332,27 @@ static bool DoesProcessHaveSharedCache(Process &process) {
 
 void AppleObjCRuntimeV2::WarnIfNoClassesCached(
     SharedCacheWarningReason reason) {
-  if (m_noclasses_warning_emitted)
-    return;
-
   if (GetProcess() && !DoesProcessHaveSharedCache(*GetProcess())) {
     // Simulators do not have the objc_opt_ro class table so don't actually
     // complain to the user
-    m_noclasses_warning_emitted = true;
     return;
   }
 
   Debugger &debugger(GetProcess()->GetTarget().GetDebugger());
-  if (auto stream = debugger.GetAsyncOutputStream()) {
-    switch (reason) {
-    case SharedCacheWarningReason::eNotEnoughClassesRead:
-      stream->PutCString("warning: could not find Objective-C class data in "
-                         "the process. This may reduce the quality of type "
-                         "information available.\n");
-      m_noclasses_warning_emitted = true;
-      break;
-    case SharedCacheWarningReason::eExpressionExecutionFailure:
-      stream->PutCString("warning: could not execute support code to read "
-                         "Objective-C class data in the process. This may "
-                         "reduce the quality of type information available.\n");
-      m_noclasses_warning_emitted = true;
-      break;
-    }
+  switch (reason) {
+  case SharedCacheWarningReason::eNotEnoughClassesRead:
+    Debugger::ReportWarning("could not find Objective-C class data in "
+                            "the process. This may reduce the quality of type "
+                            "information available.\n",
+                            debugger.GetID(), &m_no_classes_cached_warning);
+    break;
+  case SharedCacheWarningReason::eExpressionExecutionFailure:
+    Debugger::ReportWarning(
+        "could not execute support code to read "
+        "Objective-C class data in the process. This may "
+        "reduce the quality of type information available.\n",
+        debugger.GetID(), &m_no_classes_cached_warning);
+    break;
   }
 }
 
@@ -2372,17 +2369,25 @@ void AppleObjCRuntimeV2::WarnIfNoExpandedSharedCache() {
 
   Target &target = GetProcess()->GetTarget();
   Debugger &debugger = target.GetDebugger();
-  if (auto stream = debugger.GetAsyncOutputStream()) {
-    const char *msg = "read from the shared cache";
-    if (PlatformSP platform_sp = target.GetPlatform())
-      msg = platform_sp->IsHost()
-                ? "read from the host's in-memory shared cache"
-                : "find the on-disk shared cache for this device";
-    stream->Printf("warning: libobjc.A.dylib is being read from process "
-                   "memory. This indicates that LLDB could not %s. This will "
-                   "likely reduce debugging performance.\n",
-                   msg);
+
+  std::string buffer;
+  llvm::raw_string_ostream os(buffer);
+
+  os << "libobjc.A.dylib is being read from process memory. This "
+        "indicates that LLDB could not ";
+  if (PlatformSP platform_sp = target.GetPlatform()) {
+    if (platform_sp->IsHost()) {
+      os << "read from the host's in-memory shared cache";
+    } else {
+      os << "find the on-disk shared cache for this device";
+    }
+  } else {
+    os << "read from the shared cache";
   }
+  os << ". This will likely reduce debugging performance.\n";
+
+  Debugger::ReportWarning(os.str(), debugger.GetID(),
+                          &m_no_expanded_cache_warning);
 }
 
 DeclVendor *AppleObjCRuntimeV2::GetDeclVendor() {
@@ -2745,17 +2750,23 @@ AppleObjCRuntimeV2::TaggedPointerVendorRuntimeAssisted::GetClassDescriptor(
       return nullptr;
     actual_class_descriptor_sp =
         m_runtime.GetClassDescriptorFromISA((ObjCISA)slot_data);
+    if (!actual_class_descriptor_sp) {
+      if (ABISP abi_sp = process->GetABI()) {
+        ObjCISA fixed_isa = abi_sp->FixCodeAddress((ObjCISA)slot_data);
+        actual_class_descriptor_sp =
+            m_runtime.GetClassDescriptorFromISA(fixed_isa);
+      }
+    }
     if (!actual_class_descriptor_sp)
       return ObjCLanguageRuntime::ClassDescriptorSP();
     m_cache[slot] = actual_class_descriptor_sp;
   }
 
   uint64_t data_payload =
-      (((uint64_t)unobfuscated << m_objc_debug_taggedpointer_payload_lshift) >>
+      ((unobfuscated << m_objc_debug_taggedpointer_payload_lshift) >>
        m_objc_debug_taggedpointer_payload_rshift);
   int64_t data_payload_signed =
-      ((int64_t)((int64_t)unobfuscated
-                 << m_objc_debug_taggedpointer_payload_lshift) >>
+      ((int64_t)(unobfuscated << m_objc_debug_taggedpointer_payload_lshift) >>
        m_objc_debug_taggedpointer_payload_rshift);
   return ClassDescriptorSP(new ClassDescriptorV2Tagged(
       actual_class_descriptor_sp, data_payload, data_payload_signed));

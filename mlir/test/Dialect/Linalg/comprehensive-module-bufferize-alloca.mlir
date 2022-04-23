@@ -1,4 +1,4 @@
-// RUN: mlir-opt %s -pass-pipeline="linalg-comprehensive-module-bufferize{allow-return-memref use-alloca}" -split-input-file | FileCheck %s
+// RUN: mlir-opt %s -pass-pipeline="linalg-comprehensive-module-bufferize{allow-return-allocs use-alloca}" -split-input-file | FileCheck %s
 
 //  CHECK-DAG: #[[$DYN_0D_MAP:.*]] = affine_map<()[s0] -> (s0)>
 //  CHECK-DAG: #[[$DYN_1D_MAP:.*]] = affine_map<(d0)[s0, s1] -> (d0 * s1 + s0)>
@@ -7,7 +7,7 @@
 // CHECK-SAME:    %[[A:[a-zA-Z0-9]*]]: memref<64xf32, #[[$DYN_1D_MAP]]>
 // CHECK-SAME:    %[[B:[a-zA-Z0-9]*]]: memref<64xf32, #[[$DYN_1D_MAP]]>
 // CHECK-SAME:    %[[C:[a-zA-Z0-9]*]]: memref<f32, #[[$DYN_0D_MAP]]>
-func @init_and_dot(%a: tensor<64xf32>, %b: tensor<64xf32>, %c: tensor<f32>) -> tensor<f32> {
+func.func @init_and_dot(%a: tensor<64xf32>, %b: tensor<64xf32>, %c: tensor<f32>) -> tensor<f32> {
   // CHECK-NEXT:   %[[C0:.*]] = arith.constant 0{{.*}} : f32
   %v0 = arith.constant 0.0 : f32
 
@@ -23,7 +23,7 @@ func @init_and_dot(%a: tensor<64xf32>, %b: tensor<64xf32>, %c: tensor<f32>) -> t
 }
 
 //      CHECK:  func @main()
-func @main() {
+func.func @main() {
   //  CHECK-DAG:   %[[C0:.*]] = arith.constant 0{{.*}} : f32
   //  CHECK-DAG:   %[[C1:.*]] = arith.constant 1{{.*}} : f32
   //  CHECK-DAG:   %[[C2:.*]] = arith.constant 2{{.*}} : f32
@@ -62,4 +62,4 @@ func @main() {
 }
 
 //     CHECK:   func private @print_memref_f32(memref<*xf32>)
-func private @print_memref_f32(tensor<*xf32>)
+func.func private @print_memref_f32(tensor<*xf32>)

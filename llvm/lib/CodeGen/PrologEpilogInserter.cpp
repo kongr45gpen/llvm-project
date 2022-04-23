@@ -55,10 +55,8 @@
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CodeGen.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
@@ -284,6 +282,9 @@ bool PEI::runOnMachineFunction(MachineFunction &MF) {
     // Verifier should have caught this.
     assert(!Failed && "Invalid warn-stack-size fn attr value");
     (void)Failed;
+  }
+  if (MF.getFunction().hasFnAttribute(Attribute::SafeStack)) {
+    StackSize += MFI.getUnsafeStackSize();
   }
   if (StackSize > Threshold) {
     DiagnosticInfoStackSize DiagStackSize(F, StackSize, Threshold, DS_Warning);
@@ -1146,11 +1147,7 @@ void PEI::insertPrologEpilogCode(MachineFunction &MF) {
   if (MF.shouldSplitStack()) {
     for (MachineBasicBlock *SaveBlock : SaveBlocks)
       TFI.adjustForSegmentedStacks(MF, *SaveBlock);
-    // Record that there are split-stack functions, so we will emit a
-    // special section to tell the linker.
-    MF.getMMI().setHasSplitStack(true);
-  } else
-    MF.getMMI().setHasNosplitStack(true);
+  }
 
   // Emit additional code that is required to explicitly handle the stack in
   // HiPE native code (if needed) when loaded in the Erlang/OTP runtime. The

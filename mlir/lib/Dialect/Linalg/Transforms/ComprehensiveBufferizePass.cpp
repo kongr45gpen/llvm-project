@@ -11,9 +11,11 @@
 #include "mlir/Dialect/Arithmetic/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Bufferization/Transforms/OneShotAnalysis.h"
+#include "mlir/Dialect/Bufferization/Transforms/OneShotModuleBufferize.h"
+#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/Linalg/ComprehensiveBufferize/ModuleBufferization.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/SCF/BufferizableOpInterfaceImpl.h"
@@ -27,7 +29,6 @@
 using namespace mlir;
 using namespace mlir::bufferization;
 using namespace mlir::linalg;
-using namespace mlir::linalg::comprehensive_bufferize;
 
 namespace {
 struct LinalgComprehensiveModuleBufferize
@@ -51,9 +52,10 @@ struct LinalgComprehensiveModuleBufferize
                 vector::VectorDialect, scf::SCFDialect,
                 arith::ArithmeticDialect, func::FuncDialect, AffineDialect>();
     arith::registerBufferizableOpInterfaceExternalModels(registry);
+    bufferization::registerAllocationOpInterfaceExternalModels(registry);
     linalg::registerBufferizableOpInterfaceExternalModels(registry);
     scf::registerBufferizableOpInterfaceExternalModels(registry);
-    std_ext::registerModuleBufferizationExternalModels(registry);
+    func_ext::registerBufferizableOpInterfaceExternalModels(registry);
     tensor::registerBufferizableOpInterfaceExternalModels(registry);
     vector::registerBufferizableOpInterfaceExternalModels(registry);
   }
@@ -89,7 +91,7 @@ void LinalgComprehensiveModuleBufferize::runOnOperation() {
         return success();
       };
     }
-    opt.allowReturnMemref = allowReturnMemref;
+    opt.allowReturnAllocs = allowReturnAllocs;
     opt.allowUnknownOps = allowUnknownOps;
     opt.analysisFuzzerSeed = analysisFuzzerSeed;
     opt.createDeallocs = createDeallocs;
@@ -97,6 +99,7 @@ void LinalgComprehensiveModuleBufferize::runOnOperation() {
     opt.printConflicts = printConflicts;
     opt.testAnalysisOnly = testAnalysisOnly;
     opt.alwaysAliasingWithDest = alwaysAliasingWithDest;
+    opt.bufferizeFunctionBoundaries = true;
     if (initTensorElimination) {
       opt.addPostAnalysisStep(insertSliceAnchoredInitTensorEliminationStep);
     }
@@ -107,7 +110,7 @@ void LinalgComprehensiveModuleBufferize::runOnOperation() {
   ModuleOp moduleOp = getOperation();
   applyEnablingTransformations(moduleOp);
 
-  if (failed(runModuleBufferize(moduleOp, opt))) {
+  if (failed(runOneShotModuleBufferize(moduleOp, opt))) {
     signalPassFailure();
     return;
   }

@@ -37,7 +37,7 @@
 //
 // This analysis caters to high-performance codegen where buffer reuse is deemed
 // critical: the analysis should fail if the bufferized form of the function
-// needs to return a buffer, unless `allowReturnMemref` is enabled.
+// needs to return a buffer, unless `allowReturnAllocs` is enabled.
 
 #include "mlir/Dialect/Bufferization/Transforms/OneShotAnalysis.h"
 
@@ -46,6 +46,7 @@
 #include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Bufferization/Transforms/Bufferize.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/AsmState.h"
 #include "mlir/IR/Dominance.h"
@@ -215,6 +216,43 @@ bool OneShotAnalysisState::areEquivalentBufferizedValues(Value v1,
   return aliasInfo.areEquivalentBufferizedValues(v1, v2);
 }
 
+// Gather yielded tensors in `yieldedTensors` by querying all aliases. This is
+// to ensure that such information is available during bufferization time.
+// Alias information can no longer be queried through BufferizationAliasInfo
+// once we have started modifying the IR.
+void OneShotAnalysisState::gatherYieldedTensors(Operation *op) {
+  op->walk([&](Operation *returnOp) {
+    if (!isRegionReturnLike(returnOp) || !getOptions().isOpAllowed(returnOp))
+      return WalkResult::advance();
+
+    for (OpOperand &returnValOperand : returnOp->getOpOperands()) {
+      Value returnVal = returnValOperand.get();
+      // Skip non-tensor values.
+      if (!returnVal.getType().isa<TensorType>())
+        continue;
+
+      // Add all aliases of the returned value. But only the ones that are in
+      // the same block.
+      aliasInfo.applyOnAliases(returnVal, [&](Value v) {
+        if (auto bbArg = v.dyn_cast<BlockArgument>()) {
+          if (bbArg.getOwner()->getParentOp() == returnOp->getParentOp())
+            yieldedTensors.insert(bbArg);
+          return;
+        }
+        Operation *definingOp = v.getDefiningOp();
+        if (definingOp->getParentOp() == returnOp->getParentOp())
+          yieldedTensors.insert(v);
+      });
+    }
+
+    return WalkResult::advance();
+  });
+}
+
+bool OneShotAnalysisState::isTensorYielded(Value tensor) const {
+  return yieldedTensors.contains(tensor);
+}
+
 //===----------------------------------------------------------------------===//
 // Bufferization-specific alias analysis.
 //===----------------------------------------------------------------------===//
@@ -288,6 +326,20 @@ static bool happensBefore(Operation *a, Operation *b,
   return false;
 }
 
+/// For each given value, find the closest enclosing repetitive region. If this
+/// is the same region for each value, return it. Otherwise return None.
+/// Note: If there is no enclosing repetitive region, return nullptr.
+static Optional<Region *>
+getCommonEnclosingRepetitiveRegion(ArrayRef<Value> values) {
+  if (values.empty())
+    return None;
+  Region *r = getEnclosingRepetitiveRegion(values.front());
+  for (Value value : values.drop_front())
+    if (getEnclosingRepetitiveRegion(value) != r)
+      return None;
+  return r;
+}
+
 /// Annotate IR with details about the detected RaW conflict.
 static void annotateConflict(OpOperand *uRead, OpOperand *uConflictingWrite,
                              Value lastWrite) {
@@ -334,6 +386,15 @@ static bool hasReadAfterWriteInterference(
     AnalysisState &state, const BufferizationAliasInfo &aliasInfo) {
   const BufferizationOptions &options = state.getOptions();
 
+  // Gather all written aliases.
+  SmallVector<Value> writtenAliases;
+  for (OpOperand *uWrite : usesWrite)
+    writtenAliases.push_back(uWrite->get());
+  // Find the inner-most enclosing repetitive region of each alias. If this is
+  // the same region for every alias, save it in `repetitiveRegionOfWrites`.
+  Optional<Region *> repetitiveRegionOfWrites =
+      getCommonEnclosingRepetitiveRegion(writtenAliases);
+
   for (OpOperand *uRead : usesRead) {
     Operation *readingOp = uRead->getOwner();
 
@@ -356,15 +417,60 @@ static bool hasReadAfterWriteInterference(
       // met for uConflictingWrite to be an actual conflict.
       Operation *conflictingWritingOp = uConflictingWrite->getOwner();
 
+      // Check if conflictingWritingOp is in the same repetitive region as all
+      // written aliases. If this is not the case, there is no meaningful
+      // `happensBefore` relationship because conflictingWritingOp may be
+      // executed multiple times. E.g.:
+      //
+      // %0 = ... : tensor<?xf32>
+      // scf.for ... {
+      //   "reading_op"(%0) : tensor<?xf32>
+      //   %1 = "writing_op"(%0) : tensor<?xf32> -> tensor<?xf32>
+      //   ...
+      // }
+      //
+      // In the above example, reading_op happens before writing_op according to
+      // op dominance. However, both ops may happen multiple times; in
+      // particular, the second execution of reading_op happens after the first
+      // execution of writing_op. This is problematic if the tensor they operate
+      // on (%0) is defined outside of the loop.
+      //
+      // Counter example:
+      //
+      // scf.for ... {
+      //   %0 = ... : tensor<?xf32>
+      //   "reading_op"(%0) : tensor<?xf32>
+      //   %1 = "writing_op"(%0) : tensor<?xf32> -> tensor<?xf32>
+      //   ...
+      // }
+      //
+      // In this example, %0 is in the same repetitive region as
+      // conflictingWritingOp, so op dominance can be used to compute the
+      // `happensBefore` relationship.
+      //
+      // Note: iter_args of loops are not aliases of their respective block
+      // arguments, so op domanice can be used when analyzing ops that operate
+      // on them.
+      bool canUseOpDominance =
+          repetitiveRegionOfWrites ==
+          getEnclosingRepetitiveRegion(conflictingWritingOp);
+
       // No conflict if the readingOp dominates conflictingWritingOp, i.e., the
       // write is not visible when reading.
-      if (happensBefore(readingOp, conflictingWritingOp, domInfo))
+      //
+      // Note: If ops are executed multiple times (e.g., because they are inside
+      //       a loop), there may be no meaningful `happensBefore` relationship.
+      if (canUseOpDominance &&
+          happensBefore(readingOp, conflictingWritingOp, domInfo))
         continue;
 
       // No conflict if the reading use equals the use of the conflicting write.
-      // A use cannot conflict with itself. Note: Just being the same op is not
-      // enough. It has to be the same use.
-      if (uConflictingWrite == uRead)
+      // A use cannot conflict with itself.
+      //
+      // Note: Just being the same op is not enough. It has to be the same use.
+      // Note: If the op is executed multiple times (e.g., because it is inside
+      //       a loop), it may be conflicting with itself.
+      if (canUseOpDominance && uConflictingWrite == uRead)
         continue;
 
       // No conflict if the op interface says so.
@@ -379,7 +485,12 @@ static bool hasReadAfterWriteInterference(
             continue;
 
       // Ops are not conflicting if they are in mutually exclusive regions.
-      if (insideMutuallyExclusiveRegions(readingOp, conflictingWritingOp))
+      //
+      // Note: If ops are executed multiple times (e.g., because they are inside
+      //       a loop), mutually exclusive regions may be executed multiple
+      //       times.
+      if (canUseOpDominance &&
+          insideMutuallyExclusiveRegions(readingOp, conflictingWritingOp))
         continue;
 
       // Check all possible last writes.
@@ -754,6 +865,11 @@ LogicalResult bufferization::analyzeOp(Operation *op,
   const auto &options =
       static_cast<const OneShotBufferizationOptions &>(state.getOptions());
 
+  // Catch incorrect API usage.
+  assert((state.hasDialectState(func::FuncDialect::getDialectNamespace()) ||
+          !options.bufferizeFunctionBoundaries) &&
+         "must use ModuleBufferize to bufferize function boundaries");
+
   if (failed(checkAliasInfoConsistency(op, domInfo, state, aliasInfo)))
     return failure();
 
@@ -774,11 +890,14 @@ LogicalResult bufferization::analyzeOp(Operation *op,
   }
 
   bool failedAnalysis = false;
-  if (!options.allowReturnMemref) {
+  if (!options.allowReturnAllocs) {
     SmallVector<Operation *> newOps;
     failedAnalysis |=
         failed(assertDestinationPassingStyle(op, state, aliasInfo, newOps));
   }
+
+  // Gather all yielded tensors.
+  state.gatherYieldedTensors(op);
 
   // Analysis verification: After setting up alias/equivalence sets, each op
   // can check for expected invariants/limitations and fail the analysis if

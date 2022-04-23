@@ -11,6 +11,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "clang/Sema/Template.h"
+#include "clang/Sema/SemaInternal.h"
 #include "TreeTransform.h"
 #include "TypeLocBuilder.h"
 #include "clang/AST/ASTContext.h"
@@ -25,7 +27,6 @@
 #include "clang/Basic/AlignedAllocation.h"
 #include "clang/Basic/PartialDiagnostic.h"
 #include "clang/Basic/TargetInfo.h"
-#include "clang/Basic/TypeTraits.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/Initialization.h"
@@ -33,9 +34,7 @@
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/ScopeInfo.h"
-#include "clang/Sema/SemaInternal.h"
 #include "clang/Sema/SemaLambda.h"
-#include "clang/Sema/Template.h"
 #include "clang/Sema/TemplateDeduction.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/STLExtras.h"
@@ -1598,7 +1597,7 @@ Sema::BuildCXXTypeConstructExpr(TypeSourceInfo *TInfo,
 
 bool Sema::isUsualDeallocationFunction(const CXXMethodDecl *Method) {
   // [CUDA] Ignore this function, if we can't call it.
-  const FunctionDecl *Caller = dyn_cast<FunctionDecl>(CurContext);
+  const FunctionDecl *Caller = getCurFunctionDecl(/*AllowLambda=*/true);
   if (getLangOpts().CUDA) {
     auto CallPreference = IdentifyCUDAPreference(Caller, Method);
     // If it's not callable at all, it's not the right function.
@@ -1692,7 +1691,7 @@ namespace {
 
       // In CUDA, determine how much we'd like / dislike to call this.
       if (S.getLangOpts().CUDA)
-        if (auto *Caller = dyn_cast<FunctionDecl>(S.CurContext))
+        if (auto *Caller = S.getCurFunctionDecl(/*AllowLambda=*/true))
           CUDAPref = S.IdentifyCUDAPreference(Caller, FD);
     }
 
@@ -2831,7 +2830,8 @@ bool Sema::FindAllocationFunctions(SourceLocation StartLoc, SourceRange Range,
     }
 
     if (getLangOpts().CUDA)
-      EraseUnwantedCUDAMatches(dyn_cast<FunctionDecl>(CurContext), Matches);
+      EraseUnwantedCUDAMatches(getCurFunctionDecl(/*AllowLambda=*/true),
+                               Matches);
   } else {
     // C++1y [expr.new]p22:
     //   For a non-placement allocation function, the normal deallocation
@@ -4237,6 +4237,14 @@ Sema::PerformImplicitConversion(Expr *From, QualType ToType,
       return ExprError();
 
     From = FixOverloadedFunctionReference(From, Found, Fn);
+
+    // We might get back another placeholder expression if we resolved to a
+    // builtin.
+    ExprResult Checked = CheckPlaceholderExpr(From);
+    if (Checked.isInvalid())
+      return ExprError();
+
+    From = Checked.get();
     FromType = From->getType();
   }
 
@@ -4789,8 +4797,6 @@ static bool CheckUnaryTypeTraitTypeCompleteness(Sema &S, TypeTrait UTT,
   case UTT_IsStandardLayout:
   case UTT_IsPOD:
   case UTT_IsLiteral:
-  // By analogy, is_trivially_relocatable imposes the same constraints.
-  case UTT_IsTriviallyRelocatable:
   // Per the GCC type traits documentation, T shall be a complete type, cv void,
   // or an array of unknown bound. But GCC actually imposes the same constraints
   // as above.
@@ -5255,8 +5261,6 @@ static bool EvaluateUnaryTypeTrait(Sema &Self, TypeTrait UTT,
     return !T->isIncompleteType();
   case UTT_HasUniqueObjectRepresentations:
     return C.hasUniqueObjectRepresentations(T);
-  case UTT_IsTriviallyRelocatable:
-    return T.isTriviallyRelocatableType(C);
   }
 }
 
@@ -6095,8 +6099,7 @@ static bool isValidVectorForConditionalCondition(ASTContext &Ctx,
     return false;
   const QualType EltTy =
       cast<VectorType>(CondTy.getCanonicalType())->getElementType();
-  assert(!EltTy->isBooleanType() && !EltTy->isEnumeralType() &&
-         "Vectors cant be boolean or enum types");
+  assert(!EltTy->isEnumeralType() && "Vectors cant be enum types");
   return EltTy->isIntegralType(Ctx);
 }
 
@@ -6135,7 +6138,9 @@ QualType Sema::CheckVectorConditionalTypes(ExprResult &Cond, ExprResult &LHS,
   } else if (LHSVT || RHSVT) {
     ResultType = CheckVectorOperands(
         LHS, RHS, QuestionLoc, /*isCompAssign*/ false, /*AllowBothBool*/ true,
-        /*AllowBoolConversions*/ false);
+        /*AllowBoolConversions*/ false,
+        /*AllowBoolOperation*/ true,
+        /*ReportInvalid*/ true);
     if (ResultType.isNull())
       return {};
   } else {
@@ -6462,9 +6467,11 @@ QualType Sema::CXXCheckConditionalOperands(ExprResult &Cond, ExprResult &LHS,
 
   // Extension: conditional operator involving vector types.
   if (LTy->isVectorType() || RTy->isVectorType())
-    return CheckVectorOperands(LHS, RHS, QuestionLoc, /*isCompAssign*/false,
-                               /*AllowBothBool*/true,
-                               /*AllowBoolConversions*/false);
+    return CheckVectorOperands(LHS, RHS, QuestionLoc, /*isCompAssign*/ false,
+                               /*AllowBothBool*/ true,
+                               /*AllowBoolConversions*/ false,
+                               /*AllowBoolOperation*/ false,
+                               /*ReportInvalid*/ true);
 
   //   -- The second and third operands have arithmetic or enumeration type;
   //      the usual arithmetic conversions are performed to bring them to a
@@ -7922,6 +7929,8 @@ ExprResult Sema::ActOnNoexceptExpr(SourceLocation KeyLoc, SourceLocation,
 static void MaybeDecrementCount(
     Expr *E, llvm::DenseMap<const VarDecl *, int> &RefsMinusAssignments) {
   DeclRefExpr *LHS = nullptr;
+  bool IsCompoundAssign = false;
+  bool isIncrementDecrementUnaryOp = false;
   if (BinaryOperator *BO = dyn_cast<BinaryOperator>(E)) {
     if (BO->getLHS()->getType()->isDependentType() ||
         BO->getRHS()->getType()->isDependentType()) {
@@ -7929,16 +7938,29 @@ static void MaybeDecrementCount(
         return;
     } else if (!BO->isAssignmentOp())
       return;
+    else
+      IsCompoundAssign = BO->isCompoundAssignmentOp();
     LHS = dyn_cast<DeclRefExpr>(BO->getLHS());
   } else if (CXXOperatorCallExpr *COCE = dyn_cast<CXXOperatorCallExpr>(E)) {
     if (COCE->getOperator() != OO_Equal)
       return;
     LHS = dyn_cast<DeclRefExpr>(COCE->getArg(0));
+  } else if (UnaryOperator *UO = dyn_cast<UnaryOperator>(E)) {
+    if (!UO->isIncrementDecrementOp())
+      return;
+    isIncrementDecrementUnaryOp = true;
+    LHS = dyn_cast<DeclRefExpr>(UO->getSubExpr());
   }
   if (!LHS)
     return;
   VarDecl *VD = dyn_cast<VarDecl>(LHS->getDecl());
   if (!VD)
+    return;
+  // Don't decrement RefsMinusAssignments if volatile variable with compound
+  // assignment (+=, ...) or increment/decrement unary operator to avoid
+  // potential unused-but-set-variable warning.
+  if ((IsCompoundAssign || isIncrementDecrementUnaryOp) &&
+      VD->getType().isVolatileQualified())
     return;
   auto iter = RefsMinusAssignments.find(VD);
   if (iter == RefsMinusAssignments.end())

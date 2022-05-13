@@ -13,6 +13,7 @@
 #include "bolt/Passes/IndirectCallPromotion.h"
 #include "bolt/Passes/BinaryFunctionCallGraph.h"
 #include "bolt/Passes/DataflowInfoManager.h"
+#include "bolt/Passes/Inliner.h"
 #include "llvm/Support/CommandLine.h"
 
 #define DEBUG_TYPE "ICP"
@@ -120,6 +121,10 @@ static cl::opt<bool> ICPJumpTablesByTarget(
         "for jump tables, optimize indirect jmp targets instead of indices"),
     cl::init(false), cl::ZeroOrMore, cl::Hidden, cl::cat(BoltOptCategory));
 
+static cl::opt<bool> ICPPeelForInline(
+    "icp-inline", cl::desc("only promote call targets eligible for inlining"),
+    cl::init(false), cl::ZeroOrMore, cl::Hidden, cl::cat(BoltOptCategory));
+
 } // namespace opts
 
 namespace llvm {
@@ -206,7 +211,7 @@ std::vector<IndirectCallPromotion::Callsite>
 IndirectCallPromotion::getCallTargets(BinaryBasicBlock &BB,
                                       const MCInst &Inst) const {
   BinaryFunction &BF = *BB.getFunction();
-  BinaryContext &BC = BF.getBinaryContext();
+  const BinaryContext &BC = BF.getBinaryContext();
   std::vector<Callsite> Targets;
 
   if (const JumpTable *JT = BF.getJumpTable(Inst)) {
@@ -512,6 +517,7 @@ IndirectCallPromotion::findCallTargetSymbols(std::vector<Callsite> &Targets,
     return SymTargets;
   }
 
+  // Use memory profile to select hot targets.
   JumpTableInfoType HotTargets =
       maybeGetHotJumpTableTargets(BB, CallInst, TargetFetchInst, JT);
 
@@ -917,25 +923,28 @@ IndirectCallPromotion::fixCFG(BinaryBasicBlock &IndCallBlock,
 size_t IndirectCallPromotion::canPromoteCallsite(
     const BinaryBasicBlock &BB, const MCInst &Inst,
     const std::vector<Callsite> &Targets, uint64_t NumCalls) {
+  BinaryFunction *BF = BB.getFunction();
+  const BinaryContext &BC = BF->getBinaryContext();
+
   if (BB.getKnownExecutionCount() < opts::ExecutionCountThreshold)
     return 0;
 
-  const bool IsJumpTable = BB.getFunction()->getJumpTable(Inst);
+  const bool IsJumpTable = BF->getJumpTable(Inst);
 
   auto computeStats = [&](size_t N) {
     for (size_t I = 0; I < N; ++I)
-      if (!IsJumpTable)
-        TotalNumFrequentCalls += Targets[I].Branches;
-      else
+      if (IsJumpTable)
         TotalNumFrequentJmps += Targets[I].Branches;
+      else
+        TotalNumFrequentCalls += Targets[I].Branches;
   };
 
   // If we have no targets (or no calls), skip this callsite.
   if (Targets.empty() || !NumCalls) {
     if (opts::Verbosity >= 1) {
       const ptrdiff_t InstIdx = &Inst - &(*BB.begin());
-      outs() << "BOLT-INFO: ICP failed in " << *BB.getFunction() << " @ "
-             << InstIdx << " in " << BB.getName() << ", calls = " << NumCalls
+      outs() << "BOLT-INFO: ICP failed in " << *BF << " @ " << InstIdx << " in "
+             << BB.getName() << ", calls = " << NumCalls
              << ", targets empty or NumCalls == 0.\n";
     }
     return 0;
@@ -950,7 +959,6 @@ size_t IndirectCallPromotion::canPromoteCallsite(
   const size_t TrialN = TopN ? std::min(TopN, Targets.size()) : Targets.size();
 
   if (opts::ICPTopCallsites > 0) {
-    BinaryContext &BC = BB.getFunction()->getBinaryContext();
     if (!BC.MIB->hasAnnotation(Inst, "DoICP"))
       return 0;
   }
@@ -978,8 +986,8 @@ size_t IndirectCallPromotion::canPromoteCallsite(
     if (TopNFrequency == 0 || TopNFrequency < opts::ICPMispredictThreshold) {
       if (opts::Verbosity >= 1) {
         const ptrdiff_t InstIdx = &Inst - &(*BB.begin());
-        outs() << "BOLT-INFO: ICP failed in " << *BB.getFunction() << " @ "
-               << InstIdx << " in " << BB.getName() << ", calls = " << NumCalls
+        outs() << "BOLT-INFO: ICP failed in " << *BF << " @ " << InstIdx
+               << " in " << BB.getName() << ", calls = " << NumCalls
                << ", top N mis. frequency " << format("%.1f", TopNFrequency)
                << "% < " << opts::ICPMispredictThreshold << "%\n";
       }
@@ -1024,9 +1032,9 @@ size_t IndirectCallPromotion::canPromoteCallsite(
       if (TopNMispredictFrequency < opts::ICPMispredictThreshold) {
         if (opts::Verbosity >= 1) {
           const ptrdiff_t InstIdx = &Inst - &(*BB.begin());
-          outs() << "BOLT-INFO: ICP failed in " << *BB.getFunction() << " @ "
-                 << InstIdx << " in " << BB.getName()
-                 << ", calls = " << NumCalls << ", top N mispredict frequency "
+          outs() << "BOLT-INFO: ICP failed in " << *BF << " @ " << InstIdx
+                 << " in " << BB.getName() << ", calls = " << NumCalls
+                 << ", top N mispredict frequency "
                  << format("%.1f", TopNMispredictFrequency) << "% < "
                  << opts::ICPMispredictThreshold << "%\n";
         }
@@ -1035,10 +1043,24 @@ size_t IndirectCallPromotion::canPromoteCallsite(
     }
   }
 
+  // Filter by inline-ability of target functions, stop at first target that
+  // can't be inlined.
+  if (opts::ICPPeelForInline) {
+    for (size_t I = 0; I < N; ++I) {
+      const MCSymbol *TargetSym = Targets[I].To.Sym;
+      const BinaryFunction *TargetBF = BC.getFunctionForSymbol(TargetSym);
+      if (!BinaryFunctionPass::shouldOptimize(*TargetBF) ||
+          getInliningInfo(*TargetBF).Type == InliningType::INL_NONE) {
+        N = I;
+        break;
+      }
+    }
+  }
+
   // Filter functions that can have ICP applied (for debugging)
   if (!opts::ICPFuncsList.empty()) {
     for (std::string &Name : opts::ICPFuncsList)
-      if (BB.getFunction()->hasName(Name))
+      if (BF->hasName(Name))
         return N;
     return 0;
   }

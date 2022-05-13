@@ -693,6 +693,10 @@ def warn_unreachable_fallthrough_attr : Warning<
   InGroup<UnreachableCodeFallthrough>, DefaultIgnore;
 def note_unreachable_silence : Note<
   "silence by adding parentheses to mark code as explicitly dead">;
+def warn_unreachable_association : Warning<
+  "due to lvalue conversion of the controlling expression, association of type "
+  "%0 will never be selected because it is %select{of array type|qualified}1">,
+  InGroup<UnreachableCodeGenericAssoc>;
 
 /// Built-in functions.
 def ext_implicit_lib_function_decl : ExtWarn<
@@ -3104,7 +3108,7 @@ def err_format_strftime_third_parameter : Error<
   "strftime format attribute requires 3rd parameter to be 0">;
 def err_format_attribute_requires_variadic : Error<
   "format attribute requires variadic function">;
-def err_format_attribute_not : Error<"format argument not %0">;
+def err_format_attribute_not : Error<"format argument not a string type">;
 def err_format_attribute_result_not : Error<"function does not return %0">;
 def err_format_attribute_implicit_this_format_string : Error<
   "format attribute cannot specify the implicit this argument as the format "
@@ -5508,6 +5512,9 @@ def ext_found_in_dependent_base : ExtWarn<"use of member %0 "
 def err_found_later_in_class : Error<"member %0 used before its declaration">;
 def ext_found_later_in_class : ExtWarn<
   "use of member %0 before its declaration is a Microsoft extension">,
+  InGroup<MicrosoftTemplate>;
+def ext_unqualified_base_class : ExtWarn<
+  "unqualified base initializer of class templates is a Microsoft extension">,
   InGroup<MicrosoftTemplate>;
 def note_dependent_member_use : Note<
   "must qualify identifier to find this declaration in dependent base class">;
@@ -8468,6 +8475,12 @@ def err_overflow_builtin_must_be_ptr_int : Error<
 def err_overflow_builtin_bit_int_max_size : Error<
   "__builtin_mul_overflow does not support 'signed _BitInt' operands of more "
   "than %0 bits">;
+def err_expected_struct_pointer_argument : Error<
+  "expected pointer to struct as %ordinal0 argument to %1, found %2">;
+def err_expected_callable_argument : Error<
+  "expected a callable expression as %ordinal0 argument to %1, found %2">;
+def note_building_builtin_dump_struct_call : Note<
+  "in call to printing function with arguments '(%0)' while dumping struct">;
 
 def err_atomic_load_store_uses_lib : Error<
   "atomic %select{load|store}0 requires runtime support that is not "

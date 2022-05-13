@@ -897,6 +897,15 @@ void Parser::ParseOpenCLKernelAttributes(ParsedAttributes &attrs) {
   }
 }
 
+void Parser::ParseCUDAFunctionAttributes(ParsedAttributes &attrs) {
+  while (Tok.is(tok::kw___noinline__)) {
+    IdentifierInfo *AttrName = Tok.getIdentifierInfo();
+    SourceLocation AttrNameLoc = ConsumeToken();
+    attrs.addNew(AttrName, AttrNameLoc, nullptr, AttrNameLoc, nullptr, 0,
+                 ParsedAttr::AS_Keyword);
+  }
+}
+
 void Parser::ParseOpenCLQualifiers(ParsedAttributes &Attrs) {
   IdentifierInfo *AttrName = Tok.getIdentifierInfo();
   SourceLocation AttrNameLoc = Tok.getLocation();
@@ -3696,6 +3705,11 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
       ParseOpenCLKernelAttributes(DS.getAttributes());
       continue;
 
+    // CUDA/HIP single token adornments.
+    case tok::kw___noinline__:
+      ParseCUDAFunctionAttributes(DS.getAttributes());
+      continue;
+
     // Nullability type specifiers.
     case tok::kw__Nonnull:
     case tok::kw__Nullable:
@@ -4545,7 +4559,7 @@ void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
   bool IsScopedUsingClassTag = false;
 
   // In C++11, recognize 'enum class' and 'enum struct'.
-  if (Tok.isOneOf(tok::kw_class, tok::kw_struct)) {
+  if (Tok.isOneOf(tok::kw_class, tok::kw_struct) && getLangOpts().CPlusPlus) {
     Diag(Tok, getLangOpts().CPlusPlus11 ? diag::warn_cxx98_compat_scoped_enum
                                         : diag::ext_scoped_enum);
     IsScopedUsingClassTag = Tok.is(tok::kw_class);
@@ -5772,11 +5786,12 @@ void Parser::ParseTypeQualifierListOpt(
 }
 
 /// ParseDeclarator - Parse and verify a newly-initialized declarator.
-///
 void Parser::ParseDeclarator(Declarator &D) {
   /// This implements the 'declarator' production in the C grammar, then checks
   /// for well-formedness and issues diagnostics.
-  ParseDeclaratorInternal(D, &Parser::ParseDirectDeclarator);
+  Actions.runWithSufficientStackSpace(D.getBeginLoc(), [&] {
+    ParseDeclaratorInternal(D, &Parser::ParseDirectDeclarator);
+  });
 }
 
 static bool isPtrOperatorToken(tok::TokenKind Kind, const LangOptions &Lang,
@@ -5887,7 +5902,9 @@ void Parser::ParseDeclaratorInternal(Declarator &D,
       D.ExtendWithDeclSpec(DS);
 
       // Recurse to parse whatever is left.
-      ParseDeclaratorInternal(D, DirectDeclParser);
+      Actions.runWithSufficientStackSpace(D.getBeginLoc(), [&] {
+        ParseDeclaratorInternal(D, DirectDeclParser);
+      });
 
       // Sema will have to catch (syntactically invalid) pointers into global
       // scope. It has to catch pointers into namespace scope anyway.
@@ -5936,7 +5953,8 @@ void Parser::ParseDeclaratorInternal(Declarator &D,
     D.ExtendWithDeclSpec(DS);
 
     // Recursively parse the declarator.
-    ParseDeclaratorInternal(D, DirectDeclParser);
+    Actions.runWithSufficientStackSpace(
+        D.getBeginLoc(), [&] { ParseDeclaratorInternal(D, DirectDeclParser); });
     if (Kind == tok::star)
       // Remember that we parsed a pointer type, and remember the type-quals.
       D.AddTypeInfo(DeclaratorChunk::getPointer(
@@ -5981,7 +5999,8 @@ void Parser::ParseDeclaratorInternal(Declarator &D,
     }
 
     // Recursively parse the declarator.
-    ParseDeclaratorInternal(D, DirectDeclParser);
+    Actions.runWithSufficientStackSpace(
+        D.getBeginLoc(), [&] { ParseDeclaratorInternal(D, DirectDeclParser); });
 
     if (D.getNumTypeObjects() > 0) {
       // C++ [dcl.ref]p4: There shall be no references to references.

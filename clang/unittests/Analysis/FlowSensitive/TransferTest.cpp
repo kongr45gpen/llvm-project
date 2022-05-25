@@ -2467,6 +2467,67 @@ TEST_F(TransferTest, AssignFromCompositeBoolExpression) {
           EXPECT_EQ(&BazVal->getRightSubValue(), BarVal);
         });
   }
+
+  {
+    std::string Code = R"(
+      void target(bool A, bool B, bool C, bool D) {
+        bool Foo = ((A && B) && C) && D;
+        // [[p]]
+      }
+    )";
+    runDataflow(
+        Code, [](llvm::ArrayRef<
+                     std::pair<std::string, DataflowAnalysisState<NoopLattice>>>
+                     Results,
+                 ASTContext &ASTCtx) {
+          ASSERT_THAT(Results, ElementsAre(Pair("p", _)));
+          const Environment &Env = Results[0].second.Env;
+
+          const ValueDecl *ADecl = findValueDecl(ASTCtx, "A");
+          ASSERT_THAT(ADecl, NotNull());
+
+          const auto *AVal =
+              dyn_cast_or_null<BoolValue>(Env.getValue(*ADecl, SkipPast::None));
+          ASSERT_THAT(AVal, NotNull());
+
+          const ValueDecl *BDecl = findValueDecl(ASTCtx, "B");
+          ASSERT_THAT(BDecl, NotNull());
+
+          const auto *BVal =
+              dyn_cast_or_null<BoolValue>(Env.getValue(*BDecl, SkipPast::None));
+          ASSERT_THAT(BVal, NotNull());
+
+          const ValueDecl *CDecl = findValueDecl(ASTCtx, "C");
+          ASSERT_THAT(CDecl, NotNull());
+
+          const auto *CVal =
+              dyn_cast_or_null<BoolValue>(Env.getValue(*CDecl, SkipPast::None));
+          ASSERT_THAT(CVal, NotNull());
+
+          const ValueDecl *DDecl = findValueDecl(ASTCtx, "D");
+          ASSERT_THAT(DDecl, NotNull());
+
+          const auto *DVal =
+              dyn_cast_or_null<BoolValue>(Env.getValue(*DDecl, SkipPast::None));
+          ASSERT_THAT(DVal, NotNull());
+
+          const ValueDecl *FooDecl = findValueDecl(ASTCtx, "Foo");
+          ASSERT_THAT(FooDecl, NotNull());
+
+          const auto *FooVal = dyn_cast_or_null<ConjunctionValue>(
+              Env.getValue(*FooDecl, SkipPast::None));
+          ASSERT_THAT(FooVal, NotNull());
+
+          const auto &FooLeftSubVal =
+              cast<ConjunctionValue>(FooVal->getLeftSubValue());
+          const auto &FooLeftLeftSubVal =
+              cast<ConjunctionValue>(FooLeftSubVal.getLeftSubValue());
+          EXPECT_EQ(&FooLeftLeftSubVal.getLeftSubValue(), AVal);
+          EXPECT_EQ(&FooLeftLeftSubVal.getRightSubValue(), BVal);
+          EXPECT_EQ(&FooLeftSubVal.getRightSubValue(), CVal);
+          EXPECT_EQ(&FooVal->getRightSubValue(), DVal);
+        });
+  }
 }
 
 TEST_F(TransferTest, AssignFromBoolNegation) {
@@ -3057,6 +3118,61 @@ TEST_F(TransferTest, LoopWithReferenceAssignmentConverges) {
             *cast<BoolValue>(Env.getValue(*BarDecl, SkipPast::Reference));
         EXPECT_TRUE(Env.flowConditionImplies(Env.makeNot(BarVal)));
       });
+}
+
+TEST_F(TransferTest, LoopWithStructReferenceAssignmentConverges) {
+  std::string Code = R"(
+    struct Lookup {
+      int x;
+    };
+
+    void target(Lookup val, bool b) {
+      const Lookup* l = nullptr;
+      while (b) {
+        l = &val;
+        /*[[p-inner]]*/
+      }
+      (void)0;
+      /*[[p-outer]]*/
+    }
+  )";
+  // The key property that we are verifying is implicit in `runDataflow` --
+  // namely, that the analysis succeeds, rather than hitting the maximum number
+  // of iterations.
+  runDataflow(
+      Code, [](llvm::ArrayRef<
+                   std::pair<std::string, DataflowAnalysisState<NoopLattice>>>
+                   Results,
+               ASTContext &ASTCtx) {
+        ASSERT_THAT(Results,
+                    ElementsAre(Pair("p-outer", _), Pair("p-inner", _)));
+        const Environment &OuterEnv = Results[0].second.Env;
+        const Environment &InnerEnv = Results[1].second.Env;
+
+        const ValueDecl *ValDecl = findValueDecl(ASTCtx, "val");
+        ASSERT_THAT(ValDecl, NotNull());
+
+        const ValueDecl *LDecl = findValueDecl(ASTCtx, "l");
+        ASSERT_THAT(LDecl, NotNull());
+
+        // Inner.
+        auto *LVal = dyn_cast<IndirectionValue>(
+            InnerEnv.getValue(*LDecl, SkipPast::None));
+        ASSERT_THAT(LVal, NotNull());
+
+        EXPECT_EQ(&LVal->getPointeeLoc(),
+                  InnerEnv.getStorageLocation(*ValDecl, SkipPast::Reference));
+
+        // Outer.
+        LVal = dyn_cast<IndirectionValue>(
+            OuterEnv.getValue(*LDecl, SkipPast::None));
+        ASSERT_THAT(LVal, NotNull());
+
+        // The loop body may not have been executed, so we should not conclude
+        // that `l` points to `val`.
+        EXPECT_NE(&LVal->getPointeeLoc(),
+                  OuterEnv.getStorageLocation(*ValDecl, SkipPast::Reference));
+});
 }
 
 } // namespace

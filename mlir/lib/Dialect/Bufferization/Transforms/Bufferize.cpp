@@ -151,6 +151,17 @@ struct FinalizingBufferizePass
   }
 };
 
+static BufferizationOptions::LayoutMapOption
+parseLayoutMapOption(std::string s) {
+  if (s == "fully-dynamic-layout-map")
+    return BufferizationOptions::LayoutMapOption::FullyDynamicLayoutMap;
+  if (s == "identity-layout-map")
+    return BufferizationOptions::LayoutMapOption::IdentityLayoutMap;
+  if (s == "infer-layout-map")
+    return BufferizationOptions::LayoutMapOption::InferLayoutMap;
+  llvm_unreachable("invalid layout map option");
+}
+
 struct OneShotBufferizePass
     : public OneShotBufferizeBase<OneShotBufferizePass> {
   OneShotBufferizePass() : OneShotBufferizeBase<OneShotBufferizePass>() {}
@@ -175,11 +186,13 @@ struct OneShotBufferizePass
       opt.alwaysAliasingWithDest = alwaysAliasingWithDest;
       opt.analysisFuzzerSeed = analysisFuzzerSeed;
       opt.createDeallocs = createDeallocs;
-      opt.fullyDynamicLayoutMaps = fullyDynamicLayoutMaps;
+      opt.functionBoundaryTypeConversion =
+          parseLayoutMapOption(functionBoundaryTypeConversion);
       opt.printConflicts = printConflicts;
       opt.testAnalysisOnly = testAnalysisOnly;
       opt.bufferizeFunctionBoundaries = bufferizeFunctionBoundaries;
       opt.promoteBufferResultsToOutParams = promoteBufferResultsToOutParams;
+      opt.unknownTypeConversion = parseLayoutMapOption(unknownTypeConversion);
 
       BufferizationOptions::OpFilterEntry::FilterFn filterFn =
           [&](Operation *op) {
@@ -223,6 +236,28 @@ private:
   llvm::Optional<OneShotBufferizationOptions> options;
 };
 } // namespace
+
+namespace {
+struct BufferizationBufferizePass
+    : public BufferizationBufferizeBase<BufferizationBufferizePass> {
+  void runOnOperation() override {
+    BufferizationOptions options = getPartialBufferizationOptions();
+    options.allowDialectInFilter<BufferizationDialect>();
+
+    if (failed(bufferizeOp(getOperation(), options)))
+      signalPassFailure();
+  }
+
+  void getDependentDialects(DialectRegistry &registry) const override {
+    registry
+        .insert<bufferization::BufferizationDialect, memref::MemRefDialect>();
+  }
+};
+} // namespace
+
+std::unique_ptr<Pass> mlir::bufferization::createBufferizationBufferizePass() {
+  return std::make_unique<BufferizationBufferizePass>();
+}
 
 std::unique_ptr<Pass> mlir::bufferization::createOneShotBufferizePass() {
   return std::make_unique<OneShotBufferizePass>();
@@ -272,19 +307,18 @@ bufferization::finalizeBuffers(Operation *op,
                                    &hasLeakingAllocs)))
     return failure();
 
-  if (hasLeakingAllocs) {
-    // Promote returned buffers to "out" parameters.
-    // TODO: Pass options to support custom dealloc ops.
-    if (options.promoteBufferResultsToOutParams && isa<ModuleOp>(op) &&
-        failed(promoteBufferResultsToOutParams(cast<ModuleOp>(op))))
-      return failure();
+  // Promote returned buffers to "out" parameters.
+  // TODO: Pass options to support custom dealloc ops.
+  if (options.promoteBufferResultsToOutParams && isa<ModuleOp>(op) &&
+      failed(promoteBufferResultsToOutParams(cast<ModuleOp>(op))))
+    return failure();
 
-    // Create deallocation ops for all "leaking buffers" and all buffer
-    // allocations that were added during the above promotion process.
-    // TODO: Pass options to support custom dealloc ops.
-    if (options.createDeallocs && failed(deallocateBuffers(op)))
-      return failure();
-  }
+  // Create deallocation ops for all "leaking buffers" and all buffer
+  // allocations that were added during the above promotion process.
+  // TODO: Pass options to support custom dealloc ops.
+  if (hasLeakingAllocs && options.createDeallocs &&
+      failed(deallocateBuffers(op)))
+    return failure();
 
   // Deallocate all remaining buffers at the end of their parent blocks.
   if (failed(createAllocDeallocOps(op, options)))
@@ -354,6 +388,8 @@ private:
   DenseSet<Operation *> &toMemrefOps;
 
   /// The bufferization options.
+  /// Used for debug modes.
+  LLVM_ATTRIBUTE_UNUSED
   const BufferizationOptions &options;
 };
 } // namespace
@@ -362,6 +398,9 @@ LogicalResult
 bufferization::bufferizeOp(Operation *op,
                            BufferizationState &bufferizationState) {
   const auto &options = bufferizationState.getOptions();
+  assert(options.unknownTypeConversion !=
+             BufferizationOptions::LayoutMapOption::InferLayoutMap &&
+         "invalid layout map option");
 
   // Keep track of to_memref ops.
   DenseSet<Operation *> toMemrefOps;
@@ -371,13 +410,9 @@ bufferization::bufferizeOp(Operation *op,
   //
   // We should ideally know the exact memref type of all operands when
   // bufferizing an op. (This is the case when bufferizing top-to-bottom.)
-  // Otherwise, we have to use a memref type with a fully dynamic layout map,
-  // which has to canonicalize away. This is less efficient.
-  //
-  // If "fullyDynamicLayoutMaps = false", we would have to insert buffer copies
-  // to fold ("finalize") to_memref(to_tensor(x)) ops with non-cast-compatible
-  // layout maps when doing a traversal other than top-to-bottom. These would
-  // not easily fold away.
+  // Otherwise, we have to use a memref type with a fully dynamic layout map to
+  // avoid copies. We are currently missing patterns for layout maps to
+  // canonicalize away (or canonicalize to more precise layouts).
   SmallVector<Operation *> worklist;
   op->walk<WalkOrder::PreOrder>([&](Operation *op) {
     if (hasTensorSemantics(op))
@@ -404,7 +439,8 @@ bufferization::bufferizeOp(Operation *op,
       continue;
     // Bufferize the op.
     rewriter.setInsertionPoint(op);
-    (void)bufferizableOp.bufferize(rewriter, bufferizationState);
+    if (failed(bufferizableOp.bufferize(rewriter, bufferizationState)))
+      return op->emitError("failed to bufferize op");
   }
 
   // Fold all to_memref(to_tensor(x)) pairs.
@@ -478,6 +514,7 @@ BufferizationOptions bufferization::getPartialBufferizationOptions() {
   BufferizationOptions options;
   options.allowUnknownOps = true;
   options.createDeallocs = false;
-  options.fullyDynamicLayoutMaps = false;
+  options.unknownTypeConversion =
+      BufferizationOptions::LayoutMapOption::IdentityLayoutMap;
   return options;
 }

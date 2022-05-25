@@ -43,12 +43,15 @@ namespace format {
   TYPE(ConflictAlternative)                                                    \
   TYPE(ConflictEnd)                                                            \
   TYPE(ConflictStart)                                                          \
+  /* l_brace of if/for/while */                                                \
+  TYPE(ControlStatementLBrace)                                                 \
   TYPE(CppCastLParen)                                                          \
   TYPE(CtorInitializerColon)                                                   \
   TYPE(CtorInitializerComma)                                                   \
   TYPE(DesignatedInitializerLSquare)                                           \
   TYPE(DesignatedInitializerPeriod)                                            \
   TYPE(DictLiteral)                                                            \
+  TYPE(ElseLBrace)                                                             \
   TYPE(EnumLBrace)                                                             \
   TYPE(FatArrow)                                                               \
   TYPE(ForEachMacro)                                                           \
@@ -929,6 +932,7 @@ struct AdditionalKeywords {
     kw___has_include_next = &IdentTable.get("__has_include_next");
 
     kw_mark = &IdentTable.get("mark");
+    kw_region = &IdentTable.get("region");
 
     kw_extend = &IdentTable.get("extend");
     kw_option = &IdentTable.get("option");
@@ -1052,6 +1056,7 @@ struct AdditionalKeywords {
 
   // Pragma keywords.
   IdentifierInfo *kw_mark;
+  IdentifierInfo *kw_region;
 
   // Proto keywords.
   IdentifierInfo *kw_extend;

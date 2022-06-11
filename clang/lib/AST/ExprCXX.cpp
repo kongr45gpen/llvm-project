@@ -2689,7 +2689,7 @@ llvm::APSInt MetaobjectOpExprBase::makeULongResult(ASTContext &Ctx, QualType,
 llvm::APSInt MetaobjectOpExprBase::makeConstantResult(ASTContext& Ctx,
                                                       QualType Ty,
                                                       llvm::APSInt R) {
-  R = R.zextOrSelf(Ctx.getIntWidth(Ty));
+  R = R.zext(Ctx.getIntWidth(Ty));
   return R;
 }
 

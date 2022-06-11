@@ -1789,7 +1789,8 @@ enum class DeclaratorContext {
   TemplateTypeArg,     // Template type argument (in default argument).
   AliasDecl,           // C++11 alias-declaration.
   AliasTemplate,       // C++11 alias-declaration template.
-  RequiresExpr         // C++2a requires-expression.
+  RequiresExpr,        // C++2a requires-expression.
+  Association          // C11 _Generic selection expression association.
 };
 
 /// Information about one declarator, including the parsed type
@@ -2027,6 +2028,7 @@ public:
     case DeclaratorContext::TrailingReturn:
     case DeclaratorContext::TrailingReturnVar:
     case DeclaratorContext::RequiresExpr:
+    case DeclaratorContext::Association:
       return true;
     }
     llvm_unreachable("unknown context kind!");
@@ -2066,6 +2068,7 @@ public:
     case DeclaratorContext::TemplateTypeArg:
     case DeclaratorContext::TrailingReturn:
     case DeclaratorContext::TrailingReturnVar:
+    case DeclaratorContext::Association:
       return false;
     }
     llvm_unreachable("unknown context kind!");
@@ -2109,6 +2112,7 @@ public:
     case DeclaratorContext::TemplateTypeArg:
     case DeclaratorContext::TrailingReturn:
     case DeclaratorContext::TrailingReturnVar:
+    case DeclaratorContext::Association:
       return false;
     }
     llvm_unreachable("unknown context kind!");
@@ -2165,6 +2169,7 @@ public:
     case DeclaratorContext::TemplateTypeArg:
     case DeclaratorContext::TrailingReturn:
     case DeclaratorContext::RequiresExpr:
+    case DeclaratorContext::Association:
       return false;
     }
     llvm_unreachable("unknown context kind!");
@@ -2387,6 +2392,7 @@ public:
     case DeclaratorContext::TrailingReturn:
     case DeclaratorContext::TrailingReturnVar:
     case DeclaratorContext::RequiresExpr:
+    case DeclaratorContext::Association:
       return false;
     }
     llvm_unreachable("unknown context kind!");
@@ -2421,6 +2427,7 @@ public:
     case DeclaratorContext::TrailingReturnVar:
     case DeclaratorContext::TemplateTypeArg:
     case DeclaratorContext::RequiresExpr:
+    case DeclaratorContext::Association:
       return false;
 
     case DeclaratorContext::Block:

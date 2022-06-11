@@ -10852,6 +10852,10 @@ public:
   /// encountered.
   void ActOnFinishedOpenMPDeclareTargetContext(DeclareTargetContextInfo &DTCI);
 
+  /// Report unterminated 'omp declare target' or 'omp begin declare target' at
+  /// the end of a compilation unit.
+  void DiagnoseUnterminatedOpenMPDeclareTarget();
+
   /// Searches for the provided declaration name for OpenMP declare target
   /// directive.
   NamedDecl *lookupOpenMPDeclareTargetName(Scope *CurScope,
@@ -11440,9 +11444,6 @@ public:
   /// Called on well-formed 'compare' clause.
   OMPClause *ActOnOpenMPCompareClause(SourceLocation StartLoc,
                                       SourceLocation EndLoc);
-  /// Called on well-formed 'fail' clause.
-  OMPClause *ActOnOpenMPFailClause(SourceLocation StartLoc,
-                                   SourceLocation EndLoc);
   /// Called on well-formed 'seq_cst' clause.
   OMPClause *ActOnOpenMPSeqCstClause(SourceLocation StartLoc,
                                      SourceLocation EndLoc);
@@ -12463,10 +12464,8 @@ public:
   /// VerifyBitField - verifies that a bit field expression is an ICE and has
   /// the correct width, and that the field type is valid.
   /// Returns false on success.
-  /// Can optionally return whether the bit-field is of width 0
   ExprResult VerifyBitField(SourceLocation FieldLoc, IdentifierInfo *FieldName,
-                            QualType FieldTy, bool IsMsStruct,
-                            Expr *BitWidth, bool *ZeroWidth = nullptr);
+                            QualType FieldTy, bool IsMsStruct, Expr *BitWidth);
 
 private:
   unsigned ForceCUDAHostDeviceDepth = 0;

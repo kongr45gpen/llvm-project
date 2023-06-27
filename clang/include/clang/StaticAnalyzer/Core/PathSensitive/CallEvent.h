@@ -45,6 +45,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 #include <limits>
+#include <optional>
 #include <utility>
 
 namespace clang {
@@ -153,7 +154,7 @@ private:
   ProgramStateRef State;
   const LocationContext *LCtx;
   llvm::PointerUnion<const Expr *, const Decl *> Origin;
-  mutable Optional<bool> Foreign; // Set by CTU analysis.
+  mutable std::optional<bool> Foreign; // Set by CTU analysis.
 
 protected:
   // This is user data for subclasses.
@@ -216,7 +217,7 @@ public:
   }
 
   bool isForeign() const {
-    assert(Foreign.hasValue() && "Foreign must be set before querying");
+    assert(Foreign && "Foreign must be set before querying");
     return *Foreign;
   }
   void setForeign(bool B) const { Foreign = B; }
@@ -414,14 +415,15 @@ public:
   bool isArgumentConstructedDirectly(unsigned Index) const {
     // This assumes that the object was not yet removed from the state.
     return ExprEngine::getObjectUnderConstruction(
-        getState(), {getOriginExpr(), Index}, getLocationContext()).hasValue();
+               getState(), {getOriginExpr(), Index}, getLocationContext())
+        .has_value();
   }
 
   /// Some calls have parameter numbering mismatched from argument numbering.
   /// This function converts an argument index to the corresponding
-  /// parameter index. Returns None is the argument doesn't correspond
+  /// parameter index. Returns std::nullopt is the argument doesn't correspond
   /// to any parameter variable.
-  virtual Optional<unsigned>
+  virtual std::optional<unsigned>
   getAdjustedParameterIndex(unsigned ASTArgumentIndex) const {
     return ASTArgumentIndex;
   }
@@ -440,7 +442,7 @@ public:
 
   /// If the call returns a C++ record type then the region of its return value
   /// can be retrieved from its construction context.
-  Optional<SVal> getReturnValueUnderConstruction() const;
+  std::optional<SVal> getReturnValueUnderConstruction() const;
 
   // Iterator access to formal parameters and their types.
 private:
@@ -769,12 +771,13 @@ public:
     return CA->getKind() == CE_CXXMemberOperator;
   }
 
-  Optional<unsigned>
+  std::optional<unsigned>
   getAdjustedParameterIndex(unsigned ASTArgumentIndex) const override {
     // For member operator calls argument 0 on the expression corresponds
     // to implicit this-parameter on the declaration.
-    return (ASTArgumentIndex > 0) ? Optional<unsigned>(ASTArgumentIndex - 1)
-                                  : None;
+    return (ASTArgumentIndex > 0)
+               ? std::optional<unsigned>(ASTArgumentIndex - 1)
+               : std::nullopt;
   }
 
   unsigned getASTArgumentIndex(unsigned CallArgumentIndex) const override {
@@ -1016,9 +1019,8 @@ public:
   }
 
   SVal getObjectUnderConstruction() const {
-    return ExprEngine::getObjectUnderConstruction(getState(), getOriginExpr(),
-                                                  getLocationContext())
-        .getValue();
+    return *ExprEngine::getObjectUnderConstruction(getState(), getOriginExpr(),
+                                                   getLocationContext());
   }
 
   /// Number of non-placement arguments to the call. It is equal to 2 for
@@ -1030,6 +1032,18 @@ public:
 
   unsigned getNumArgs() const override {
     return getOriginExpr()->getNumPlacementArgs() + getNumImplicitArgs();
+  }
+
+  bool isArray() const { return getOriginExpr()->isArray(); }
+
+  std::optional<const clang::Expr *> getArraySizeExpr() const {
+    return getOriginExpr()->getArraySize();
+  }
+
+  SVal getArraySizeVal() const {
+    assert(isArray() && "The allocator call doesn't allocate and array!");
+
+    return getState()->getSVal(*getArraySizeExpr(), getLocationContext());
   }
 
   const Expr *getArgExpr(unsigned Index) const override {

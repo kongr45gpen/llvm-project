@@ -240,7 +240,7 @@ public:
     }
   };
   class LValuePathSerializationHelper {
-    const void *ElemTy;
+    const void *Ty;
 
   public:
     ArrayRef<LValuePathEntry> Path;

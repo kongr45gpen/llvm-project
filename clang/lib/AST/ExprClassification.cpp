@@ -163,7 +163,6 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   case Expr::UnaryMetaobjectOpExprClass:
   case Expr::NaryMetaobjectOpExprClass:
   case Expr::CXXNewExprClass:
-  case Expr::CXXThisExprClass:
   case Expr::CXXNullPtrLiteralExprClass:
   case Expr::ImaginaryLiteralClass:
   case Expr::GNUNullExprClass:
@@ -207,6 +206,10 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   case Expr::ConceptSpecializationExprClass:
   case Expr::RequiresExprClass:
     return Cl::CL_PRValue;
+
+  // Make HLSL this reference-like
+  case Expr::CXXThisExprClass:
+    return Lang.HLSL ? Cl::CL_LValue : Cl::CL_PRValue;
 
   case Expr::ConstantExprClass:
     return ClassifyInternal(Ctx, cast<ConstantExpr>(E)->getSubExpr());
@@ -446,6 +449,11 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   case Expr::SYCLUniqueStableNameExprClass:
     return Cl::CL_PRValue;
     break;
+
+  case Expr::CXXParenListInitExprClass:
+    if (isa<ArrayType>(E->getType()))
+      return Cl::CL_ArrayTemporary;
+    return Cl::CL_ClassTemporary;
   }
 
   llvm_unreachable("unhandled expression kind in classification");

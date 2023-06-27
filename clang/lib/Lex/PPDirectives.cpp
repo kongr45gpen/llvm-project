@@ -33,19 +33,21 @@
 #include "clang/Lex/Token.h"
 #include "clang/Lex/VariadicMacroSupport.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/AlignOf.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/SaveAndRestore.h"
 #include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <new>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -56,9 +58,8 @@ using namespace clang;
 //===----------------------------------------------------------------------===//
 
 MacroInfo *Preprocessor::AllocateMacroInfo(SourceLocation L) {
-  auto *MIChain = new (BP) MacroInfoChain{L, MIChainHead};
-  MIChainHead = MIChain;
-  return &MIChain->MI;
+  static_assert(std::is_trivially_destructible_v<MacroInfo>, "");
+  return new (BP) MacroInfo(L);
 }
 
 DefMacroDirective *Preprocessor::AllocateDefMacroDirective(MacroInfo *MI,
@@ -107,25 +108,6 @@ enum PPElifDiag {
   PED_Elifdef,
   PED_Elifndef
 };
-
-// The -fmodule-name option tells the compiler to textually include headers in
-// the specified module, meaning clang won't build the specified module. This is
-// useful in a number of situations, for instance, when building a library that
-// vends a module map, one might want to avoid hitting intermediate build
-// products containimg the module map or avoid finding the system installed
-// modulemap for that library.
-static bool isForModuleBuilding(Module *M, StringRef CurrentModule,
-                                StringRef ModuleName) {
-  StringRef TopLevelName = M->getTopLevelModuleName();
-
-  // When building framework Foo, we wanna make sure that Foo *and* Foo_Private
-  // are textually included and no modules are built for both.
-  if (M->getTopLevelModule()->IsFramework && CurrentModule == ModuleName &&
-      !CurrentModule.endswith("_Private") && TopLevelName.endswith("_Private"))
-    TopLevelName = TopLevelName.drop_back(8);
-
-  return TopLevelName == CurrentModule;
-}
 
 static MacroDiag shouldWarnOnMacroDef(Preprocessor &PP, IdentifierInfo *II) {
   const LangOptions &Lang = PP.getLangOpts();
@@ -273,9 +255,9 @@ static bool warnByDefaultOnWrongCase(StringRef Include) {
 /// \param Candidates the candidates to find a similar string.
 ///
 /// \returns a similar string if exists. If no similar string exists,
-/// returns None.
-static Optional<StringRef> findSimilarStr(
-    StringRef LHS, const std::vector<StringRef> &Candidates) {
+/// returns std::nullopt.
+static std::optional<StringRef>
+findSimilarStr(StringRef LHS, const std::vector<StringRef> &Candidates) {
   // We need to check if `Candidates` has the exact case-insensitive string
   // because the Levenshtein distance match does not care about it.
   for (StringRef C : Candidates) {
@@ -290,11 +272,11 @@ static Optional<StringRef> findSimilarStr(
   size_t Length = LHS.size();
   size_t MaxDist = Length < 3 ? Length - 1 : Length / 3;
 
-  Optional<std::pair<StringRef, size_t>> SimilarStr = None;
+  std::optional<std::pair<StringRef, size_t>> SimilarStr;
   for (StringRef C : Candidates) {
     size_t CurDist = LHS.edit_distance(C, true);
     if (CurDist <= MaxDist) {
-      if (!SimilarStr.hasValue()) {
+      if (!SimilarStr) {
         // The first similar string found.
         SimilarStr = {C, CurDist};
       } else if (CurDist < SimilarStr->second) {
@@ -304,10 +286,10 @@ static Optional<StringRef> findSimilarStr(
     }
   }
 
-  if (SimilarStr.hasValue()) {
+  if (SimilarStr) {
     return SimilarStr->first;
   } else {
-    return None;
+    return std::nullopt;
   }
 }
 
@@ -455,13 +437,13 @@ void Preprocessor::SuggestTypoedDirective(const Token &Tok,
   if (LangOpts.C2x || LangOpts.CPlusPlus2b)
     Candidates.insert(Candidates.end(), {"elifdef", "elifndef"});
 
-  if (Optional<StringRef> Sugg = findSimilarStr(Directive, Candidates)) {
+  if (std::optional<StringRef> Sugg = findSimilarStr(Directive, Candidates)) {
     // Directive cannot be coming from macro.
     assert(Tok.getLocation().isFileID());
     CharSourceRange DirectiveRange = CharSourceRange::getCharRange(
         Tok.getLocation(),
         Tok.getLocation().getLocWithOffset(Directive.size()));
-    StringRef SuggValue = Sugg.getValue();
+    StringRef SuggValue = *Sugg;
 
     auto Hint = FixItHint::CreateReplacement(DirectiveRange, SuggValue);
     Diag(Tok, diag::warn_pp_invalid_directive) << 1 << SuggValue << Hint;
@@ -481,6 +463,18 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation HashTokenLoc,
                                                 bool FoundNonSkipPortion,
                                                 bool FoundElse,
                                                 SourceLocation ElseLoc) {
+  // In SkippingRangeStateTy we are depending on SkipExcludedConditionalBlock()
+  // not getting called recursively by storing the RecordedSkippedRanges
+  // DenseMap lookup pointer (field SkipRangePtr). SkippingRangeStateTy expects
+  // that RecordedSkippedRanges won't get modified and SkipRangePtr won't be
+  // invalidated. If this changes and there is a need to call
+  // SkipExcludedConditionalBlock() recursively, SkippingRangeStateTy should
+  // change to do a second lookup in endLexPass function instead of reusing the
+  // lookup pointer.
+  assert(!SkippingExcludedConditionalBlock &&
+         "calling SkipExcludedConditionalBlock recursively");
+  llvm::SaveAndRestore SARSkipping(SkippingExcludedConditionalBlock, true);
+
   ++NumSkipped;
   assert(!CurTokenLexer && CurPPLexer && "Lexing a macro, not a file?");
 
@@ -495,10 +489,53 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation HashTokenLoc,
   CurPPLexer->LexingRawMode = true;
   Token Tok;
   SourceLocation endLoc;
+
+  /// Keeps track and caches skipped ranges and also retrieves a prior skipped
+  /// range if the same block is re-visited.
+  struct SkippingRangeStateTy {
+    Preprocessor &PP;
+
+    const char *BeginPtr = nullptr;
+    unsigned *SkipRangePtr = nullptr;
+
+    SkippingRangeStateTy(Preprocessor &PP) : PP(PP) {}
+
+    void beginLexPass() {
+      if (BeginPtr)
+        return; // continue skipping a block.
+
+      // Initiate a skipping block and adjust the lexer if we already skipped it
+      // before.
+      BeginPtr = PP.CurLexer->getBufferLocation();
+      SkipRangePtr = &PP.RecordedSkippedRanges[BeginPtr];
+      if (*SkipRangePtr) {
+        PP.CurLexer->seek(PP.CurLexer->getCurrentBufferOffset() + *SkipRangePtr,
+                          /*IsAtStartOfLine*/ true);
+      }
+    }
+
+    void endLexPass(const char *Hashptr) {
+      if (!BeginPtr) {
+        // Not doing normal lexing.
+        assert(PP.CurLexer->isDependencyDirectivesLexer());
+        return;
+      }
+
+      // Finished skipping a block, record the range if it's first time visited.
+      if (!*SkipRangePtr) {
+        *SkipRangePtr = Hashptr - BeginPtr;
+      }
+      assert(*SkipRangePtr == Hashptr - BeginPtr);
+      BeginPtr = nullptr;
+      SkipRangePtr = nullptr;
+    }
+  } SkippingRangeState(*this);
+
   while (true) {
     if (CurLexer->isDependencyDirectivesLexer()) {
       CurLexer->LexDependencyDirectiveTokenWhileSkipping(Tok);
     } else {
+      SkippingRangeState.beginLexPass();
       while (true) {
         CurLexer->Lex(Tok);
 
@@ -537,6 +574,9 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation HashTokenLoc,
     CurPPLexer->ParsingPreprocessorDirective = true;
     if (CurLexer) CurLexer->SetKeepWhitespaceMode(false);
 
+    assert(Tok.is(tok::hash));
+    const char *Hashptr = CurLexer->getBufferLocation() - Tok.getLength();
+    assert(CurLexer->getSourceLocation(Hashptr) == Tok.getLocation());
 
     // Read the next token, the directive flavor.
     LexUnexpandedToken(Tok);
@@ -611,6 +651,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation HashTokenLoc,
 
         // If we popped the outermost skipping block, we're done skipping!
         if (!CondInfo.WasSkipping) {
+          SkippingRangeState.endLexPass(Hashptr);
           // Restore the value of LexingRawMode so that trailing comments
           // are handled correctly, if we've reached the outermost block.
           CurPPLexer->LexingRawMode = false;
@@ -627,6 +668,9 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation HashTokenLoc,
         // skipping conditional, and if #else hasn't already been seen, enter it
         // as a non-skipping conditional.
         PPConditionalInfo &CondInfo = CurPPLexer->peekConditionalLevel();
+
+        if (!CondInfo.WasSkipping)
+          SkippingRangeState.endLexPass(Hashptr);
 
         // If this is a #else with a #else before it, report the error.
         if (CondInfo.FoundElse)
@@ -652,6 +696,9 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation HashTokenLoc,
         }
       } else if (Sub == "lif") {  // "elif".
         PPConditionalInfo &CondInfo = CurPPLexer->peekConditionalLevel();
+
+        if (!CondInfo.WasSkipping)
+          SkippingRangeState.endLexPass(Hashptr);
 
         // If this is a #elif with a #else before it, report the error.
         if (CondInfo.FoundElse)
@@ -694,6 +741,9 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation HashTokenLoc,
         bool IsElifDef = Sub == "lifdef";
         PPConditionalInfo &CondInfo = CurPPLexer->peekConditionalLevel();
         Token DirectiveToken = Tok;
+
+        if (!CondInfo.WasSkipping)
+          SkippingRangeState.endLexPass(Hashptr);
 
         // Warn if using `#elifdef` & `#elifndef` in not C2x & C++2b mode even
         // if this branch is in a skipping block.
@@ -786,7 +836,8 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation HashTokenLoc,
         Tok.getLocation());
 }
 
-Module *Preprocessor::getModuleForLocation(SourceLocation Loc) {
+Module *Preprocessor::getModuleForLocation(SourceLocation Loc,
+                                           bool AllowTextual) {
   if (!SourceMgr.isInMainFile(Loc)) {
     // Try to determine the module of the include directive.
     // FIXME: Look into directly passing the FileEntry from LookupFile instead.
@@ -794,7 +845,7 @@ Module *Preprocessor::getModuleForLocation(SourceLocation Loc) {
     if (const FileEntry *EntryOfIncl = SourceMgr.getFileEntryForID(IDOfIncl)) {
       // The include comes from an included file.
       return HeaderInfo.getModuleMap()
-          .findModuleForHeader(EntryOfIncl)
+          .findModuleForHeader(EntryOfIncl, AllowTextual)
           .getModule();
     }
   }
@@ -809,7 +860,8 @@ Module *Preprocessor::getModuleForLocation(SourceLocation Loc) {
 const FileEntry *
 Preprocessor::getHeaderToIncludeForDiagnostics(SourceLocation IncLoc,
                                                SourceLocation Loc) {
-  Module *IncM = getModuleForLocation(IncLoc);
+  Module *IncM = getModuleForLocation(
+      IncLoc, LangOpts.ModulesValidateTextualHeaderIncludes);
 
   // Walk up through the include stack, looking through textual headers of M
   // until we hit a non-textual header that we can #include. (We assume textual
@@ -837,6 +889,10 @@ Preprocessor::getHeaderToIncludeForDiagnostics(SourceLocation IncLoc,
         InPrivateHeader = true;
         continue;
       }
+
+      // Don't suggest explicitly excluded headers.
+      if (Header.getRole() == ModuleMap::ExcludedHeader)
+        continue;
 
       // We'll suggest including textual headers below if they're
       // include-guarded.
@@ -873,17 +929,18 @@ Preprocessor::getHeaderToIncludeForDiagnostics(SourceLocation IncLoc,
   return nullptr;
 }
 
-Optional<FileEntryRef> Preprocessor::LookupFile(
+OptionalFileEntryRef Preprocessor::LookupFile(
     SourceLocation FilenameLoc, StringRef Filename, bool isAngled,
     ConstSearchDirIterator FromDir, const FileEntry *FromFile,
     ConstSearchDirIterator *CurDirArg, SmallVectorImpl<char> *SearchPath,
     SmallVectorImpl<char> *RelativePath,
     ModuleMap::KnownHeader *SuggestedModule, bool *IsMapped,
-    bool *IsFrameworkFound, bool SkipCache) {
+    bool *IsFrameworkFound, bool SkipCache, bool OpenFile, bool CacheFailures) {
   ConstSearchDirIterator CurDirLocal = nullptr;
   ConstSearchDirIterator &CurDir = CurDirArg ? *CurDirArg : CurDirLocal;
 
-  Module *RequestingModule = getModuleForLocation(FilenameLoc);
+  Module *RequestingModule = getModuleForLocation(
+      FilenameLoc, LangOpts.ModulesValidateTextualHeaderIncludes);
   bool RequestingModuleIsModuleInterface = !SourceMgr.isInMainFile(FilenameLoc);
 
   // If the header lookup mechanism may be relative to the current inclusion
@@ -937,7 +994,7 @@ Optional<FileEntryRef> Preprocessor::LookupFile(
     // the include path until we find that file or run out of files.
     ConstSearchDirIterator TmpCurDir = CurDir;
     ConstSearchDirIterator TmpFromDir = nullptr;
-    while (Optional<FileEntryRef> FE = HeaderInfo.LookupFile(
+    while (OptionalFileEntryRef FE = HeaderInfo.LookupFile(
                Filename, FilenameLoc, isAngled, TmpFromDir, &TmpCurDir,
                Includers, SearchPath, RelativePath, RequestingModule,
                SuggestedModule, /*IsMapped=*/nullptr,
@@ -955,10 +1012,10 @@ Optional<FileEntryRef> Preprocessor::LookupFile(
   }
 
   // Do a standard file entry lookup.
-  Optional<FileEntryRef> FE = HeaderInfo.LookupFile(
+  OptionalFileEntryRef FE = HeaderInfo.LookupFile(
       Filename, FilenameLoc, isAngled, FromDir, &CurDir, Includers, SearchPath,
       RelativePath, RequestingModule, SuggestedModule, IsMapped,
-      IsFrameworkFound, SkipCache, BuildSystemModule);
+      IsFrameworkFound, SkipCache, BuildSystemModule, OpenFile, CacheFailures);
   if (FE) {
     if (SuggestedModule && !LangOpts.AsmPreprocessor)
       HeaderInfo.getModuleMap().diagnoseHeaderInclusion(
@@ -973,7 +1030,7 @@ Optional<FileEntryRef> Preprocessor::LookupFile(
   // headers on the #include stack and pass them to HeaderInfo.
   if (IsFileLexer()) {
     if ((CurFileEnt = CurPPLexer->getFileEntry())) {
-      if (Optional<FileEntryRef> FE = HeaderInfo.LookupSubframeworkHeader(
+      if (OptionalFileEntryRef FE = HeaderInfo.LookupSubframeworkHeader(
               Filename, CurFileEnt, SearchPath, RelativePath, RequestingModule,
               SuggestedModule)) {
         if (SuggestedModule && !LangOpts.AsmPreprocessor)
@@ -988,7 +1045,7 @@ Optional<FileEntryRef> Preprocessor::LookupFile(
   for (IncludeStackInfo &ISEntry : llvm::reverse(IncludeMacroStack)) {
     if (IsFileLexer(ISEntry)) {
       if ((CurFileEnt = ISEntry.ThePPLexer->getFileEntry())) {
-        if (Optional<FileEntryRef> FE = HeaderInfo.LookupSubframeworkHeader(
+        if (OptionalFileEntryRef FE = HeaderInfo.LookupSubframeworkHeader(
                 Filename, CurFileEnt, SearchPath, RelativePath,
                 RequestingModule, SuggestedModule)) {
           if (SuggestedModule && !LangOpts.AsmPreprocessor)
@@ -1002,7 +1059,7 @@ Optional<FileEntryRef> Preprocessor::LookupFile(
   }
 
   // Otherwise, we really couldn't find the file.
-  return None;
+  return std::nullopt;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1191,7 +1248,16 @@ void Preprocessor::HandleDirective(Token &Result) {
       return HandleIncludeNextDirective(SavedHash.getLocation(), Result);
 
     case tok::pp_warning:
-      Diag(Result, diag::ext_pp_warning_directive);
+      if (LangOpts.CPlusPlus)
+        Diag(Result, LangOpts.CPlusPlus2b
+                         ? diag::warn_cxx2b_compat_warning_directive
+                         : diag::ext_pp_warning_directive)
+            << /*C++2b*/ 1;
+      else
+        Diag(Result, LangOpts.C2x ? diag::warn_c2x_compat_warning_directive
+                                  : diag::ext_pp_warning_directive)
+            << /*C2x*/ 0;
+
       return HandleUserDiagnosticDirective(Result, true);
     case tok::pp_ident:
       return HandleIdentSCCSDirective(Result);
@@ -1353,7 +1419,7 @@ void Preprocessor::HandleLineDirective() {
   } else {
     // Parse and validate the string, converting it into a unique ID.
     StringLiteralParser Literal(StrTok, *this);
-    assert(Literal.isAscii() && "Didn't allow wide strings in");
+    assert(Literal.isOrdinary() && "Didn't allow wide strings in");
     if (Literal.hadError) {
       DiscardUntilEndOfDirective();
       return;
@@ -1504,7 +1570,7 @@ void Preprocessor::HandleDigitDirective(Token &DigitTok) {
   } else {
     // Parse and validate the string, converting it into a unique ID.
     StringLiteralParser Literal(StrTok, *this);
-    assert(Literal.isAscii() && "Didn't allow wide strings in");
+    assert(Literal.isOrdinary() && "Didn't allow wide strings in");
     if (Literal.hadError) {
       DiscardUntilEndOfDirective();
       return;
@@ -1736,22 +1802,14 @@ static void diagnoseAutoModuleImport(
     Preprocessor &PP, SourceLocation HashLoc, Token &IncludeTok,
     ArrayRef<std::pair<IdentifierInfo *, SourceLocation>> Path,
     SourceLocation PathEnd) {
-  StringRef ImportKeyword;
-  if (PP.getLangOpts().ObjC)
-    ImportKeyword = "@import";
-  else if (PP.getLangOpts().ModulesTS || PP.getLangOpts().CPlusPlusModules)
-    ImportKeyword = "import";
-  else
-    return; // no import syntax available
-
   SmallString<128> PathString;
   for (size_t I = 0, N = Path.size(); I != N; ++I) {
     if (I)
       PathString += '.';
     PathString += Path[I].first->getName();
   }
-  int IncludeKind = 0;
 
+  int IncludeKind = 0;
   switch (IncludeTok.getIdentifierInfo()->getPPKeywordID()) {
   case tok::pp_include:
     IncludeKind = 0;
@@ -1773,12 +1831,8 @@ static void diagnoseAutoModuleImport(
     llvm_unreachable("unknown include directive kind");
   }
 
-  CharSourceRange ReplaceRange(SourceRange(HashLoc, PathEnd),
-                               /*IsTokenRange=*/false);
-  PP.Diag(HashLoc, diag::warn_auto_module_import)
-      << IncludeKind << PathString
-      << FixItHint::CreateReplacement(
-             ReplaceRange, (ImportKeyword + " " + PathString + ";").str());
+  PP.Diag(HashLoc, diag::remark_pp_include_directive_modular_translation)
+      << IncludeKind << PathString;
 }
 
 // Given a vector of path components and a string containing the real
@@ -1913,6 +1967,10 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
     EnterAnnotationToken(SourceRange(HashLoc, EndLoc),
                          tok::annot_module_begin, Action.ModuleForHeader);
     break;
+  case ImportAction::HeaderUnitImport:
+    EnterAnnotationToken(SourceRange(HashLoc, EndLoc), tok::annot_header_unit,
+                         Action.ModuleForHeader);
+    break;
   case ImportAction::ModuleImport:
     EnterAnnotationToken(SourceRange(HashLoc, EndLoc),
                          tok::annot_module_include, Action.ModuleForHeader);
@@ -1927,7 +1985,7 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
   }
 }
 
-Optional<FileEntryRef> Preprocessor::LookupHeaderIncludeOrImport(
+OptionalFileEntryRef Preprocessor::LookupHeaderIncludeOrImport(
     ConstSearchDirIterator *CurDir, StringRef &Filename,
     SourceLocation FilenameLoc, CharSourceRange FilenameRange,
     const Token &FilenameTok, bool &IsFrameworkFound, bool IsImportDecl,
@@ -1935,24 +1993,26 @@ Optional<FileEntryRef> Preprocessor::LookupHeaderIncludeOrImport(
     const FileEntry *LookupFromFile, StringRef &LookupFilename,
     SmallVectorImpl<char> &RelativePath, SmallVectorImpl<char> &SearchPath,
     ModuleMap::KnownHeader &SuggestedModule, bool isAngled) {
-  Optional<FileEntryRef> File = LookupFile(
-      FilenameLoc, LookupFilename,
-      isAngled, LookupFrom, LookupFromFile, CurDir,
+  OptionalFileEntryRef File = LookupFile(
+      FilenameLoc, LookupFilename, isAngled, LookupFrom, LookupFromFile, CurDir,
       Callbacks ? &SearchPath : nullptr, Callbacks ? &RelativePath : nullptr,
       &SuggestedModule, &IsMapped, &IsFrameworkFound);
   if (File)
     return File;
 
+  // Give the clients a chance to silently skip this include.
+  if (Callbacks && Callbacks->FileNotFound(Filename))
+    return std::nullopt;
+
   if (SuppressIncludeNotFoundError)
-    return None;
+    return std::nullopt;
 
   // If the file could not be located and it was included via angle
   // brackets, we can attempt a lookup as though it were a quoted path to
   // provide the user with a possible fixit.
   if (isAngled) {
-    Optional<FileEntryRef> File = LookupFile(
-        FilenameLoc, LookupFilename,
-        false, LookupFrom, LookupFromFile, CurDir,
+    OptionalFileEntryRef File = LookupFile(
+        FilenameLoc, LookupFilename, false, LookupFrom, LookupFromFile, CurDir,
         Callbacks ? &SearchPath : nullptr, Callbacks ? &RelativePath : nullptr,
         &SuggestedModule, &IsMapped,
         /*IsFrameworkFound=*/nullptr);
@@ -1981,9 +2041,9 @@ Optional<FileEntryRef> Preprocessor::LookupHeaderIncludeOrImport(
     StringRef TypoCorrectionName = CorrectTypoFilename(Filename);
     StringRef TypoCorrectionLookupName = CorrectTypoFilename(LookupFilename);
 
-    Optional<FileEntryRef> File = LookupFile(
-        FilenameLoc, TypoCorrectionLookupName, isAngled, LookupFrom, LookupFromFile,
-        CurDir, Callbacks ? &SearchPath : nullptr,
+    OptionalFileEntryRef File = LookupFile(
+        FilenameLoc, TypoCorrectionLookupName, isAngled, LookupFrom,
+        LookupFromFile, CurDir, Callbacks ? &SearchPath : nullptr,
         Callbacks ? &RelativePath : nullptr, &SuggestedModule, &IsMapped,
         /*IsFrameworkFound=*/nullptr);
     if (File) {
@@ -2003,7 +2063,7 @@ Optional<FileEntryRef> Preprocessor::LookupHeaderIncludeOrImport(
   }
 
   // If the file is still not found, just go with the vanilla diagnostic
-  assert(!File.hasValue() && "expected missing file");
+  assert(!File && "expected missing file");
   Diag(FilenameTok, diag::err_pp_file_not_found)
       << OriginalFilename << FilenameRange;
   if (IsFrameworkFound) {
@@ -2019,7 +2079,7 @@ Optional<FileEntryRef> Preprocessor::LookupHeaderIncludeOrImport(
         << CacheEntry.Directory->getName();
   }
 
-  return None;
+  return std::nullopt;
 }
 
 /// Handle either a #include-like directive or an import declaration that names
@@ -2106,7 +2166,7 @@ Preprocessor::ImportAction Preprocessor::HandleHeaderIncludeOrImport(
     BackslashStyle = llvm::sys::path::Style::windows;
   }
 
-  Optional<FileEntryRef> File = LookupHeaderIncludeOrImport(
+  OptionalFileEntryRef File = LookupHeaderIncludeOrImport(
       &CurDir, Filename, FilenameLoc, FilenameRange, FilenameTok,
       IsFrameworkFound, IsImportDecl, IsMapped, LookupFrom, LookupFromFile,
       LookupFilename, RelativePath, SearchPath, SuggestedModule, isAngled);
@@ -2121,6 +2181,17 @@ Preprocessor::ImportAction Preprocessor::HandleHeaderIncludeOrImport(
   // known to have no effect beyond its effect on module visibility -- that is,
   // if it's got an include guard that is already defined, set to Import if it
   // is a modular header we've already built and should import.
+
+  // For C++20 Modules
+  // [cpp.include]/7 If the header identified by the header-name denotes an
+  // importable header, it is implementation-defined whether the #include
+  // preprocessing directive is instead replaced by an import directive.
+  // For this implementation, the translation is permitted when we are parsing
+  // the Global Module Fragment, and not otherwise (the cases where it would be
+  // valid to replace an include with an import are highly constrained once in
+  // named module purview; this choice avoids considerable complexity in
+  // determining valid cases).
+
   enum { Enter, Import, Skip, IncludeLimitReached } Action = Enter;
 
   if (PPOpts->SingleFileParseMode)
@@ -2133,13 +2204,33 @@ Preprocessor::ImportAction Preprocessor::HandleHeaderIncludeOrImport(
       alreadyIncluded(*File))
     Action = IncludeLimitReached;
 
+  // FIXME: We do not have a good way to disambiguate C++ clang modules from
+  // C++ standard modules (other than use/non-use of Header Units).
+  Module *SM = SuggestedModule.getModule();
+
+  bool MaybeTranslateInclude =
+      Action == Enter && File && SM && !SM->isForBuilding(getLangOpts());
+
+  // Maybe a usable Header Unit
+  bool UsableHeaderUnit = false;
+  if (getLangOpts().CPlusPlusModules && SM && SM->isHeaderUnit()) {
+    if (TrackGMFState.inGMF() || IsImportDecl)
+      UsableHeaderUnit = true;
+    else if (!IsImportDecl) {
+      // This is a Header Unit that we do not include-translate
+      SuggestedModule = ModuleMap::KnownHeader();
+      SM = nullptr;
+    }
+  }
+  // Maybe a usable clang header module.
+  bool UsableClangHeaderModule =
+      (getLangOpts().CPlusPlusModules || getLangOpts().Modules) && SM &&
+      !SM->isHeaderUnit();
+
   // Determine whether we should try to import the module for this #include, if
   // there is one. Don't do so if precompiled module support is disabled or we
   // are processing this module textually (because we're building the module).
-  if (Action == Enter && File && SuggestedModule && getLangOpts().Modules &&
-      !isForModuleBuilding(SuggestedModule.getModule(),
-                           getLangOpts().CurrentModule,
-                           getLangOpts().ModuleName)) {
+  if (MaybeTranslateInclude && (UsableHeaderUnit || UsableClangHeaderModule)) {
     // If this include corresponds to a module but that module is
     // unavailable, diagnose the situation and bail out.
     // FIXME: Remove this; loadModule does the same check (but produces
@@ -2156,7 +2247,7 @@ Preprocessor::ImportAction Preprocessor::HandleHeaderIncludeOrImport(
     // FIXME: Should we have a second loadModule() overload to avoid this
     // extra lookup step?
     SmallVector<std::pair<IdentifierInfo *, SourceLocation>, 2> Path;
-    for (Module *Mod = SuggestedModule.getModule(); Mod; Mod = Mod->Parent)
+    for (Module *Mod = SM; Mod; Mod = Mod->Parent)
       Path.push_back(std::make_pair(getIdentifierInfo(Mod->Name),
                                     FilenameTok.getLocation()));
     std::reverse(Path.begin(), Path.end());
@@ -2178,11 +2269,14 @@ Preprocessor::ImportAction Preprocessor::HandleHeaderIncludeOrImport(
     if (Imported) {
       Action = Import;
     } else if (Imported.isMissingExpected()) {
+      markClangModuleAsAffecting(
+          static_cast<Module *>(Imported)->getTopLevelModule());
       // We failed to find a submodule that we assumed would exist (because it
       // was in the directory of an umbrella header, for instance), but no
       // actual module containing it exists (because the umbrella header is
       // incomplete).  Treat this as a textual inclusion.
       SuggestedModule = ModuleMap::KnownHeader();
+      SM = nullptr;
     } else if (Imported.isConfigMismatch()) {
       // On a configuration mismatch, enter the header textually. We still know
       // that it's part of the corresponding module.
@@ -2223,9 +2317,12 @@ Preprocessor::ImportAction Preprocessor::HandleHeaderIncludeOrImport(
   // Ask HeaderInfo if we should enter this #include file.  If not, #including
   // this file will have no effect.
   if (Action == Enter && File &&
-      !HeaderInfo.ShouldEnterIncludeFile(
-          *this, &File->getFileEntry(), EnterOnce, getLangOpts().Modules,
-          SuggestedModule.getModule(), IsFirstIncludeOfFile)) {
+      !HeaderInfo.ShouldEnterIncludeFile(*this, &File->getFileEntry(),
+                                         EnterOnce, getLangOpts().Modules, SM,
+                                         IsFirstIncludeOfFile)) {
+    // C++ standard modules:
+    // If we are not in the GMF, then we textually include only
+    // clang modules:
     // Even if we've already preprocessed this header once and know that we
     // don't need to see its contents again, we still need to import it if it's
     // modular because we might not have imported it from this submodule before.
@@ -2233,7 +2330,10 @@ Preprocessor::ImportAction Preprocessor::HandleHeaderIncludeOrImport(
     // FIXME: We don't do this when compiling a PCH because the AST
     // serialization layer can't cope with it. This means we get local
     // submodule visibility semantics wrong in that case.
-    Action = (SuggestedModule && !getLangOpts().CompilingPCH) ? Import : Skip;
+    if (UsableHeaderUnit && !getLangOpts().CompilingPCH)
+      Action = TrackGMFState.inGMF() ? Import : Skip;
+    else
+      Action = (SuggestedModule && !getLangOpts().CompilingPCH) ? Import : Skip;
   }
 
   // Check for circular inclusion of the main file.
@@ -2370,8 +2470,8 @@ Preprocessor::ImportAction Preprocessor::HandleHeaderIncludeOrImport(
   switch (Action) {
   case Skip:
     // If we don't need to enter the file, stop now.
-    if (Module *M = SuggestedModule.getModule())
-      return {ImportAction::SkippedModuleImport, M};
+    if (SM)
+      return {ImportAction::SkippedModuleImport, SM};
     return {ImportAction::None};
 
   case IncludeLimitReached:
@@ -2381,16 +2481,15 @@ Preprocessor::ImportAction Preprocessor::HandleHeaderIncludeOrImport(
 
   case Import: {
     // If this is a module import, make it visible if needed.
-    Module *M = SuggestedModule.getModule();
-    assert(M && "no module to import");
+    assert(SM && "no module to import");
 
-    makeModuleVisible(M, EndLoc);
+    makeModuleVisible(SM, EndLoc);
 
     if (IncludeTok.getIdentifierInfo()->getPPKeywordID() ==
         tok::pp___include_macros)
       return {ImportAction::None};
 
-    return {ImportAction::ModuleImport, M};
+    return {ImportAction::ModuleImport, SM};
   }
 
   case Enter:
@@ -2422,13 +2521,14 @@ Preprocessor::ImportAction Preprocessor::HandleHeaderIncludeOrImport(
     return {ImportAction::None};
 
   // Determine if we're switching to building a new submodule, and which one.
-  if (auto *M = SuggestedModule.getModule()) {
-    if (M->getTopLevelModule()->ShadowingModule) {
+  // This does not apply for C++20 modules header units.
+  if (SM && !SM->isHeaderUnit()) {
+    if (SM->getTopLevelModule()->ShadowingModule) {
       // We are building a submodule that belongs to a shadowed module. This
       // means we find header files in the shadowed module.
-      Diag(M->DefinitionLoc, diag::err_module_build_shadowed_submodule)
-        << M->getFullModuleName();
-      Diag(M->getTopLevelModule()->ShadowingModule->DefinitionLoc,
+      Diag(SM->DefinitionLoc, diag::err_module_build_shadowed_submodule)
+          << SM->getFullModuleName();
+      Diag(SM->getTopLevelModule()->ShadowingModule->DefinitionLoc,
            diag::note_previous_definition);
       return {ImportAction::None};
     }
@@ -2440,23 +2540,21 @@ Preprocessor::ImportAction Preprocessor::HandleHeaderIncludeOrImport(
     // that behaves the same as the header would behave in a compilation using
     // that PCH, which means we should enter the submodule. We need to teach
     // the AST serialization layer to deal with the resulting AST.
-    if (getLangOpts().CompilingPCH &&
-        isForModuleBuilding(M, getLangOpts().CurrentModule,
-                            getLangOpts().ModuleName))
+    if (getLangOpts().CompilingPCH && SM->isForBuilding(getLangOpts()))
       return {ImportAction::None};
 
     assert(!CurLexerSubmodule && "should not have marked this as a module yet");
-    CurLexerSubmodule = M;
+    CurLexerSubmodule = SM;
 
     // Let the macro handling code know that any future macros are within
     // the new submodule.
-    EnterSubmodule(M, EndLoc, /*ForPragma*/false);
+    EnterSubmodule(SM, EndLoc, /*ForPragma*/ false);
 
     // Let the parser know that any future declarations are within the new
     // submodule.
     // FIXME: There's no point doing this if we're handling a #__include_macros
     // directive.
-    return {ImportAction::ModuleBegin, M};
+    return {ImportAction::ModuleBegin, SM};
   }
 
   assert(!IsImportDecl && "failed to diagnose missing module for import decl");

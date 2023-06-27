@@ -39,7 +39,7 @@ namespace std {
     return static_cast<T&&>(x);
   }
   template<typename T> CONSTEXPR T &&forward(typename remove_reference<T>::type &&x) {
-    static_assert(!is_lvalue_reference<T>::value, "should not forward rval as lval"); // expected-error {{static_assert failed}}
+    static_assert(!is_lvalue_reference<T>::value, "should not forward rval as lval"); // expected-error {{static assertion failed}}
     return static_cast<T&&>(x);
   }
 
@@ -85,7 +85,7 @@ static_assert(f({}), "should be constexpr");
 
 A &forward_rval_as_lval() {
   std::forward<A&&>(A()); // expected-warning {{const attribute}}
-  return std::forward<A&>(A()); // expected-note {{instantiation of}}
+  return std::forward<A&>(A()); // expected-note {{instantiation of}} expected-warning {{returning reference}}
 }
 
 struct B {};

@@ -9,7 +9,6 @@
 #ifndef LLVM_DEBUGINFO_GSYM_FUNCTIONINFO_H
 #define LLVM_DEBUGINFO_GSYM_FUNCTIONINFO_H
 
-#include "llvm/ADT/Optional.h"
 #include "llvm/DebugInfo/GSYM/ExtractRanges.h"
 #include "llvm/DebugInfo/GSYM/InlineInfo.h"
 #include "llvm/DebugInfo/GSYM/LineTable.h"
@@ -89,8 +88,8 @@ class GsymReader;
 struct FunctionInfo {
   AddressRange Range;
   uint32_t Name; ///< String table offset in the string table.
-  llvm::Optional<LineTable> OptLineTable;
-  llvm::Optional<InlineInfo> Inline;
+  std::optional<LineTable> OptLineTable;
+  std::optional<InlineInfo> Inline;
 
   FunctionInfo(uint64_t Addr = 0, uint64_t Size = 0, uint32_t N = 0)
       : Range(Addr, Addr + Size), Name(N) {}
@@ -102,9 +101,7 @@ struct FunctionInfo {
   /// debug info, we might end up with multiple FunctionInfo objects for the
   /// same range and we need to be able to tell which one is the better object
   /// to use.
-  bool hasRichInfo() const {
-    return OptLineTable.hasValue() || Inline.hasValue();
-  }
+  bool hasRichInfo() const { return OptLineTable || Inline; }
 
   /// Query if a FunctionInfo object is valid.
   ///
@@ -177,8 +174,8 @@ struct FunctionInfo {
   void clear() {
     Range = {0, 0};
     Name = 0;
-    OptLineTable = None;
-    Inline = None;
+    OptLineTable = std::nullopt;
+    Inline = std::nullopt;
   }
 };
 
@@ -200,8 +197,8 @@ inline bool operator<(const FunctionInfo &LHS, const FunctionInfo &RHS) {
     return LHS.Range < RHS.Range;
 
   // Then sort by inline
-  if (LHS.Inline.hasValue() != RHS.Inline.hasValue())
-    return RHS.Inline.hasValue();
+  if (LHS.Inline.has_value() != RHS.Inline.has_value())
+    return RHS.Inline.has_value();
 
   return LHS.OptLineTable < RHS.OptLineTable;
 }

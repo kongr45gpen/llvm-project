@@ -40,6 +40,10 @@ func.func @pass_through(%arg0: () -> ()) -> (() -> ()) {
 // CHECK-LABEL: llvm.func extern_weak @llvmlinkage(i32)
 func.func private @llvmlinkage(i32) attributes { "llvm.linkage" = #llvm.linkage<extern_weak> }
 
+// CHECK-LABEL: llvm.func @llvmreadnone(i32)
+// CHECK-SAME: memory = #llvm.memory_effects<other = none, argMem = none, inaccessibleMem = none>
+func.func private @llvmreadnone(i32) attributes { llvm.readnone }
+
 // CHECK-LABEL: llvm.func @body(i32)
 func.func private @body(i32)
 
@@ -62,6 +66,17 @@ func.func @indirect_call(%arg0: (f32) -> i32, %arg1: f32) -> i32 {
   return %0 : i32
 }
 
+func.func @variadic_func(%arg0: i32) attributes { "func.varargs" = true } {
+  return
+}
+
 // -----
 
 func.func private @badllvmlinkage(i32) attributes { "llvm.linkage" = 3 : i64 } // expected-error {{Contains llvm.linkage attribute not of type LLVM::LinkageAttr}}
+
+// -----
+
+// expected-error@+1{{C interface for variadic functions is not supported yet.}}
+func.func @variadic_func(%arg0: i32) attributes { "func.varargs" = true, "llvm.emit_c_interface" } {
+  return
+}

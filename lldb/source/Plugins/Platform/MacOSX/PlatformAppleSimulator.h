@@ -17,12 +17,12 @@
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/XcodeSDK.h"
 #include "lldb/lldb-forward.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
 
 #include <mutex>
+#include <optional>
 #include <vector>
 
 namespace lldb_private {
@@ -64,7 +64,7 @@ public:
                  CoreSimulatorSupport::DeviceType::ProductFamilyID kind,
                  bool force, const ArchSpec *arch);
 
-  virtual ~PlatformAppleSimulator();
+  ~PlatformAppleSimulator() override;
 
   llvm::StringRef GetPluginName() override {
     return m_plugin_name.GetStringRef();
@@ -111,8 +111,8 @@ protected:
   const char *m_description;
   ConstString m_plugin_name;
   std::mutex m_core_sim_path_mutex;
-  llvm::Optional<FileSpec> m_core_simulator_framework_path;
-  llvm::Optional<CoreSimulatorSupport::Device> m_device;
+  std::optional<FileSpec> m_core_simulator_framework_path;
+  std::optional<CoreSimulatorSupport::Device> m_device;
   CoreSimulatorSupport::DeviceType::ProductFamilyID m_kind;
 
   FileSpec GetCoreSimulatorPath();

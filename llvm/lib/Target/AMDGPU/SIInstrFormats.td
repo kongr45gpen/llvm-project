@@ -85,7 +85,7 @@ class InstSI <dag outs, dag ins, string asm = "",
   field bit VOPAsmPrefer32Bit = 0;
 
   // This bit indicates that this is a VOP3 opcode which supports op_sel
-  // modifier (gfx9 only).
+  // modifier.
   field bit VOP3_OPSEL = 0;
 
   // Is it possible for this instruction to be atomic?
@@ -146,6 +146,12 @@ class InstSI <dag outs, dag ins, string asm = "",
 
   // Atomic with return.
   field bit IsAtomicRet = 0;
+
+  // This bit indicates that this is one of WMMA instructions.
+  field bit IsWMMA = 0;
+
+  // This bit indicates that tied source will not be read.
+  field bit TiedSourceNotRead = 0;
 
   // These need to be kept in sync with the enum in SIInstrFlags.
   let TSFlags{0} = SALU;
@@ -223,6 +229,10 @@ class InstSI <dag outs, dag ins, string asm = "",
   let TSFlags{57} = IsAtomicNoRet;
 
   let TSFlags{58} = IsAtomicRet;
+
+  let TSFlags{59} = IsWMMA;
+
+  let TSFlags{60} = TiedSourceNotRead;
 
   let SchedRW = [Write32Bit];
 

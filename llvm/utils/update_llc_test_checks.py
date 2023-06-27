@@ -57,7 +57,7 @@ def main():
     run_list = []
     for l in ti.run_lines:
       if '|' not in l:
-        common.warn('Skipping unparseable RUN line: ' + l)
+        common.warn('Skipping unparsable RUN line: ' + l)
         continue
 
       commands = [cmd.strip() for cmd in l.split('|')]
@@ -137,6 +137,7 @@ def main():
 
       scrubber, function_re = output_type.get_run_handler(triple)
       builder.process_run_line(function_re, scrubber, raw_tool_output, prefixes, True)
+      builder.processed_prefixes(prefixes)
 
     func_dict = builder.finish_and_get_func_dict()
     global_vars_seen_dict = {}

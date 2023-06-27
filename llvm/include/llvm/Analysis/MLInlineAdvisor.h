@@ -18,6 +18,7 @@
 #include <deque>
 #include <map>
 #include <memory>
+#include <optional>
 
 namespace llvm {
 class DiagnosticInfoOptimizationBase;
@@ -31,7 +32,7 @@ public:
 
   virtual ~MLInlineAdvisor() = default;
 
-  void onPassEntry() override;
+  void onPassEntry(LazyCallGraph::SCC *SCC) override;
   void onPassExit(LazyCallGraph::SCC *SCC) override;
 
   int64_t getIRSize(Function &F) const {
@@ -65,10 +66,14 @@ protected:
 
 private:
   int64_t getModuleIRSize() const;
-
+  std::unique_ptr<InlineAdvice>
+  getSkipAdviceIfUnreachableCallsite(CallBase &CB);
   void print(raw_ostream &OS) const override;
 
-  mutable DenseMap<const Function *, FunctionPropertiesInfo> FPICache;
+  // Using std::map to benefit from its iterator / reference non-invalidating
+  // semantics, which make it easy to use `getCachedFPI` results from multiple
+  // calls without needing to copy to avoid invalidation effects.
+  mutable std::map<const Function *, FunctionPropertiesInfo> FPICache;
 
   LazyCallGraph &CG;
 
@@ -79,7 +84,7 @@ private:
   std::map<const LazyCallGraph::Node *, unsigned> FunctionLevels;
   const int32_t InitialIRSize = 0;
   int32_t CurrentIRSize = 0;
-  std::deque<const LazyCallGraph::Node *> NodesInLastSCC;
+  llvm::SmallPtrSet<const LazyCallGraph::Node *, 1> NodesInLastSCC;
   DenseSet<const LazyCallGraph::Node *> AllNodes;
   bool ForceStop = false;
 };
@@ -103,7 +108,7 @@ public:
   const int64_t CallerIRSize;
   const int64_t CalleeIRSize;
   const int64_t CallerAndCalleeEdges;
-  void updateCachedCallerFPI(const LoopInfo &LI) const;
+  void updateCachedCallerFPI(FunctionAnalysisManager &FAM) const;
 
 private:
   void reportContextForRemark(DiagnosticInfoOptimizationBase &OR);
@@ -113,7 +118,7 @@ private:
   // Make a copy of the FPI of the caller right before inlining. If inlining
   // fails, we can just update the cache with that value.
   const FunctionPropertiesInfo PreInlineCallerFPI;
-  Optional<FunctionPropertiesUpdater> FPU;
+  std::optional<FunctionPropertiesUpdater> FPU;
 };
 
 } // namespace llvm

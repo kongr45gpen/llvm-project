@@ -47,7 +47,8 @@
 // |                                   |
 // |-----------------------------------|
 // |                                   |
-// | prev_fp, prev_lr                  |
+// | prev_lr                           |
+// | prev_fp                           |
 // | (a.k.a. "frame record")           |
 // |                                   |
 // |- - - - - - - - - - - - - - - - - -| <- fp (r7 or r11)
@@ -211,6 +212,12 @@ bool ARMFrameLowering::hasFP(const MachineFunction &MF) const {
           MFI.isFrameAddressTaken());
 }
 
+/// isFPReserved - Return true if the frame pointer register should be
+/// considered a reserved register on the scope of the specified function.
+bool ARMFrameLowering::isFPReserved(const MachineFunction &MF) const {
+  return hasFP(MF) || MF.getSubtarget<ARMSubtarget>().createAAPCSFrameChain();
+}
+
 /// hasReservedCallFrame - Under normal circumstances, when a frame pointer is
 /// not required, we reserve argument space for call sites in the function
 /// immediately on entry to the current function.  This eliminates the need for
@@ -348,6 +355,34 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
     MIB = BuildMI(MF, DL, TII.get(ARM::SEH_Nop))
               .addImm(/*Wide=*/1)
               .setMIFlags(Flags);
+    break;
+
+  case ARM::t2STR_PRE:
+    if (MBBI->getOperand(0).getReg() == ARM::SP &&
+        MBBI->getOperand(2).getReg() == ARM::SP &&
+        MBBI->getOperand(3).getImm() == -4) {
+      unsigned Reg = RegInfo->getSEHRegNum(MBBI->getOperand(1).getReg());
+      MIB = BuildMI(MF, DL, TII.get(ARM::SEH_SaveRegs))
+                .addImm(1ULL << Reg)
+                .addImm(/*Wide=*/1)
+                .setMIFlags(Flags);
+    } else {
+      report_fatal_error("No matching SEH Opcode for t2STR_PRE");
+    }
+    break;
+
+  case ARM::t2LDR_POST:
+    if (MBBI->getOperand(1).getReg() == ARM::SP &&
+        MBBI->getOperand(2).getReg() == ARM::SP &&
+        MBBI->getOperand(3).getImm() == 4) {
+      unsigned Reg = RegInfo->getSEHRegNum(MBBI->getOperand(0).getReg());
+      MIB = BuildMI(MF, DL, TII.get(ARM::SEH_SaveRegs))
+                .addImm(1ULL << Reg)
+                .addImm(/*Wide=*/1)
+                .setMIFlags(Flags);
+    } else {
+      report_fatal_error("No matching SEH Opcode for t2LDR_POST");
+    }
     break;
 
   case ARM::t2LDMIA_RET:
@@ -550,10 +585,9 @@ static bool WindowsRequiresStackProbe(const MachineFunction &MF,
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   const Function &F = MF.getFunction();
   unsigned StackProbeSize = (MFI.getStackProtectorIndex() > 0) ? 4080 : 4096;
-  if (F.hasFnAttribute("stack-probe-size"))
-    F.getFnAttribute("stack-probe-size")
-        .getValueAsString()
-        .getAsInteger(0, StackProbeSize);
+
+  StackProbeSize =
+      F.getFnAttributeAsParsedInteger("stack-probe-size", StackProbeSize);
   return (StackSizeInBytes >= StackProbeSize) &&
          !F.hasFnAttribute("no-stack-arg-probe");
 }
@@ -805,7 +839,7 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
           GPRCS2Size += 4;
           break;
         }
-        LLVM_FALLTHROUGH;
+        [[fallthrough]];
       case ARM::R0:
       case ARM::R1:
       case ARM::R2:
@@ -1033,6 +1067,9 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   // into spill area 1, including the FP in R11.  In either case, it
   // is in area one and the adjustment needs to take place just after
   // that push.
+  // FIXME: The above is not necessary true when PACBTI is enabled.
+  // AAPCS requires use of R11, and PACBTI gets in the way of regular pushes,
+  // so FP ends up on area two.
   MachineBasicBlock::iterator AfterPush;
   if (HasFP) {
     AfterPush = std::next(GPRCS1Push);
@@ -1095,7 +1132,7 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
       case ARM::R12:
         if (STI.splitFramePushPop(MF))
           break;
-        LLVM_FALLTHROUGH;
+        [[fallthrough]];
       case ARM::R0:
       case ARM::R1:
       case ARM::R2:
@@ -1832,11 +1869,11 @@ skipAlignedDPRCS2Spills(MachineBasicBlock::iterator MI,
   case 7:
     ++MI;
     assert(MI->mayStore() && "Expecting spill instruction");
-    LLVM_FALLTHROUGH;
+    [[fallthrough]];
   default:
     ++MI;
     assert(MI->mayStore() && "Expecting spill instruction");
-    LLVM_FALLTHROUGH;
+    [[fallthrough]];
   case 1:
   case 2:
   case 4:
@@ -2196,6 +2233,34 @@ bool ARMFrameLowering::enableShrinkWrapping(const MachineFunction &MF) const {
   return true;
 }
 
+static bool requiresAAPCSFrameRecord(const MachineFunction &MF) {
+  const auto &Subtarget = MF.getSubtarget<ARMSubtarget>();
+  return Subtarget.createAAPCSFrameChainLeaf() ||
+         (Subtarget.createAAPCSFrameChain() && MF.getFrameInfo().hasCalls());
+}
+
+// Thumb1 may require a spill when storing to a frame index through FP, for
+// cases where FP is a high register (R11). This scans the function for cases
+// where this may happen.
+static bool canSpillOnFrameIndexAccess(const MachineFunction &MF,
+                                       const TargetFrameLowering &TFI) {
+  const ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
+  if (!AFI->isThumb1OnlyFunction())
+    return false;
+
+  for (const auto &MBB : MF)
+    for (const auto &MI : MBB)
+      if (MI.getOpcode() == ARM::tSTRspi || MI.getOpcode() == ARM::tSTRi)
+        for (const auto &Op : MI.operands())
+          if (Op.isFI()) {
+            Register Reg;
+            TFI.getFrameIndexReference(MF, Op.getIndex(), Reg);
+            if (ARM::hGPRRegClass.contains(Reg) && Reg != ARM::SP)
+              return true;
+          }
+  return false;
+}
+
 void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
                                             BitVector &SavedRegs,
                                             RegScavenger *RS) const {
@@ -2204,7 +2269,7 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
   // to take advantage the eliminateFrameIndex machinery. This also ensures it
   // is spilled in the order specified by getCalleeSavedRegs() to make it easier
   // to combine multiple loads / stores.
-  bool CanEliminateFrame = true;
+  bool CanEliminateFrame = !(requiresAAPCSFrameRecord(MF) && hasFP(MF));
   bool CS1Spilled = false;
   bool LRSpilled = false;
   unsigned NumGPRSpills = 0;
@@ -2306,7 +2371,7 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
       switch (Reg) {
       case ARM::LR:
         LRSpilled = true;
-        LLVM_FALLTHROUGH;
+        [[fallthrough]];
       case ARM::R0: case ARM::R1:
       case ARM::R2: case ARM::R3:
       case ARM::R4: case ARM::R5:
@@ -2399,6 +2464,11 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
     // Functions with VLAs or extremely large call frames are rare, and
     // if a function is allocating more than 1KB of stack, an extra 4-byte
     // slot probably isn't relevant.
+    //
+    // A special case is the scenario where r11 is used as FP, where accesses
+    // to a frame index will require its value to be moved into a low reg.
+    // This is handled later on, once we are able to determine if we have any
+    // fp-relative accesses.
     if (RegInfo->hasBasePointer(MF))
       EstimatedRSStackSizeLimit = (1U << 5) * 4;
     else
@@ -2445,7 +2515,9 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
       SavedRegs.set(FramePtr);
       // If the frame pointer is required by the ABI, also spill LR so that we
       // emit a complete frame record.
-      if (MF.getTarget().Options.DisableFramePointerElim(MF) && !LRSpilled) {
+      if ((requiresAAPCSFrameRecord(MF) ||
+           MF.getTarget().Options.DisableFramePointerElim(MF)) &&
+          !LRSpilled) {
         SavedRegs.set(ARM::LR);
         LRSpilled = true;
         NumGPRSpills++;
@@ -2527,7 +2599,7 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
       }
 
       // r7 can be used if it is not being used as the frame pointer.
-      if (!HasFP) {
+      if (!HasFP || FramePtr != ARM::R7) {
         if (SavedRegs.test(ARM::R7)) {
           --RegDeficit;
           LLVM_DEBUG(dbgs() << "%r7 is saved low register, RegDeficit = "
@@ -2648,8 +2720,10 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
     // to materialize a stack offset. If so, either spill one additional
     // callee-saved register or reserve a special spill slot to facilitate
     // register scavenging. Thumb1 needs a spill slot for stack pointer
-    // adjustments also, even when the frame itself is small.
-    if (BigFrameOffsets && !ExtraCSSpill) {
+    // adjustments and for frame index accesses when FP is high register,
+    // even when the frame itself is small.
+    if (!ExtraCSSpill &&
+        (BigFrameOffsets || canSpillOnFrameIndexAccess(MF, *this))) {
       // If any non-reserved CS register isn't spilled, just spill one or two
       // extra. That should take care of it!
       unsigned NumExtras = TargetAlign.value() / 4;
@@ -2745,7 +2819,7 @@ bool ARMFrameLowering::assignCalleeSavedSpillSlots(
 const TargetFrameLowering::SpillSlot *
 ARMFrameLowering::getCalleeSavedSpillSlots(unsigned &NumEntries) const {
   static const SpillSlot FixedSpillOffsets[] = {{ARM::FPCXTNS, -4}};
-  NumEntries = array_lengthof(FixedSpillOffsets);
+  NumEntries = std::size(FixedSpillOffsets);
   return FixedSpillOffsets;
 }
 

@@ -14,6 +14,7 @@
 #define MLIR_DIALECT_TOSA_IR_TOSAOPS_H
 
 #include "mlir/Dialect/Traits.h"
+#include "mlir/IR/OpImplementation.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
 #include "mlir/Interfaces/LoopLikeInterface.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
@@ -31,17 +32,6 @@ namespace tosa {
 
 #include "mlir/Dialect/Tosa/IR/TosaInterfaces.h.inc"
 
-} // namespace tosa
-} // namespace mlir
-
-//===----------------------------------------------------------------------===//
-// Utility Functions
-//===----------------------------------------------------------------------===//
-namespace mlir {
-namespace tosa {
-/// Appends the canonicalization patterns for all the TOSA ops to the `patterns`
-void populateTosaOpsCanonicalizationPatterns(MLIRContext *ctx,
-                                             RewritePatternSet &patterns);
 } // namespace tosa
 } // namespace mlir
 

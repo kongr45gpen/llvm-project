@@ -14,6 +14,7 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/PDL/IR/PDL.h"
 #include "mlir/Dialect/PDL/IR/PDLTypes.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Transform/IR/TransformDialect.h"
 
 using namespace mlir;
@@ -24,7 +25,7 @@ using namespace mlir::transform;
 // OneShotBufferizeOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult
+DiagnosedSilenceableFailure
 transform::OneShotBufferizeOp::apply(TransformResults &transformResults,
                                      TransformState &state) {
   OneShotBufferizationOptions options;
@@ -34,24 +35,27 @@ transform::OneShotBufferizeOp::apply(TransformResults &transformResults,
   options.createDeallocs = getCreateDeallocs();
   options.testAnalysisOnly = getTestAnalysisOnly();
   options.printConflicts = getPrintConflicts();
+  if (getFunctionBoundaryTypeConversion().has_value())
+    options.functionBoundaryTypeConversion =
+        *getFunctionBoundaryTypeConversion();
 
   ArrayRef<Operation *> payloadOps = state.getPayloadOps(getTarget());
   for (Operation *target : payloadOps) {
     auto moduleOp = dyn_cast<ModuleOp>(target);
     if (getTargetIsModule() && !moduleOp)
-      return emitError("expected ModuleOp target");
+      return emitSilenceableError() << "expected ModuleOp target";
     if (options.bufferizeFunctionBoundaries) {
       if (!moduleOp)
-        return emitError("expected ModuleOp target");
+        return emitSilenceableError() << "expected ModuleOp target";
       if (failed(bufferization::runOneShotModuleBufferize(moduleOp, options)))
-        return emitError("bufferization failed");
+        return emitSilenceableError() << "bufferization failed";
     } else {
       if (failed(bufferization::runOneShotBufferize(target, options)))
-        return emitError("bufferization failed");
+        return emitSilenceableError() << "bufferization failed";
     }
   }
 
-  return success();
+  return DiagnosedSilenceableFailure::success();
 }
 
 void transform::OneShotBufferizeOp::getEffects(
@@ -64,6 +68,23 @@ void transform::OneShotBufferizeOp::getEffects(
     effects.emplace_back(MemoryEffects::Free::get(), getTarget(),
                          TransformMappingResource::get());
 }
+
+//===----------------------------------------------------------------------===//
+// EmptyTensorToAllocTensorOp
+//===----------------------------------------------------------------------===//
+
+DiagnosedSilenceableFailure
+EmptyTensorToAllocTensorOp::applyToOne(tensor::EmptyOp target,
+                                       ApplyToEachResultList &results,
+                                       transform::TransformState &state) {
+  IRRewriter rewriter(target->getContext());
+  rewriter.setInsertionPoint(target);
+  auto alloc = rewriter.replaceOpWithNewOp<bufferization::AllocTensorOp>(
+      target, target.getType(), target.getDynamicSizes());
+  results.push_back(alloc);
+  return DiagnosedSilenceableFailure::success();
+}
+
 //===----------------------------------------------------------------------===//
 // Transform op registration
 //===----------------------------------------------------------------------===//
@@ -75,10 +96,14 @@ class BufferizationTransformDialectExtension
     : public transform::TransformDialectExtension<
           BufferizationTransformDialectExtension> {
 public:
-  BufferizationTransformDialectExtension() {
-    declareDependentDialect<bufferization::BufferizationDialect>();
+  using Base::Base;
+
+  void init() {
     declareDependentDialect<pdl::PDLDialect>();
-    declareDependentDialect<memref::MemRefDialect>();
+
+    declareGeneratedDialect<bufferization::BufferizationDialect>();
+    declareGeneratedDialect<memref::MemRefDialect>();
+
     registerTransformOps<
 #define GET_OP_LIST
 #include "mlir/Dialect/Bufferization/TransformOps/BufferizationTransformOps.cpp.inc"
@@ -89,6 +114,8 @@ public:
 
 #define GET_OP_CLASSES
 #include "mlir/Dialect/Bufferization/TransformOps/BufferizationTransformOps.cpp.inc"
+
+#include "mlir/Dialect/Bufferization/IR/BufferizationEnums.cpp.inc"
 
 void mlir::bufferization::registerTransformDialectExtension(
     DialectRegistry &registry) {

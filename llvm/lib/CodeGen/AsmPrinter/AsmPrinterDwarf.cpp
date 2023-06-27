@@ -163,7 +163,7 @@ void AsmPrinter::emitDwarfSymbolReference(const MCSymbol *Label,
     }
 
     // If the format uses relocations with dwarf, refer to the symbol directly.
-    if (MAI->doesDwarfUseRelocationsAcrossSections()) {
+    if (doesDwarfUseRelocationsAcrossSections()) {
       OutStreamer->emitSymbolValue(Label, getDwarfOffsetByteSize());
       return;
     }
@@ -175,7 +175,7 @@ void AsmPrinter::emitDwarfSymbolReference(const MCSymbol *Label,
 }
 
 void AsmPrinter::emitDwarfStringOffset(DwarfStringPoolEntry S) const {
-  if (MAI->doesDwarfUseRelocationsAcrossSections()) {
+  if (doesDwarfUseRelocationsAcrossSections()) {
     assert(S.Symbol && "No symbol available");
     emitDwarfSymbolReference(S.Symbol);
     return;
@@ -309,7 +309,7 @@ void AsmPrinter::emitDwarfDIE(const DIE &Die) const {
 
   // Emit the DIE children if any.
   if (Die.hasChildren()) {
-    for (auto &Child : Die.children())
+    for (const auto &Child : Die.children())
       emitDwarfDIE(Child);
 
     OutStreamer->AddComment("End Of Children Mark");

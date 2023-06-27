@@ -135,8 +135,7 @@ An overview of all the command-line options:
     --config=<string>              -
                                      Specifies a configuration in YAML/JSON format:
                                        -config="{Checks: '*',
-                                                 CheckOptions: [{key: x,
-                                                                 value: y}]}"
+                                                 CheckOptions: {x, y}}"
                                      When the value is empty, clang-tidy will
                                      attempt to find a file named .clang-tidy for
                                      each source file in its parent directories.
@@ -227,7 +226,7 @@ An overview of all the command-line options:
                                      complete list of passes, use the
                                      :option:`--list-checks` and
                                      :option:`-load` options together.
-    -p=<string>                    - Build path
+    -p <string>                    - Build path
     --quiet                        -
                                      Run clang-tidy in quiet mode. This suppresses
                                      printing statistics about ignored warnings and
@@ -244,6 +243,9 @@ An overview of all the command-line options:
                                     standard output supports colors.
                                     This option overrides the 'UseColor' option in
                                     .clang-tidy file, if any.
+    --verify-config                -
+                                     Check the config files to ensure each check and
+                                     option is recognized.
     --vfsoverlay=<filename>        -
                                      Overlay the virtual filesystem described by file
                                      over the real file system.
@@ -292,8 +294,7 @@ An overview of all the command-line options:
       InheritParentConfig: true
       User:                user
       CheckOptions:
-        - key:             some-check.SomeOption
-          value:           'some value'
+        some-check.SomeOption: 'some value'
       ...
 
 .. _clang-tidy-nolint:
@@ -305,13 +306,13 @@ Suppressing Undesired Diagnostics
 adhere to a coding standard, or is otherwise problematic in some way. However,
 if the code is known to be correct, it may be useful to silence the warning.
 Some clang-tidy checks provide a check-specific way to silence the diagnostics,
-e.g. `bugprone-use-after-move <checks/bugprone-use-after-move.html>`_ can be
+e.g. `bugprone-use-after-move <checks/bugprone/use-after-move.html>`_ can be
 silenced by re-initializing the variable after it has been moved out,
 `bugprone-string-integer-assignment
-<checks/bugprone-string-integer-assignment.html>`_ can be suppressed by
+<checks/bugprone/string-integer-assignment.html>`_ can be suppressed by
 explicitly casting the integer to ``char``,
 `readability-implicit-bool-conversion
-<checks/readability-implicit-bool-conversion.html>`_ can also be suppressed by
+<checks/readability/implicit-bool-conversion.html>`_ can also be suppressed by
 using explicit casts, etc.
 
 If a specific suppression mechanism is not available for a certain warning, or

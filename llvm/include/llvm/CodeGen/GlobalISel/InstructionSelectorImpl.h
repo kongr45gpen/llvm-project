@@ -118,7 +118,7 @@ bool InstructionSelector::executeMatchTable(
           return false;
         break;
       }
-      if (Register::isPhysicalRegister(MO.getReg())) {
+      if (MO.getReg().isPhysical()) {
         DEBUG_WITH_TYPE(TgtInstructionSelector::getName(),
                         dbgs() << CurrentIdx << ": Is a physical register\n");
         if (handleReject() == RejectAndGiveUp)
@@ -377,6 +377,25 @@ bool InstructionSelector::executeMatchTable(
                               State.RecordedOperands))
         if (handleReject() == RejectAndGiveUp)
           return false;
+      break;
+    }
+    case GIM_CheckHasNoUse: {
+      int64_t InsnID = MatchTable[CurrentIdx++];
+
+      DEBUG_WITH_TYPE(TgtInstructionSelector::getName(),
+                      dbgs() << CurrentIdx << ": GIM_CheckHasNoUse(MIs["
+                             << InsnID << "]\n");
+
+      const MachineInstr *MI = State.MIs[InsnID];
+      assert(MI && "Used insn before defined");
+      assert(MI->getNumDefs() > 0 && "No defs");
+      const Register Res = MI->getOperand(0).getReg();
+
+      if (!MRI.use_nodbg_empty(Res)) {
+        if (handleReject() == RejectAndGiveUp)
+          return false;
+      }
+
       break;
     }
     case GIM_CheckAtomicOrdering: {
@@ -674,8 +693,8 @@ bool InstructionSelector::executeMatchTable(
       ComplexRendererFns Renderer =
           (ISel.*ISelInfo.ComplexPredicates[ComplexPredicateID])(
               State.MIs[InsnID]->getOperand(OpIdx));
-      if (Renderer.hasValue())
-        State.Renderers[RendererID] = Renderer.getValue();
+      if (Renderer)
+        State.Renderers[RendererID] = *Renderer;
       else
         if (handleReject() == RejectAndGiveUp)
           return false;
@@ -846,7 +865,7 @@ bool InstructionSelector::executeMatchTable(
         OutMIs.resize(NewInsnID + 1);
 
       OutMIs[NewInsnID] = BuildMI(*State.MIs[0]->getParent(), State.MIs[0],
-                                  State.MIs[0]->getDebugLoc(), TII.get(Opcode));
+                                  MIMetadata(*State.MIs[0]), TII.get(Opcode));
       DEBUG_WITH_TYPE(TgtInstructionSelector::getName(),
                       dbgs() << CurrentIdx << ": GIR_BuildMI(OutMIs["
                              << NewInsnID << "], " << Opcode << ")\n");

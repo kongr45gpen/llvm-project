@@ -12,6 +12,7 @@
 #include "InputElement.h"
 #include "OutputSegment.h"
 #include "SymbolTable.h"
+#include "lld/Common/Args.h"
 #include "lld/Common/CommonLinkerContext.h"
 #include "lld/Common/Reproduce.h"
 #include "llvm/Object/Binary.h"
@@ -19,6 +20,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/TarWriter.h"
 #include "llvm/Support/raw_ostream.h"
+#include <optional>
 
 #define DEBUG_TYPE "lld"
 
@@ -44,10 +46,10 @@ namespace wasm {
 
 void InputFile::checkArch(Triple::ArchType arch) const {
   bool is64 = arch == Triple::wasm64;
-  if (is64 && !config->is64.hasValue()) {
+  if (is64 && !config->is64) {
     fatal(toString(this) +
           ": must specify -mwasm64 to process wasm64 object files");
-  } else if (config->is64.getValueOr(false) != is64) {
+  } else if (config->is64.value_or(false) != is64) {
     fatal(toString(this) +
           ": wasm32 object file can't be linked in wasm64 mode");
   }
@@ -55,13 +57,13 @@ void InputFile::checkArch(Triple::ArchType arch) const {
 
 std::unique_ptr<llvm::TarWriter> tar;
 
-Optional<MemoryBufferRef> readFile(StringRef path) {
+std::optional<MemoryBufferRef> readFile(StringRef path) {
   log("Loading: " + path);
 
   auto mbOrErr = MemoryBuffer::getFile(path);
   if (auto ec = mbOrErr.getError()) {
     error("cannot open " + path + ": " + ec.message());
-    return None;
+    return std::nullopt;
   }
   std::unique_ptr<MemoryBuffer> &mb = *mbOrErr;
   MemoryBufferRef mbref = mb->getMemBufferRef();
@@ -677,6 +679,52 @@ Symbol *ObjFile::createUndefined(const WasmSymbol &sym, bool isCalledDirectly) {
   llvm_unreachable("unknown symbol kind");
 }
 
+
+StringRef strip(StringRef s) {
+  while (s.starts_with(" ")) {
+    s = s.drop_front();
+  }
+  while (s.ends_with(" ")) {
+    s = s.drop_back();
+  }
+  return s;
+}
+
+void StubFile::parse() {
+  bool first = true;
+
+  SmallVector<StringRef> lines;
+  mb.getBuffer().split(lines, '\n');
+  for (StringRef line : lines) {
+    line = line.trim();
+
+    // File must begin with #STUB
+    if (first) {
+      assert(line == "#STUB");
+      first = false;
+    }
+
+    // Lines starting with # are considered comments
+    if (line.startswith("#"))
+      continue;
+
+    StringRef sym;
+    StringRef rest;
+    std::tie(sym, rest) = line.split(':');
+    sym = strip(sym);
+    rest = strip(rest);
+
+    symbolDependencies[sym] = {};
+
+    while (rest.size()) {
+      StringRef dep;
+      std::tie(dep, rest) = rest.split(',');
+      dep = strip(dep);
+      symbolDependencies[sym].push_back(dep);
+    }
+  }
+}
+
 void ArchiveFile::parse() {
   // Parse a MemoryBufferRef as an archive file.
   LLVM_DEBUG(dbgs() << "Parsing library: " << toString(this) << "\n");
@@ -739,8 +787,8 @@ static Symbol *createBitcodeSymbol(const std::vector<bool> &keptComdats,
   if (objSym.isUndefined() || excludedByComdat) {
     flags |= WASM_SYMBOL_UNDEFINED;
     if (objSym.isExecutable())
-      return symtab->addUndefinedFunction(name, None, None, flags, &f, nullptr,
-                                          true);
+      return symtab->addUndefinedFunction(name, std::nullopt, std::nullopt,
+                                          flags, &f, nullptr, true);
     return symtab->addUndefinedData(name, flags, &f);
   }
 

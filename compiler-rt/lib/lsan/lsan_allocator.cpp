@@ -146,6 +146,8 @@ void GetAllocatorCacheRange(uptr *begin, uptr *end) {
 }
 
 uptr GetMallocUsableSize(const void *p) {
+  if (!p)
+    return 0;
   ChunkMetadata *m = Metadata(p);
   if (!m) return 0;
   return m->requested_size;
@@ -317,7 +319,7 @@ IgnoreObjectResult IgnoreObjectLocked(const void *p) {
   }
 }
 
-void GetAdditionalThreadContextPtrs(ThreadContextBase *tctx, void *ptrs) {
+void GetAdditionalThreadContextPtrsLocked(InternalMmapVector<uptr> *ptrs) {
   // This function can be used to treat memory reachable from `tctx` as live.
   // This is useful for threads that have been created but not yet started.
 

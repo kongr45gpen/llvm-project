@@ -16142,7 +16142,7 @@ static bool EvaluateCPlusPlus11IntegralConstantExpr(const ASTContext &Ctx,
   return true;
 }
 
-Optional<llvm::APInt> Expr::getMetaobjectIdExpr(void *InfoPtr,
+std::optional<llvm::APInt> Expr::getMetaobjectIdExpr(void *InfoPtr,
                                                 const ASTContext &Ctx,
                                                 SourceLocation *Loc,
                                                 bool isEvaluated) const {
@@ -16152,18 +16152,18 @@ Optional<llvm::APInt> Expr::getMetaobjectIdExpr(void *InfoPtr,
     if (Loc) {
       *Loc = getExprLoc();
     }
-    return None;
+    return std::nullopt;
   }
 
   if (isValueDependent()) {
-    return None;
+    return std::nullopt;
   }
 
   APValue Result;
   if (InfoPtr) {
     FoldConstant FldConst(*static_cast<EvalInfo *>(InfoPtr), true);
     if (!::EvaluateAsRValue(FldConst.Info, this, Result)) {
-      return None;
+      return std::nullopt;
     }
   } else {
     assert(Ctx.getLangOpts().ReflectionTS);
@@ -16181,7 +16181,7 @@ Optional<llvm::APInt> Expr::getMetaobjectIdExpr(void *InfoPtr,
     if (!Diags.empty()) {
       IsConstExpr = false;
       if (Loc) *Loc = Diags[0].first;
-      return None;
+      return std::nullopt;
     }
     assert(IsConstExpr);
   }
@@ -16190,7 +16190,7 @@ Optional<llvm::APInt> Expr::getMetaobjectIdExpr(void *InfoPtr,
     if (Loc) {
       *Loc = getExprLoc();
     }
-    return None;
+    return std::nullopt;
   }
 
   return Result.getMetaobjectId();

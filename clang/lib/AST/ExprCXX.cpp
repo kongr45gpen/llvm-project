@@ -2567,7 +2567,7 @@ const NamedDecl *ReflexprIdExpr::findTypeDecl(QualType Ty) {
   } else if (const auto *TST = dyn_cast<TemplateSpecializationType>(Ty)) {
     return TST->getTemplateName().getAsTemplateDecl();
   } else if (const auto *STTPT = dyn_cast<SubstTemplateTypeParmType>(Ty)) {
-    return STTPT->getReplacedParameter()->getDecl();
+    return STTPT->getReplacedParameter();
   } else if (const auto *TTPT = dyn_cast<TemplateTypeParmType>(Ty)) {
     return TTPT->getDecl();
   }

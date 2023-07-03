@@ -11425,7 +11425,7 @@ NamespaceDecl *Sema::lookupReflectionNamespace() {
                             SourceLocation(), SourceLocation(),
                             // [ReflectionTS] TODO
                             &PP.getIdentifierTable().get("mirror"),
-                            /*PrevDecl=*/nullptr);
+                            /*PrevDecl=*/nullptr, /*Nested=*/false);
   }
 
   return ReflectionNamespaceCache;

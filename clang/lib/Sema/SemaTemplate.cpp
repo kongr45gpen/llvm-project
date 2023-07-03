@@ -3653,6 +3653,11 @@ checkBuiltinTemplateIdType(Sema &SemaRef, BuiltinTemplateDecl *BTD,
     // S<MOID0, ..., MOIDN>.
 
     TemplateArgument MoIdArg = Converted[1];
+
+    if (MoIdArg.isDependent() || Converted[0].isDependent())
+      return Context.getCanonicalTemplateSpecializationType(TemplateName(BTD),
+                                                            Converted);
+
     llvm::APInt MoId = MoIdArg.getAsMetaobjectId();
 
     ReflexprIdExpr *REE = ReflexprIdExpr::fromMetaobjectId(Context, MoId);
@@ -7295,8 +7300,10 @@ ExprResult Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
       break;
     case APValue::MetaobjectId:
       assert(ParamType->isMetaobjectIdType());
-      Converted = TemplateArgument(Context, Value.getMetaobjectId(),
+      SugaredConverted = TemplateArgument(Context, Value.getMetaobjectId(),
                                    Context.MetaobjectIdTy);
+      CanonicalConverted = TemplateArgument(Context, Value.getMetaobjectId(),
+                                   Context.getCanonicalType(Context.MetaobjectIdTy));
       break;
     case APValue::MemberPointer: {
       assert(ParamType->isMemberPointerType());
@@ -7451,7 +7458,8 @@ ExprResult Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
     if (Arg->isValueDependent()) {
       // The argument is value-dependent. Create a new
       // TemplateArgument with the converted expression.
-      Converted = TemplateArgument(Arg);
+      SugaredConverted = TemplateArgument(Arg);
+      CanonicalConverted = Context.getCanonicalTemplateArgument(SugaredConverted);
       return Arg;
     }
 
@@ -7461,7 +7469,8 @@ ExprResult Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
     if (ArgResult.isInvalid())
       return ExprError();
 
-    Converted = TemplateArgument(Context, V.getInt(), Context.MetaobjectIdTy);
+    SugaredConverted = TemplateArgument(Context, V.getInt(), Context.MetaobjectIdTy);
+    CanonicalConverted = Context.getCanonicalTemplateArgument(SugaredConverted);
     return Arg;
   }
 

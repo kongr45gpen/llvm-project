@@ -99,7 +99,7 @@ struct __is_Object
   : integral_constant<bool, __metaobject_is_meta_object(_Tp)> {};
 
 template <class _Tp>
-concept bool Object = __is_a_concept_v<_Tp, __is_Object>;
+concept Object = __is_a_concept_v<_Tp, __is_Object>;
 
 // ObjectSequence
 template <__metaobject_id _Tp>
@@ -107,7 +107,7 @@ struct __is_ObjectSequence
   : integral_constant<bool, __metaobject_is_meta_object_sequence(_Tp)> {};
 
 template <class _Tp>
-concept bool ObjectSequence = __is_a_concept_v<_Tp, __is_ObjectSequence>;
+concept ObjectSequence = __is_a_concept_v<_Tp, __is_ObjectSequence>;
 
 // Named
 template <__metaobject_id _Tp>
@@ -115,7 +115,7 @@ struct __is_Named
   : integral_constant<bool, __metaobject_is_meta_named(_Tp)> {};
 
 template <class _Tp>
-concept bool Named = __is_a_concept_v<_Tp, __is_Named>;
+concept Named = __is_a_concept_v<_Tp, __is_Named>;
 
 // Alias
 template <__metaobject_id _Tp>
@@ -123,7 +123,7 @@ struct __is_Alias
   : integral_constant<bool, __metaobject_is_meta_alias(_Tp)> {};
 
 template <class _Tp>
-concept bool Alias = __is_a_concept_v<_Tp, __is_Alias>;
+concept Alias = __is_a_concept_v<_Tp, __is_Alias>;
 
 // Scope
 template <__metaobject_id _Tp>
@@ -131,7 +131,7 @@ struct __is_Scope
   : integral_constant<bool, __metaobject_is_meta_scope(_Tp)> {};
 
 template <class _Tp>
-concept bool Scope = __is_a_concept_v<_Tp, __is_Scope>;
+concept Scope = __is_a_concept_v<_Tp, __is_Scope>;
 
 // Typed
 template <__metaobject_id _Tp>
@@ -139,7 +139,7 @@ struct __is_Typed
   : integral_constant<bool, __metaobject_is_meta_typed(_Tp)> {};
 
 template <class _Tp>
-concept bool Typed = __is_a_concept_v<_Tp, __is_Typed>;
+concept Typed = __is_a_concept_v<_Tp, __is_Typed>;
 
 // ScopeMember
 template <__metaobject_id _Tp>
@@ -147,7 +147,7 @@ struct __is_ScopeMember
   : integral_constant<bool, __metaobject_is_meta_scope_member(_Tp)> {};
 
 template <class _Tp>
-concept bool ScopeMember = __is_a_concept_v<_Tp, __is_ScopeMember>;
+concept ScopeMember = __is_a_concept_v<_Tp, __is_ScopeMember>;
 
 // Enumerator
 template <__metaobject_id _Tp>
@@ -155,7 +155,7 @@ struct __is_Enumerator
   : integral_constant<bool, __metaobject_is_meta_enumerator(_Tp)> {};
 
 template <class _Tp>
-concept bool Enumerator = __is_a_concept_v<_Tp, __is_Enumerator>;
+concept Enumerator = __is_a_concept_v<_Tp, __is_Enumerator>;
 
 // RecordMember
 template <__metaobject_id _Tp>
@@ -163,7 +163,7 @@ struct __is_RecordMember
   : integral_constant<bool, __metaobject_is_meta_record_member(_Tp)> {};
 
 template <class _Tp>
-concept bool RecordMember = __is_a_concept_v<_Tp, __is_RecordMember>;
+concept RecordMember = __is_a_concept_v<_Tp, __is_RecordMember>;
 
 // Base
 template <__metaobject_id _Tp>
@@ -171,7 +171,7 @@ struct __is_Base
   : integral_constant<bool, __metaobject_is_meta_base(_Tp)> {};
 
 template <class _Tp>
-concept bool Base = __is_a_concept_v<_Tp, __is_Base>;
+concept Base = __is_a_concept_v<_Tp, __is_Base>;
 
 // Namespace
 template <__metaobject_id _Tp>
@@ -179,7 +179,7 @@ struct __is_Namespace
   : integral_constant<bool, __metaobject_is_meta_namespace(_Tp)> {};
 
 template <class _Tp>
-concept bool Namespace = __is_a_concept_v<_Tp, __is_Namespace>;
+concept Namespace = __is_a_concept_v<_Tp, __is_Namespace>;
 
 // GlobalScope
 template <__metaobject_id _Tp>
@@ -187,7 +187,7 @@ struct __is_GlobalScope
   : integral_constant<bool, __metaobject_is_meta_global_scope(_Tp)> {};
 
 template <class _Tp>
-concept bool GlobalScope = __is_a_concept_v<_Tp, __is_GlobalScope>;
+concept GlobalScope = __is_a_concept_v<_Tp, __is_GlobalScope>;
 
 // Type
 template <__metaobject_id _Tp>
@@ -195,7 +195,7 @@ struct __is_Type
   : integral_constant<bool, __metaobject_is_meta_type(_Tp)> {};
 
 template <class _Tp>
-concept bool Type = __is_a_concept_v<_Tp, __is_Type>;
+concept Type = __is_a_concept_v<_Tp, __is_Type>;
 
 // Enum
 template <__metaobject_id _Tp>
@@ -203,7 +203,7 @@ struct __is_Enum
   : integral_constant<bool, __metaobject_is_meta_enum(_Tp)> {};
 
 template <class _Tp>
-concept bool Enum = __is_a_concept_v<_Tp, __is_Enum>;
+concept Enum = __is_a_concept_v<_Tp, __is_Enum>;
 
 // Record
 template <__metaobject_id _Tp>
@@ -211,7 +211,7 @@ struct __is_Record
   : integral_constant<bool, __metaobject_is_meta_record(_Tp)> {};
 
 template <class _Tp>
-concept bool Record = __is_a_concept_v<_Tp, __is_Record>;
+concept Record = __is_a_concept_v<_Tp, __is_Record>;
 
 // Class
 template <__metaobject_id _Tp>
@@ -219,7 +219,7 @@ struct __is_Class
   : integral_constant<bool, __metaobject_is_meta_class(_Tp)> {};
 
 template <class _Tp>
-concept bool Class = __is_a_concept_v<_Tp, __is_Class>;
+concept Class = __is_a_concept_v<_Tp, __is_Class>;
 
 // Lambda
 template <__metaobject_id _Tp>
@@ -227,7 +227,7 @@ struct __is_Lambda
   : integral_constant<bool, __metaobject_is_meta_lambda(_Tp)> {};
 
 template <class _Tp>
-concept bool Lambda = __is_a_concept_v<_Tp, __is_Lambda>;
+concept Lambda = __is_a_concept_v<_Tp, __is_Lambda>;
 
 // Constant
 template <__metaobject_id _Tp>
@@ -235,7 +235,7 @@ struct __is_Constant
   : integral_constant<bool, __metaobject_is_meta_constant(_Tp)> {};
 
 template <class _Tp>
-concept bool Constant = __is_a_concept_v<_Tp, __is_Constant>;
+concept Constant = __is_a_concept_v<_Tp, __is_Constant>;
 
 // Variable
 template <__metaobject_id _Tp>
@@ -243,7 +243,7 @@ struct __is_Variable
   : integral_constant<bool, __metaobject_is_meta_variable(_Tp)> {};
 
 template <class _Tp>
-concept bool Variable = __is_a_concept_v<_Tp, __is_Variable>;
+concept Variable = __is_a_concept_v<_Tp, __is_Variable>;
 
 // LambdaCapture
 template <__metaobject_id _Tp>
@@ -251,7 +251,7 @@ struct __is_LambdaCapture
   : integral_constant<bool, __metaobject_is_meta_lambda_capture(_Tp)> {};
 
 template <class _Tp>
-concept bool LambdaCapture = __is_a_concept_v<_Tp, __is_LambdaCapture>;
+concept LambdaCapture = __is_a_concept_v<_Tp, __is_LambdaCapture>;
 
 // FunctionParameter
 template <__metaobject_id _Tp>
@@ -259,7 +259,7 @@ struct __is_FunctionParameter
   : integral_constant<bool, __metaobject_is_meta_function_parameter(_Tp)> {};
 
 template <class _Tp>
-concept bool FunctionParameter = __is_a_concept_v<_Tp, __is_FunctionParameter>;
+concept FunctionParameter = __is_a_concept_v<_Tp, __is_FunctionParameter>;
 
 // Callable
 template <__metaobject_id _Tp>
@@ -267,7 +267,7 @@ struct __is_Callable
   : integral_constant<bool, __metaobject_is_meta_callable(_Tp)> {};
 
 template <class _Tp>
-concept bool Callable = __is_a_concept_v<_Tp, __is_Callable>;
+concept Callable = __is_a_concept_v<_Tp, __is_Callable>;
 
 // Function
 template <__metaobject_id _Tp>
@@ -275,7 +275,7 @@ struct __is_Function
   : integral_constant<bool, __metaobject_is_meta_function(_Tp)> {};
 
 template <class _Tp>
-concept bool Function = __is_a_concept_v<_Tp, __is_Function>;
+concept Function = __is_a_concept_v<_Tp, __is_Function>;
 
 // MemberFunction
 template <__metaobject_id _Tp>
@@ -283,7 +283,7 @@ struct __is_MemberFunction
   : integral_constant<bool, __metaobject_is_meta_member_function(_Tp)> {};
 
 template <class _Tp>
-concept bool MemberFunction = __is_a_concept_v<_Tp, __is_MemberFunction>;
+concept MemberFunction = __is_a_concept_v<_Tp, __is_MemberFunction>;
 
 // SpecialMemberFunction
 template <__metaobject_id _Tp>
@@ -291,7 +291,7 @@ struct __is_SpecialMemberFunction
   : integral_constant<bool, __metaobject_is_meta_special_member_function(_Tp)> {};
 
 template <class _Tp>
-concept bool SpecialMemberFunction = __is_a_concept_v<_Tp, __is_SpecialMemberFunction>;
+concept SpecialMemberFunction = __is_a_concept_v<_Tp, __is_SpecialMemberFunction>;
 
 // Constructor
 template <__metaobject_id _Tp>
@@ -299,7 +299,7 @@ struct __is_Constructor
   : integral_constant<bool, __metaobject_is_meta_constructor(_Tp)> {};
 
 template <class _Tp>
-concept bool Constructor = __is_a_concept_v<_Tp, __is_Constructor>;
+concept Constructor = __is_a_concept_v<_Tp, __is_Constructor>;
 
 // Destructor
 template <__metaobject_id _Tp>
@@ -307,7 +307,7 @@ struct __is_Destructor
   : integral_constant<bool, __metaobject_is_meta_destructor(_Tp)> {};
 
 template <class _Tp>
-concept bool Destructor = __is_a_concept_v<_Tp, __is_Destructor>;
+concept Destructor = __is_a_concept_v<_Tp, __is_Destructor>;
 
 // Operator
 template <__metaobject_id _Tp>
@@ -315,7 +315,7 @@ struct __is_Operator
   : integral_constant<bool, __metaobject_is_meta_operator(_Tp)> {};
 
 template <class _Tp>
-concept bool Operator = __is_a_concept_v<_Tp, __is_Operator>;
+concept Operator = __is_a_concept_v<_Tp, __is_Operator>;
 
 // ConversionOperator
 template <__metaobject_id _Tp>
@@ -323,7 +323,7 @@ struct __is_ConversionOperator
   : integral_constant<bool, __metaobject_is_meta_conversion_operator(_Tp)> {};
 
 template <class _Tp>
-concept bool ConversionOperator = __is_a_concept_v<_Tp, __is_ConversionOperator>;
+concept ConversionOperator = __is_a_concept_v<_Tp, __is_ConversionOperator>;
 
 // Expression
 template <__metaobject_id _Tp>
@@ -331,7 +331,7 @@ struct __is_Expression
   : integral_constant<bool, __metaobject_is_meta_expression(_Tp)> {};
 
 template <class _Tp>
-concept bool Expression = __is_a_concept_v<_Tp, __is_Expression>;
+concept Expression = __is_a_concept_v<_Tp, __is_Expression>;
 
 // ParenthesizedExpression
 template <__metaobject_id _Tp>
@@ -339,7 +339,7 @@ struct __is_ParenthesizedExpression
   : integral_constant<bool, __metaobject_is_meta_parenthesized_expression(_Tp)> {};
 
 template <class _Tp>
-concept bool ParenthesizedExpression = __is_a_concept_v<_Tp, __is_ParenthesizedExpression>;
+concept ParenthesizedExpression = __is_a_concept_v<_Tp, __is_ParenthesizedExpression>;
 
 // FunctionCallExpression
 template <__metaobject_id _Tp>
@@ -347,7 +347,7 @@ struct __is_FunctionCallExpression
   : integral_constant<bool, __metaobject_is_meta_function_call_expression(_Tp)> {};
 
 template <class _Tp>
-concept bool FunctionCallExpression = __is_a_concept_v<_Tp, __is_FunctionCallExpression>;
+concept FunctionCallExpression = __is_a_concept_v<_Tp, __is_FunctionCallExpression>;
 
 // FunctionalTypeConversion
 template <__metaobject_id _Tp>
@@ -355,7 +355,7 @@ struct __is_FunctionalTypeConversion
   : integral_constant<bool, __metaobject_is_meta_functional_type_conversion(_Tp)> {};
 
 template <class _Tp>
-concept bool FunctionalTypeConversion = __is_a_concept_v<_Tp, __is_FunctionalTypeConversion>;
+concept FunctionalTypeConversion = __is_a_concept_v<_Tp, __is_FunctionalTypeConversion>;
 
 // metaobject unary operations
 
@@ -894,7 +894,7 @@ struct __is_Specifier
   : integral_constant<bool, __metaobject_is_meta_specifier(_Tp)> {};
 
 template <class _Tp>
-concept bool Specifier = __is_a_concept_v<_Tp, __is_Specifier>;
+concept Specifier = __is_a_concept_v<_Tp, __is_Specifier>;
 
 // get the metaobject id as an integer
 template <Object _Tp>

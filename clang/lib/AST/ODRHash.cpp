@@ -375,11 +375,9 @@ public:
   void VisitObjCMethodDecl(const ObjCMethodDecl *Method) {
     ID.AddInteger(Method->getDeclKind());
     Hash.AddBoolean(Method->isInstanceMethod()); // false if class method
-    Hash.AddBoolean(Method->isPropertyAccessor());
     Hash.AddBoolean(Method->isVariadic());
     Hash.AddBoolean(Method->isSynthesizedAccessorStub());
     Hash.AddBoolean(Method->isDefined());
-    Hash.AddBoolean(Method->isOverriding());
     Hash.AddBoolean(Method->isDirectMethod());
     Hash.AddBoolean(Method->isThisDeclarationADesignatedInitializer());
     Hash.AddBoolean(Method->hasSkippedBody());
@@ -596,7 +594,7 @@ void ODRHash::AddCXXRecordDecl(const CXXRecordDecl *Record) {
 
   ID.AddInteger(Record->getNumBases());
   auto Bases = Record->bases();
-  for (auto Base : Bases) {
+  for (const auto &Base : Bases) {
     AddQualType(Base.getType());
     ID.AddInteger(Base.isVirtual());
     ID.AddInteger(Base.getAccessSpecifierAsWritten());

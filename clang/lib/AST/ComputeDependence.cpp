@@ -282,7 +282,7 @@ ExprDependence clang::computeDependence(VAArgExpr *E) {
   auto D = toExprDependenceAsWritten(
                E->getWrittenTypeInfo()->getType()->getDependence()) |
            (E->getSubExpr()->getDependence() & ~ExprDependence::Type);
-  return D & ~ExprDependence::Value;
+  return D;
 }
 
 ExprDependence clang::computeDependence(NoInitExpr *E) {
@@ -544,7 +544,7 @@ ExprDependence clang::computeDependence(DeclRefExpr *E, const ASTContext &Ctx) {
   // more bullets here that we handle by treating the declaration as having a
   // dependent type if they involve a placeholder type that can't be deduced.]
   if (Type->isDependentType())
-    return Deps | ExprDependence::TypeValueInstantiation;
+    Deps |= ExprDependence::TypeValueInstantiation;
   else if (Type->isInstantiationDependentType())
     Deps |= ExprDependence::Instantiation;
 
@@ -580,13 +580,13 @@ ExprDependence clang::computeDependence(DeclRefExpr *E, const ASTContext &Ctx) {
   //   - it names a potentially-constant variable that is initialized with an
   //     expression that is value-dependent
   if (const auto *Var = dyn_cast<VarDecl>(Decl)) {
-    if (Var->mightBeUsableInConstantExpressions(Ctx)) {
-      if (const Expr *Init = Var->getAnyInitializer()) {
-        if (Init->isValueDependent())
-          Deps |= ExprDependence::ValueInstantiation;
-        if (Init->containsErrors())
-          Deps |= ExprDependence::Error;
-      }
+    if (const Expr *Init = Var->getAnyInitializer()) {
+      if (Init->containsErrors())
+        Deps |= ExprDependence::Error;
+
+      if (Var->mightBeUsableInConstantExpressions(Ctx) &&
+          Init->isValueDependent())
+        Deps |= ExprDependence::ValueInstantiation;
     }
 
     // - it names a static data member that is a dependent member of the
@@ -666,9 +666,24 @@ ExprDependence clang::computeDependence(OffsetOfExpr *E) {
   return D;
 }
 
+static inline ExprDependence getDependenceInExpr(DeclarationNameInfo Name) {
+  auto D = ExprDependence::None;
+  if (Name.isInstantiationDependent())
+    D |= ExprDependence::Instantiation;
+  if (Name.containsUnexpandedParameterPack())
+    D |= ExprDependence::UnexpandedPack;
+  return D;
+}
+
 ExprDependence clang::computeDependence(MemberExpr *E) {
-  auto *MemberDecl = E->getMemberDecl();
   auto D = E->getBase()->getDependence();
+  D |= getDependenceInExpr(E->getMemberNameInfo());
+
+  if (auto *NNS = E->getQualifier())
+    D |= toExprDependence(NNS->getDependence() &
+                          ~NestedNameSpecifierDependence::Dependent);
+
+  auto *MemberDecl = E->getMemberDecl();
   if (FieldDecl *FD = dyn_cast<FieldDecl>(MemberDecl)) {
     DeclContext *DC = MemberDecl->getDeclContext();
     // dyn_cast_or_null is used to handle objC variables which do not
@@ -708,7 +723,12 @@ ExprDependence clang::computeDependence(GenericSelectionExpr *E,
                                   : ExprDependence::None;
   for (auto *AE : E->getAssocExprs())
     D |= AE->getDependence() & ExprDependence::Error;
-  D |= E->getControllingExpr()->getDependence() & ExprDependence::Error;
+
+  if (E->isExprPredicate())
+    D |= E->getControllingExpr()->getDependence() & ExprDependence::Error;
+  else
+    D |= toExprDependenceAsWritten(
+        E->getControllingType()->getType()->getDependence());
 
   if (E->isResultDependent())
     return D | ExprDependence::TypeValueInstantiation;
@@ -718,7 +738,7 @@ ExprDependence clang::computeDependence(GenericSelectionExpr *E,
 
 ExprDependence clang::computeDependence(DesignatedInitExpr *E) {
   auto Deps = E->getInit()->getDependence();
-  for (auto D : E->designators()) {
+  for (const auto &D : E->designators()) {
     auto DesignatorDeps = ExprDependence::None;
     if (D.isArrayDesignator())
       DesignatorDeps |= E->getArrayIndex(D)->getDependence();
@@ -773,15 +793,6 @@ ExprDependence clang::computeDependence(CXXPseudoDestructorExpr *E) {
   return D;
 }
 
-static inline ExprDependence getDependenceInExpr(DeclarationNameInfo Name) {
-  auto D = ExprDependence::None;
-  if (Name.isInstantiationDependent())
-    D |= ExprDependence::Instantiation;
-  if (Name.containsUnexpandedParameterPack())
-    D |= ExprDependence::UnexpandedPack;
-  return D;
-}
-
 ExprDependence
 clang::computeDependence(OverloadExpr *E, bool KnownDependent,
                          bool KnownInstantiationDependent,
@@ -805,7 +816,7 @@ clang::computeDependence(OverloadExpr *E, bool KnownDependent,
   // If we have explicit template arguments, check for dependent
   // template arguments and whether they contain any unexpanded pack
   // expansions.
-  for (auto A : E->template_arguments())
+  for (const auto &A : E->template_arguments())
     Deps |= toExprDependence(A.getArgument().getDependence());
   return Deps;
 }
@@ -815,7 +826,7 @@ ExprDependence clang::computeDependence(DependentScopeDeclRefExpr *E) {
   D |= getDependenceInExpr(E->getNameInfo());
   if (auto *Q = E->getQualifier())
     D |= toExprDependence(Q->getDependence());
-  for (auto A : E->template_arguments())
+  for (const auto &A : E->template_arguments())
     D |= toExprDependence(A.getArgument().getDependence());
   return D;
 }
@@ -868,7 +879,7 @@ ExprDependence clang::computeDependence(CXXDependentScopeMemberExpr *E) {
   if (auto *Q = E->getQualifier())
     D |= toExprDependence(Q->getDependence());
   D |= getDependenceInExpr(E->getMemberNameInfo());
-  for (auto A : E->template_arguments())
+  for (const auto &A : E->template_arguments())
     D |= toExprDependence(A.getArgument().getDependence());
   return D;
 }

@@ -90,27 +90,6 @@ struct P1689ModuleInfo {
   ModuleType Type = ModuleType::NamedCXXModule;
 };
 
-/// P1689ModuleInfo - Represents the needed information of standard C++20
-/// modules for P1689 format.
-struct P1689ModuleInfo {
-  /// The name of the module. This may include `:` for partitions.
-  std::string ModuleName;
-
-  /// Optional. The source path to the module.
-  std::string SourcePath;
-
-  /// If this module is a standard c++ interface unit.
-  bool IsStdCXXModuleInterface = true;
-
-  enum class ModuleType {
-    NamedCXXModule
-    // To be supported
-    // AngleHeaderUnit,
-    // QuoteHeaderUnit
-  };
-  ModuleType Type = ModuleType::NamedCXXModule;
-};
-
 /// An output from a module compilation, such as the path of the module file.
 enum class ModuleOutputKind {
   /// The module file (.pcm). Required.

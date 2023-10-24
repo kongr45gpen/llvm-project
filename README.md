@@ -2,7 +2,7 @@
 
 A fork of [llvm/llvm-project](https://github.com/llvm/llvm-project) with reflection features added to Clang.
 
-Originally implemented in [matus-chochlik/llvm-project](https://github.com/matus-chochlik/llvm-project). llvm version updated to 16 in [kongr45gpen/llvm-project](https://github.com/kongr45gpen/llvm-project).
+Originally implemented in [matus-chochlik/llvm-project](https://github.com/matus-chochlik/llvm-project). llvm version updated to 17 in [kongr45gpen/llvm-project](https://github.com/kongr45gpen/llvm-project).
 
 ## Installation
 
@@ -13,8 +13,8 @@ The following pipeline is suggested for this repository:
 # You can add --depth=1 to make the clone slightly faster
 git clone https://github.com/kongr45gpen/llvm-project.git
 cd llvm-project
-cmake -S llvm -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS="clang" -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi"
-cmake --build build -- -j 8 # 8 parallel jobs
+cmake -S llvm -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS="clang" -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" -DLLVM_TARGETS_TO_BUILD=X86
+cmake --build build -- -j 8 clang # 8 parallel jobs
 ```
 
 After running this:

@@ -4,7 +4,7 @@ SRC_CPP="${1}"
 PREFIX="${2:-/opt/llvm/install}"
 echo $(basename "${SRC_CPP}")
 "${PREFIX}/bin/clang++" \
-	-std=c++20  -stdlib=libc++ \
+	-std=c++26  -stdlib=libc++ \
 	-freflection-ts -freflection-ext \
 	-o "${SRC_DIR}/test" \
 	"${SRC_CPP}" && \

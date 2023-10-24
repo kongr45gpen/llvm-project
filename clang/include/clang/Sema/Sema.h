@@ -6246,6 +6246,7 @@ public:
   NamespaceDecl *getStdNamespace() const;
   NamespaceDecl *getOrCreateStdNamespace();
 
+  NamespaceDecl *lookupStdExperimentalNamespace();
   NamespaceDecl *lookupReflectionNamespace();
   CXXRecordDecl *getStdBadAlloc() const;
   EnumDecl *getStdAlignValT() const;

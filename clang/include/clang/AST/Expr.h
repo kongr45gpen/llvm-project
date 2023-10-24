@@ -525,7 +525,7 @@ public:
   bool isKnownToHaveBooleanValue(bool Semantic = true) const;
 
   // [reflection-ts] FIXME document this
-  Optional<llvm::APInt> getMetaobjectIdExpr(void* EvlInfo, const ASTContext &Ctx,
+  std::optional<llvm::APInt> getMetaobjectIdExpr(void* EvlInfo, const ASTContext &Ctx,
                                             SourceLocation *Loc = nullptr,
                                             bool isEvaluated = true) const;
 

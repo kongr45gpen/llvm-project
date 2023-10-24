@@ -182,6 +182,11 @@ public:
   TemplateArgument(ASTContext &Ctx, const llvm::APSInt &Value, QualType Type,
                    bool IsDefaulted = false);
 
+  /// Construct an metaobject id template argument. The memory to
+  /// store the value is allocated with Ctx.
+  TemplateArgument(ASTContext &Ctx, const llvm::APInt &Value, QualType Type,
+		  bool isDefaulted = false);
+
   /// Construct an integral constant template argument with the same
   /// value as Other but a different type.
   TemplateArgument(const TemplateArgument &Other, QualType Type) {

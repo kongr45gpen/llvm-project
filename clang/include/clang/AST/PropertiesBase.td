@@ -821,8 +821,11 @@ let Class = PropertyTypeCase<TemplateArgument, "MetaobjectId"> in {
   def : Property<"type", QualType> {
     let Read = [{ node.getMetaobjectIdType() }];
   }
+  def : Property<"isDefaulted", Bool> {
+    let Read = [{ node.getIsDefaulted() }];
+  }
   def : Creator<[{
-    return TemplateArgument(ctx, value, type);
+    return TemplateArgument(ctx, value, type, isDefaulted);
   }]>;
 }
 let Class = PropertyTypeCase<TemplateArgument, "Template"> in {

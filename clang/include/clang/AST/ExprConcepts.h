@@ -88,13 +88,6 @@ public:
          const ConstraintSatisfaction *Satisfaction, bool Dependent,
          bool ContainsUnexpandedParameterPack);
 
-  static ConceptSpecializationExpr *
-  Create(const ASTContext &C, ConceptDecl *NamedConcept,
-         const ASTTemplateArgumentListInfo *ArgsAsWritten,
-         ImplicitConceptSpecializationDecl *SpecDecl,
-         const ConstraintSatisfaction *Satisfaction, bool Dependent,
-         bool ContainsUnexpandedParameterPack);
-
   ArrayRef<TemplateArgument> getTemplateArguments() const {
     return SpecDecl->getTemplateArguments();
   }

@@ -195,8 +195,9 @@ TemplateArgument::TemplateArgument(ASTContext &Ctx, const llvm::APSInt &Value,
 }
 
 TemplateArgument::TemplateArgument(ASTContext &Ctx, const llvm::APInt &Value,
-                                   QualType Type) {
+                                   QualType Type, bool IsDefaulted) {
   Integer.Kind = MetaobjectId;
+  Integer.IsDefaulted = IsDefaulted;
   // Copy the APSInt value into our decomposed form.
   Integer.BitWidth = Value.getBitWidth();
   Integer.IsUnsigned = true;

@@ -30,7 +30,6 @@ namespace reflect {
 */
 
 #include <experimental/__config>
-#include <__debug>
 #include <cstdint>
 #include <type_traits>
 
